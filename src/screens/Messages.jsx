@@ -27,6 +27,7 @@ export default function Messages() {
     </div>
   );
 
+  const replyList = (data?.threads || []).filter(t => t.needsReply);
   const boards = (data?.threads || []).filter(t => t.kind === 'board' || t.kind === 'patrol');
   const groups = (data?.threads || []).filter(t => t.kind === 'group');
   const ask = async g => {
@@ -43,6 +44,10 @@ export default function Messages() {
       <TwoDeepBanner names={data?.guardians} />
       {error ? <Empty icon="alert" title="Chat isn't ready">{error.message}</Empty> : !data ? <p className="muted">Loading…</p> : (
         <>
+          {replyList.length > 0 && <>
+            <h2 className="section-title sm reply-title"><Icon name="message" size={16} />Waiting on your reply</h2>
+            <ul className="threads reply-threads">{replyList.map(t => <ThreadRow key={`r-${t.id}`} t={t} />)}</ul>
+          </>}
           <h2 className="section-title sm">Boards</h2>
           <ul className="threads">{boards.map(t => <ThreadRow key={t.id} t={t} />)}</ul>
           {groups.length > 0 && <>
@@ -90,10 +95,10 @@ function TwoDeepBanner({ names }) {
 function ThreadRow({ t }) {
   return (
     <li>
-      <a className={`thread-row ${t.unread ? 'unread' : ''}`} href={`#/thread/${t.id}`}>
+      <a className={`thread-row ${t.unread ? 'unread' : ''} ${t.needsReply ? 'needs' : ''}`} href={`#/thread/${t.id}`}>
         <span className="thread-emoji" aria-hidden="true">{t.kind === 'dm' ? (t.title || '?').slice(0, 1) : t.emoji}</span>
         <span className="grow">
-          <span className="thread-title">{t.title}</span>
+          <span className="thread-title">{t.title}{t.needsReply && <span className="reply-tag">Reply</span>}</span>
           <span className="thread-last">{t.last ? `${t.last.byName}: ${t.last.text}` : t.kind === 'dm' ? 'No messages yet' : `${t.count} members`}</span>
         </span>
         <span className="thread-meta">{t.last && <span>{when(t.last.at)}</span>}{t.unread && <span className="dot-new" aria-label="Unread" />}</span>
@@ -144,6 +149,9 @@ export function Thread({ route }) {
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState(null);
   const [showPeople, setShowPeople] = useState(false);
+  const [coaching, setCoaching] = useState(false);
+  const [aiOn, setAiOn] = useState(true);
+  useEffect(() => { api('settings').then(s => setAiOn(s.aiHelper !== false)).catch(() => {}); }, []);
   const lastAt = useRef(0);
   const endRef = useRef(null);
 
@@ -170,7 +178,7 @@ export function Thread({ route }) {
     e.preventDefault();
     if (!text.trim()) return;
     setBusy(true);
-    try { await api(`threads/${id}/msgs`, { method: 'POST', body: { text } }); setText(''); await load(false); }
+    try { await api(`threads/${id}/msgs`, { method: 'POST', body: { text } }); setText(''); await load(false); dispatchEvent(new Event('threads-read')); }
     catch (err) { alert(err.message); } finally { setBusy(false); }
   }
 
@@ -204,7 +212,14 @@ export function Thread({ route }) {
         })}
         <li ref={endRef} />
       </ol>
+      {(() => {
+        const last = [...msgs].reverse().find(m => !m.hiddenNote);
+        return last && last.by !== me && !text && (
+          <div className="reply-nudge"><Icon name="message" size={16} /><span className="grow"><b>{last.byName.split(' ')[0]}</b> is waiting on your reply.</span>{aiOn && <button className="link-btn small" onClick={() => setCoaching(true)}><Icon name="sparkle" size={15} />Help me reply</button>}</div>
+        );
+      })()}
       <form className="composer" onSubmit={send}>
+        {aiOn && <button type="button" className="icon-btn coach-btn" onClick={() => setCoaching(true)} aria-label="Writing helper: check or improve my message"><Icon name="sparkle" size={20} /></button>}
         <textarea rows={1} value={text} onChange={e => setText(e.target.value)} placeholder="Message" aria-label="Message" maxLength={2000}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); send(e); } }} />
         <button className="btn" disabled={busy || !text.trim()} aria-label="Send"><Icon name="send" size={18} /></button>
@@ -213,7 +228,51 @@ export function Thread({ route }) {
         <ul className="pick-list">{people.map(p => <li key={p.id} className="person-row"><span className="grow"><b>{p.name}</b><span className="small muted">{p.role === 'scout' ? `Scout${p.patrol ? ` · ${p.patrol}` : ''}` : p.positions[0] || 'Adult'}</span></span>{p.guardian && <Pill tone="info">Two-deep</Pill>}</li>)}</ul>
       </Sheet>
       <ReportSheet m={report} threadId={id} onClose={() => setReport(null)} />
+      {coaching && <CoachSheet threadId={id} draft={text} onClose={() => setCoaching(false)} onUse={v => { setText(v); setCoaching(false); }} />}
     </div>
+  );
+}
+
+// Writing helper: suggests a clearer, kinder, complete message and points out
+// anything the other person asked about that the draft doesn't answer yet.
+// It never sends anything. The member edits and presses Send.
+function CoachSheet({ threadId, draft, onClose, onUse }) {
+  const [r, setR] = useState(null);
+  const [err, setErr] = useState('');
+  const [edit, setEdit] = useState('');
+  useEffect(() => {
+    api('ai/coach', { method: 'POST', body: { threadId, draft } })
+      .then(d => { setR(d); setEdit(d.message || draft); })
+      .catch(e => setErr(e.message));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Sheet open onClose={onClose} title={draft.trim() ? 'Check my message' : 'Help me reply'}>
+      {err ? <p className="form-msg" role="alert">{err}</p> : !r ? (
+        <div className="coach-wait"><span className="spinner" aria-hidden="true" /><p>Reading the conversation…</p></div>
+      ) : (
+        <div className="coach">
+          {r.source === 'ai' ? (
+            <>
+              <label className="field"><span>Suggested message <i className="opt">edit anything</i></span>
+                <textarea rows={5} value={edit} onChange={e => setEdit(e.target.value)} /></label>
+              {/\[[^\]]+\]/.test(edit) && <p className="small coach-fill"><Icon name="edit" size={14} /> Fill in the parts in [brackets] before you send.</p>}
+            </>
+          ) : <p className="small muted">Here are a few things to check before you send.</p>}
+          {r.missing?.length > 0 && (
+            <div className="coach-box missing"><b>Did you answer…</b><ul>{r.missing.map(x => <li key={x}>{x}</li>)}</ul></div>
+          )}
+          {r.tips?.length > 0 && (
+            <div className="coach-box tips"><b>Tips</b><ul>{r.tips.map(x => <li key={x}>{x}</li>)}</ul></div>
+          )}
+          {r.source === 'ai' && !r.missing?.length && !r.tips?.length && <p className="small good-text"><Icon name="check" size={14} /> Looks complete.</p>}
+          <div className="btn-row">
+            {r.source === 'ai' && <button className="btn" disabled={!edit.trim()} onClick={() => onUse(edit)}><Icon name="check" size={16} />Use this</button>}
+            <button className="btn secondary" onClick={onClose}>{draft.trim() ? 'Keep mine' : 'Close'}</button>
+          </div>
+          <p className="tiny muted">{r.source === 'ai' ? 'Suggestions come from an AI helper and can be wrong. Read it over: you\'re the one sending it. Your leaders still see every message.' : 'The smart helper isn\'t available right now, so these are built-in writing tips.'}</p>
+        </div>
+      )}
+    </Sheet>
   );
 }
 

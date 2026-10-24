@@ -217,7 +217,7 @@ async function planAction(store, id, parts, req, body, now) {
 // ---------------------------------------------------------------- settings
 async function settings(store) {
   const s = (await store.get('settings', { type: 'json' })) || {};
-  return { patrols: s.patrols?.length ? s.patrols : troop.patrols, albums: s.albums || [], autoApprove: !!s.autoApprove, autoApproveBy: s.autoApproveBy || '', autoApproveAt: s.autoApproveAt || 0 };
+  return { patrols: s.patrols?.length ? s.patrols : troop.patrols, albums: s.albums || [], aiHelper: s.aiHelper !== false, autoApprove: !!s.autoApprove, autoApproveBy: s.autoApproveBy || '', autoApproveAt: s.autoApproveAt || 0 };
 }
 
 // ---------------------------------------------------------------- albums
@@ -443,6 +443,7 @@ async function leader(store, req, parts, body, now) {
     if (!patrols.length) return err('Keep at least one patrol.');
     const raw = (await store.get('settings', { type: 'json' })) || {};
     const next = { ...raw, patrols, albums: albumsIn };
+    if (body.aiHelper !== undefined) next.aiHelper = !!body.aiHelper;
     if (body.autoApprove !== undefined) { next.autoApprove = !!body.autoApprove; next.autoApproveBy = clean(body.by, 80); next.autoApproveAt = now; }
     await store.setJSON('settings', next);
     return json({ ok: true, settings: await settings(store) });

@@ -9,6 +9,7 @@
 // every conversation automatically includes the Scoutmaster and the
 // Committee Chair (no one-on-one contact), messages can't be deleted by the
 // people who sent them, and anyone can report a message for leaders to review.
+import { coach } from './coach.mjs';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -121,6 +122,9 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
       const list = (await allThreads(store, people, patrols)).filter(t => canRead(t, me)).map(t => ({
         id: t.id, kind: t.kind, title: t.kind === 'dm' ? dmTitle(t, people, me) : t.title, emoji: t.emoji || '💬', patrol: t.patrol,
         member: t.members.includes(me.id), count: t.members.length, last: t.last, unread: !!(t.last && t.last.at > (reads[t.id] || 0) && t.last.by !== me.id),
+        // someone else spoke last in a conversation I'm in (or named me on a board) in the last three weeks
+        needsReply: !!(t.last && t.last.by !== me.id && t.members.includes(me.id) && now - t.last.at < 21 * 86400000 &&
+          (t.kind === 'dm' || new RegExp(`(^|\\W)@?${(me.first || '').replace(/[^\\w]/g, '')}\\b`, 'i').test(t.last.text || ''))),
       }));
       list.sort((a, b) => (b.member - a.member) || ((b.last?.at || 0) - (a.last?.at || 0)) || a.title.localeCompare(b.title));
       const ask = (people.groups || []).filter(gr => gr.kind === 'contact').map(gr => ({ id: gr.id, name: gr.name, description: gr.description || '', emoji: gr.emoji || '✋', count: gr.members.length }));
@@ -189,6 +193,26 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
   }
 
   // ---- advancement (own record, linked scouts, or leaders)
+  // ---- writing helper for chat
+  if (head === 'ai' && rest[0] === 'coach' && req.method === 'POST') {
+    if (!me) return err('Sign in with your personal code to use the writing helper.', 401);
+    const st = (await store.get('settings', { type: 'json' })) || {};
+    if (st.aiHelper === false) return err('Leaders have turned the writing helper off.', 403);
+    const day = new Date(now).toISOString().slice(0, 10);
+    const use = (await store.get(`ai/usage/${me.id}`, { type: 'json' })) || {};
+    if (use.day === day && use.n >= 40) return err('That\'s a lot of help for one day. Try again tomorrow.', 429);
+    let msgs = [], title = 'Troop chat';
+    const tid = clean(body.threadId, 60);
+    if (tid) {
+      const t = (await allThreads(store, people, patrols)).find(x => x.id === tid);
+      if (!t || !canRead(t, me)) return err('Not found', 404);
+      title = t.kind === 'dm' ? dmTitle(t, people, me) : t.title;
+      msgs = (await listMsgs(store, t.id, 0, 12)).filter(m => !m.hidden).map(m => ({ byName: m.byName, role: m.role, text: m.text, mine: m.by === me.id }));
+    }
+    const r = await coach({ msgs, draft: String(body.draft || '').slice(0, 2000), me: { first: me.first || me.name, role: me.role }, title });
+    if (r.source === 'ai') await store.setJSON(`ai/usage/${me.id}`, { day, n: use.day === day ? (use.n || 0) + 1 : 1 });
+    return json(r);
+  }
   if (head === 'adv' && req.method === 'GET') {
     if (!me && !ctx.isLeader) return err('Sign in with your personal code to see advancement.', 401);
     const p = people || await loadPeople(store);

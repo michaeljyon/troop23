@@ -298,6 +298,14 @@ function Settings({ pass }) {
   if (!patrols) return <p className="muted">Loading…</p>;
   return (
     <>
+      <Section title="Chat writing helper">
+        <div className="card">
+          <label className="switch-row">
+            <span className="grow"><b>AI writing helper in Chat</b><span className="small muted">Scouts and adults can tap ✨ to get a clearer, kinder version of their message and a reminder of anything they were asked but didn't answer. It only suggests; people still edit and press Send themselves. It reads the last few messages of that conversation to know what was asked. Uses the site's Netlify AI credits, up to 40 suggestions per person per day.</span></span>
+            <input type="checkbox" role="switch" checked={s.data?.aiHelper !== false} onChange={async e => { await save({ aiHelper: e.target.checked }); s.load(); }} />
+          </label>
+        </div>
+      </Section>
       <Section title="Patrols">
         <div className="card">
           <p className="small muted">Used for sign-ups, meal plans, gear and photos. Renaming a patrol doesn't move old records.</p>

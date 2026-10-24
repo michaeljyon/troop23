@@ -2,13 +2,17 @@ import { useEffect } from 'react';
 import Icon from '../components/Icon.jsx';
 import { Section, Empty, Pill } from '../components/ui.jsx';
 import Rsvp from '../components/Rsvp.jsx';
-import { useApi, useCol, photoUrl } from '../lib/api.js';
+import { useApi, useCol, photoUrl, useAccount } from '../lib/api.js';
+import { useInbox } from '../lib/inbox.js';
+import { InboxCard } from '../components/Inbox.jsx';
 import { useLocal, useMe } from '../lib/store.js';
 import { troop, outingType } from '../lib/config.js';
 import { rangeLabel, whenLabel, monthDay, today } from '../lib/dates.js';
 
 export default function Home() {
   const [me] = useMe();
+  const acct = useAccount();
+  const inbox = useInbox(!!acct);
   const [family] = useLocal('family', null);
   const [mine, setMine] = useLocal('my-photos', []);
   const outings = useCol('outings');
@@ -32,6 +36,7 @@ export default function Home() {
   return (
     <div className="content home">
       <p className="hello">Hey {first}{me.patrol ? <span> · {me.patrol}</span> : null}</p>
+      <InboxCard inbox={inbox} />
 
       {outings.loading && !outings.data ? <div className="next-card skeleton" /> : next ? (
         <section className="next-card">
