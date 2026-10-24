@@ -217,7 +217,7 @@ async function planAction(store, id, parts, req, body, now) {
 // ---------------------------------------------------------------- settings
 async function settings(store) {
   const s = (await store.get('settings', { type: 'json' })) || {};
-  return { patrols: s.patrols?.length ? s.patrols : troop.patrols, albums: s.albums || [] };
+  return { patrols: s.patrols?.length ? s.patrols : troop.patrols, albums: s.albums || [], autoApprove: !!s.autoApprove, autoApproveBy: s.autoApproveBy || '', autoApproveAt: s.autoApproveAt || 0 };
 }
 
 // ---------------------------------------------------------------- albums
@@ -309,6 +309,8 @@ async function addPhoto(store, body, now) {
     status: troop.photos.requireApproval ? 'pending' : 'approved', public: false,
     type: img.type, size: img.bytes.byteLength, at: now,
   };
+  // Leader override: skip review, unless a "no photos" scout is tagged
+  if (meta.status === 'pending' && (await settings(store)).autoApprove && checkPhoto(meta, new Map((await roster(store)).map(s => [s.id, s]))).flag !== 'blocked') meta.status = 'approved';
   // photos brought over from an archive keep the date they were taken
   const taken = /^\d{4}-\d{2}-\d{2}$/.test(body.takenAt || '') ? Date.parse(`${body.takenAt}T12:00:00-05:00`) : NaN;
   if (taken > Date.parse('2000-01-01') && taken < now) { meta.at = taken; meta.uploaded = now; meta.source = clean(body.source, 60); }
@@ -439,8 +441,11 @@ async function leader(store, req, parts, body, now) {
     const patrols = body.patrols ? shape(['s:40', 20], body.patrols) : cur.patrols;
     const albumsIn = body.albums ? (Array.isArray(body.albums) ? body.albums : []).slice(0, 40).map(a => ({ id: ID.test(a.id || '') ? a.id : `a-${rid()}`, title: clean(a.title, 60), emoji: clean(a.emoji, 8) || '📷' })).filter(a => a.title) : cur.albums;
     if (!patrols.length) return err('Keep at least one patrol.');
-    await store.setJSON('settings', { patrols, albums: albumsIn });
-    return json({ ok: true, settings: { patrols, albums: albumsIn } });
+    const raw = (await store.get('settings', { type: 'json' })) || {};
+    const next = { ...raw, patrols, albums: albumsIn };
+    if (body.autoApprove !== undefined) { next.autoApprove = !!body.autoApprove; next.autoApproveBy = clean(body.by, 80); next.autoApproveAt = now; }
+    await store.setJSON('settings', next);
+    return json({ ok: true, settings: await settings(store) });
   }
   if (what === 'export') return exportCSV(store, id);
   const pr = await leaderPeople(store, what, id, sub, req, body, now, {});

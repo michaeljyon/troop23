@@ -119,6 +119,7 @@ function Review({ pass }) {
           <div className={`stat ${s.levels.none ? 'alert' : ''}`}><b>{s.levels.none}</b><span>no photos</span></div>
         </div>
       )}
+      <OverrideToggle pass={pass} onChange={() => { photos.load(); stats.load(); }} />
       <div className="chip-scroll">
         {[['pending', `Waiting (${count('pending')})`], ['approved', `In gallery (${count('approved')})`], ['hidden', `Hidden (${count('hidden')})`], ['all', 'All']].map(([id, l]) => <button key={id} className={`chip ${filter === id ? 'on' : ''}`} onClick={() => setFilter(id)}>{l}</button>)}
       </div>
@@ -360,5 +361,33 @@ function Records({ pass }) {
       <ul className="more-list">{items.map(([k, ic, l, sub]) => <li key={k}><button onClick={() => download(k)}><span className="more-ico"><Icon name={ic} size={22} /></span><span className="grow"><b>{l}</b><span>{sub}</span></span><Icon name="download" size={18} /></button></li>)}</ul>
       {msg && <p className="form-msg" role="alert">{msg}</p>}
     </Section>
+  );
+}
+
+// Leader override: new photos skip review and go straight to the troop gallery.
+function OverrideToggle({ pass, onChange }) {
+  const s = useLeader('leader/settings', pass);
+  const acct = useAccount();
+  const [me] = useMe();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  if (!s.data) return null;
+  const on = !!s.data.autoApprove;
+  async function flip() {
+    if (!on && !confirm('Turn on the leader override? New photos will show in the troop gallery right away without a leader looking at them first. Photos tagged with a "No photos" scout still wait for review.')) return;
+    setBusy(true); setErr('');
+    try { await api('leader/settings', { method: 'POST', body: { autoApprove: !on, by: acct?.member?.name || me.name || 'A leader' }, leader: pass }); s.load(); onChange?.(); }
+    catch (e) { setErr(e.message); } finally { setBusy(false); }
+  }
+  return (
+    <div className={`card override-card ${on ? 'on' : ''}`}>
+      <label className="switch-row">
+        <span className="grow"><b>Leader override: skip photo review</b>
+          <span className="small muted">{on ? `On${s.data.autoApproveBy ? ` (turned on by ${s.data.autoApproveBy}${s.data.autoApproveAt ? `, ${new Date(s.data.autoApproveAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : ''})` : ''}. New photos go straight to the gallery. Photos with a "No photos" scout tagged still wait here.` : 'Off. Every new photo waits here until a leader approves it.'}</span>
+        </span>
+        <input type="checkbox" role="switch" checked={on} onChange={flip} disabled={busy} />
+      </label>
+      {err && <p className="form-msg" role="alert">{err}</p>}
+    </div>
   );
 }
