@@ -30,7 +30,8 @@ export async function api(path, { method = 'GET', body, leader } = {}) {
 
 // Image URLs carry the pack code as ?k= because <img> can't send headers.
 export const photoUrl = (id, thumb) => `/api/photos/${id}${thumb ? '/thumb' : ''}?${sessionToken() ? `s=${sessionToken()}` : `k=${encodeURIComponent(troopCode())}`}`;
-export const leaderPhotoUrl = (id, pass, thumb) => `/api/leader/photos/${id}/${thumb ? 'thumb' : 'file'}?lk=${encodeURIComponent(pass)}`;
+// Leaders signed in with their personal code have no passcode, so use their session instead.
+export const leaderPhotoUrl = (id, pass, thumb) => `/api/leader/photos/${id}/${thumb ? 'thumb' : 'file'}?${pass ? `lk=${encodeURIComponent(pass)}` : `s=${sessionToken()}`}`;
 
 // Small shared fetch hook with a refresh().
 export function useApi(path, deps = []) {
