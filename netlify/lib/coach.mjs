@@ -34,9 +34,28 @@ export function ruleCoach(asked, draft) {
   return { message: '', missing: missing.slice(0, 3), tips: tips.slice(0, 3) };
 }
 
-async function callCloudflare(system, user) {
-  const acct = process.env.CF_ACCOUNT_ID, token = process.env.CF_AI_TOKEN;
-  if (!acct || !token) return null;
+// The account ID can be set, or looked up once from the token and remembered.
+let acctCache = null;
+export async function cfAccount(store) {
+  if (process.env.CF_ACCOUNT_ID) return process.env.CF_ACCOUNT_ID;
+  if (acctCache) return acctCache;
+  const token = process.env.CF_AI_TOKEN;
+  if (!token) return null;
+  const saved = store && await store.get('cfaccount', { type: 'json' }).catch(() => null);
+  if (saved?.id) return (acctCache = saved.id);
+  const r = await fetch('https://api.cloudflare.com/client/v4/accounts?per_page=5', { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10000) }).catch(() => null);
+  const d = r && r.ok ? await r.json().catch(() => null) : null;
+  const id = d?.result?.[0]?.id;
+  if (id) { acctCache = id; if (store) await store.setJSON('cfaccount', { id, name: d.result[0].name || '' }); }
+  else console.error('coach: could not find the Cloudflare account', r?.status);
+  return id || null;
+}
+
+async function callCloudflare(system, user, store) {
+  const token = process.env.CF_AI_TOKEN;
+  if (!token) return null;
+  const acct = await cfAccount(store);
+  if (!acct) return null;
   const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(acct)}/ai/run/${CF_MODEL}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
@@ -53,14 +72,14 @@ async function callCloudflare(system, user) {
 const clip = (s, n) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n);
 
 // msgs: [{byName, role, text, mine}] oldest first; me: {first, role}
-export async function coach({ msgs, draft, me, title }) {
+export async function coach({ msgs, draft, me, title, store }) {
   const asked = msgs.filter(m => !m.mine).slice(-3).map(m => m.text);
   const rules = ruleCoach(asked, draft);
   const convo = msgs.slice(-10).map(m => `${m.mine ? `${me.first} (me)` : clip(m.byName, 40)} (${m.role === 'scout' ? 'scout' : 'adult'}): ${clip(m.text, 600)}`).join('\n');
   const user = `<chat title="${clip(title, 80)}">\n${convo || '(no messages yet)'}\n</chat>\n\nThe member writing is ${me.first}, a ${me.role === 'scout' ? 'scout' : 'adult'}.\n${draft.trim() ? `Their draft:\n<draft>${clip(draft, 1500)}</draft>` : 'They haven\'t written anything yet. Draft a short reply that answers what was asked, using [placeholders] for anything only they know.'}`;
   let out = null;
   try {
-    const text = await callCloudflare(SYSTEM, user);
+    const text = await callCloudflare(SYSTEM, user, store);
     const m = text && text.match(/\{[\s\S]*\}/);
     if (m) { const j = JSON.parse(m[0]); if (typeof j.message === 'string' && j.message.trim()) out = j; }
   } catch (e) { console.error('coach parse', e.message); }
@@ -70,4 +89,14 @@ export async function coach({ msgs, draft, me, title }) {
   // keep the built-in privacy warning even if the model missed it
   if (PII.some(r => r.test(draft)) && !tips.some(t => /contact|phone|address|personal/i.test(t))) tips.unshift(rules.tips[0]);
   return { source: 'ai', message: PII.some(r => r.test(message)) ? '' : message, missing: (Array.isArray(out.missing) ? out.missing : []).map(t => clip(t, 120)).filter(Boolean).slice(0, 3), tips: tips.slice(0, 3) };
+}
+
+// Leader check: is the free AI connected and answering?
+export async function aiStatus(store) {
+  if (!process.env.CF_AI_TOKEN) return { connected: false, reason: 'No Cloudflare token set.' };
+  const acct = await cfAccount(store);
+  if (!acct) return { connected: false, reason: 'The token works for no Cloudflare account (or can\'t list accounts). Add CF_ACCOUNT_ID.' };
+  const t0 = Date.now();
+  const out = await callCloudflare('Reply with the word OK.', 'Say OK.', store);
+  return out ? { connected: true, ms: Date.now() - t0, sample: String(out).slice(0, 40) } : { connected: false, reason: 'Cloudflare didn\'t answer. The token may be missing Workers AI permission, or today\'s free allowance is used up.' };
 }

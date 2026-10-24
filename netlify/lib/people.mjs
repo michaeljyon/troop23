@@ -9,7 +9,7 @@
 // every conversation automatically includes the Scoutmaster and the
 // Committee Chair (no one-on-one contact), messages can't be deleted by the
 // people who sent them, and anyone can report a message for leaders to review.
-import { coach } from './coach.mjs';
+import { coach, aiStatus } from './coach.mjs';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -251,7 +251,7 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
       title = t.kind === 'dm' ? dmTitle(t, people, me) : t.title;
       msgs = (await listMsgs(store, t.id, 0, 12)).filter(m => !m.hidden).map(m => ({ byName: m.byName, role: m.role, text: m.text, mine: m.by === me.id }));
     }
-    const r = await coach({ msgs, draft: String(body.draft || '').slice(0, 2000), me: { first: me.first || me.name, role: me.role }, title });
+    const r = await coach({ msgs, draft: String(body.draft || '').slice(0, 2000), me: { first: me.first || me.name, role: me.role }, title, store });
     if (r.source === 'ai') await store.setJSON(`ai/usage/${me.id}`, { day, n: use.day === day ? (use.n || 0) + 1 : 1 });
     return json(r);
   }
@@ -370,6 +370,7 @@ export async function leaderPeople(store, what, id, sub, req, body, now, ctx) {
     await store.setJSON(`reports/${id}`, r);
     return json({ ok: true });
   }
+  if (what === 'ai-status' && req.method === 'GET') return json(await aiStatus(store));
   if (what === 'import' && req.method === 'POST') return importData(store, body, now);
   return null;
 }
