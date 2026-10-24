@@ -16,6 +16,7 @@ export function Members({ pass }) {
   const [filter, setFilter] = useState('all');
   const [open, setOpen] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [linking, setLinking] = useState(false);
   const load = () => api('leader/members', { leader: pass }).then(d => { setData(d); setError(null); }).catch(setError);
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const members = data?.members || [];
@@ -40,7 +41,7 @@ export function Members({ pass }) {
       </div>
       <div className="search-row"><Icon name="search" size={18} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search names, patrols, positions" aria-label="Search members" /></div>
       <div className="chip-scroll">{[['all', 'Everyone'], ['scouts', 'Scouts'], ['adults', 'Adults'], ['leaders', 'Leaders'], ['waiting', 'Not signed in yet']].map(([k, l]) => <button key={k} className={`chip ${filter === k ? 'on' : ''}`} onClick={() => setFilter(k)}>{l}<span className="chip-sub">{members.filter(m => m.active !== false).filter(F[k]).length}</span></button>)}</div>
-      <div className="btn-row tight"><button className="btn small secondary" onClick={() => setAdding(true)}><Icon name="plus" size={16} />Add member</button><button className="btn small secondary" onClick={downloadInvites}><Icon name="download" size={16} />Invite list (CSV)</button></div>
+      <div className="btn-row tight"><button className="btn small secondary" onClick={() => setAdding(true)}><Icon name="plus" size={16} />Add member</button><button className="btn small secondary" onClick={downloadInvites}><Icon name="download" size={16} />Invite list (CSV)</button><button className="btn small secondary" onClick={() => setLinking(true)}><Icon name="users" size={16} />Link families</button></div>
       <ul className="gear-list mt">
         {list.map(m => (
           <li key={m.id}><button className="gear-row" onClick={() => setOpen(m.id)}>
@@ -52,6 +53,7 @@ export function Members({ pass }) {
         ))}
       </ul>
       <MemberSheet m={members.find(x => x.id === open)} members={members} pass={pass} onClose={() => setOpen(null)} onChange={load} />
+      <Sheet open={linking} onClose={() => setLinking(false)} title="Link families" wide>{linking && <LinkFamilies members={members} pass={pass} onDone={() => { setLinking(false); load(); }} />}</Sheet>
       <Sheet open={adding} onClose={() => setAdding(false)} title="Add member">{adding && <AddMember pass={pass} onSaved={() => { setAdding(false); load(); }} />}</Sheet>
     </>
   );
@@ -257,6 +259,56 @@ function GroupForm({ g, members, pass, onSaved }) {
       </div>
       {msg && <p className="form-msg" role="alert">{msg}</p>}
       <div className="btn-row"><button className="btn" onClick={save}>Save group</button>{g.id && <button className="link-btn small danger" onClick={remove}><Icon name="trash" size={14} />Delete</button>}</div>
+    </div>
+  );
+}
+
+// Bulk parent ↔ scout linking. TroopWebHost doesn't say who belongs to whom,
+// so suggest adults and scouts who share a last name and let a leader confirm.
+function LinkFamilies({ members, pass, onDone }) {
+  const active = members.filter(m => m.active !== false);
+  const scouts = active.filter(m => m.role === 'scout');
+  const fams = active.filter(m => m.role === 'adult').map(a => ({
+    adult: a, linked: (a.scouts || []).map(id => scouts.find(x => x.id === id)).filter(Boolean),
+    sugg: scouts.filter(x => x.last.toLowerCase() === a.last.toLowerCase() && !(a.scouts || []).includes(x.id)),
+  })).filter(f => f.sugg.length).sort((x, y) => x.adult.last.localeCompare(y.adult.last) || x.adult.first.localeCompare(y.adult.first));
+  const [on, setOn] = useState(() => new Set(fams.flatMap(f => f.sugg.map(x => `${f.adult.id}|${x.id}`))));
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const unlinkedAdults = active.filter(m => m.role === 'adult' && !(m.scouts || []).length).length;
+  const unlinkedScouts = scouts.filter(x => !active.some(a => (a.scouts || []).includes(x.id))).length;
+  const flip = k => setOn(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
+  async function save() {
+    setBusy(true); setMsg('');
+    try {
+      for (const f of fams) {
+        const add = f.sugg.filter(x => on.has(`${f.adult.id}|${x.id}`)).map(x => x.id);
+        if (add.length) await api(`leader/members/${f.adult.id}`, { method: 'POST', body: { scouts: [...(f.adult.scouts || []), ...add] }, leader: pass });
+      }
+      onDone();
+    } catch (e) { setMsg(e.message); setBusy(false); }
+  }
+  if (!fams.length) return <Empty icon="check" title="No suggestions left">{unlinkedScouts ? `${unlinkedScouts} scouts still have no parent linked. Link them from each adult's page in Members.` : 'Every scout has a parent linked.'}</Empty>;
+  return (
+    <div>
+      <p className="small">These adults and scouts share a last name. Check the ones that are really parent and child, then save. Families with different last names can be linked from each adult's page in Members.</p>
+      <p className="small muted">{unlinkedScouts} scouts and {unlinkedAdults} adults aren't linked yet.</p>
+      <ul className="fam-list">
+        {fams.map(f => (
+          <li key={f.adult.id} className="card">
+            <p className="fam-adult"><b>{f.adult.name}</b>{f.linked.length > 0 && <span className="small muted"> · already linked to {f.linked.map(x => x.first).join(', ')}</span>}</p>
+            <div className="chip-wrap">
+              {f.sugg.map(x => { const k = `${f.adult.id}|${x.id}`; return (
+                <button key={k} className={`chip ${on.has(k) ? 'on' : ''}`} aria-pressed={on.has(k)} onClick={() => flip(k)}>
+                  <Icon name={on.has(k) ? 'check' : 'plus'} size={14} />{x.first}{x.patrol ? <span className="chip-sub">{x.patrol}</span> : null}
+                </button>
+              ); })}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {msg && <p className="form-msg" role="alert">{msg}</p>}
+      <div className="sheet-foot"><button className="btn" onClick={save} disabled={busy || !on.size}>{busy ? 'Linking…' : `Link ${on.size} parent–scout pair${on.size === 1 ? '' : 's'}`}</button></div>
     </div>
   );
 }

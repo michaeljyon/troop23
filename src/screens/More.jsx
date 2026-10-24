@@ -4,6 +4,7 @@ import { PageHead, Sheet, Seg } from '../components/ui.jsx';
 import { setTroopCode, usePatrols, useLeaderMode, useAccount, signOut, redeemCode } from '../lib/api.js';
 import { useMe } from '../lib/store.js';
 import { troop } from '../lib/config.js';
+import { NotificationsCard } from '../components/Notify.jsx';
 
 export default function More() {
   const [me, setMe] = useMe();
@@ -34,6 +35,7 @@ export default function More() {
       ) : (
         <GuestCard me={me} onEdit={() => setEditing(true)} />
       )}
+      {acct && <NotificationsCard />}
       <ul className="more-list">
         {links.map(([to, ic, l, sub]) => <li key={to}><a href={`#/${to}`}><span className="more-ico"><Icon name={ic} size={22} /></span><span className="grow"><b>{l}</b><span>{sub}</span></span><Icon name="chevronR" size={18} /></a></li>)}
       </ul>

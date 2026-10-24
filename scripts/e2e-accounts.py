@@ -72,7 +72,8 @@ with sync_playwright() as pw:
     p.click('button:has-text("Save recipe")'); p.wait_for_selector('.recipe-card')
     p.goto(BASE + '/#/kitchen?tab=budget'); p.wait_for_selector('.calc'); p.select_option('.card select >> nth=0', blue['id']); p.wait_for_timeout(1200); shot(p, 'a14-budget', True)
     # meals with prices
-    p.goto(BASE + f"/#/outing/{blue['id']}?tab=meals"); p.click('.chip:has-text("Flaming Flamingos")'); p.wait_for_selector('text=Start the meal plan'); p.click('text=Start the meal plan'); p.wait_for_selector('.menu')
+    p.goto(BASE + f"/#/outing/{blue['id']}?tab=meals"); p.click('.chip:has-text("Flaming Flamingos")'); p.wait_for_selector('.menu, button:has-text("Start the meal plan")'); p.wait_for_timeout(1500)
+    if not p.locator('.menu').count(): p.click('text=Start the meal plan'); p.wait_for_selector('.menu')
     p.click('.meal >> nth=0'); p.click('.chip:has-text("All")'); p.click('.recipe-pick button:has-text("Campfire Chili Mac")'); p.click('button:has-text("Save meal")'); p.wait_for_timeout(500)
     p.click('.meal >> nth=1'); p.click('.chip:has-text("All")'); p.click('.recipe-pick button:has-text("Pancakes")'); p.click('button:has-text("Save meal")'); p.wait_for_timeout(500)
     p.fill('.ps-num input[step="0.5"]', '15'); p.wait_for_timeout(1200)

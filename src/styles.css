@@ -626,3 +626,27 @@ button.thread-row { width: 100%; text-align: left; font: inherit; color: inherit
 .outing-addr { display: block; font-size: 13px; opacity: .8; }
 .outing-links { display: flex; gap: 8px; margin: 8px 0 0; }
 .outing-links a { display: inline-flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 99px; background: rgba(255,255,255,.14); color: #fff; text-decoration: none; font-size: 14px; font-weight: 600; }
+/* notifications */
+.notify-card { margin: 14px 0; }
+.notify-head { display: flex; align-items: center; gap: 12px; }
+.notify-head .grow > .small { display: block; }
+.notify-note { margin: 10px 0 0; padding: 10px 12px; background: var(--mint); border-radius: 10px; }
+.notify-kinds { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.notify-kinds li + li { border-top: 1px solid var(--line); }
+.switch-row { display: flex; align-items: center; gap: 12px; padding: 11px 2px; cursor: pointer; }
+.switch-row .grow > .small { display: block; }
+input[role=switch] { appearance: none; -webkit-appearance: none; width: 48px; height: 28px; border-radius: 99px; background: #cfd6d1; position: relative; flex: none; cursor: pointer; transition: background .2s; margin: 0; }
+input[role=switch]::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s; }
+input[role=switch]:checked { background: var(--primary); }
+input[role=switch]:checked::after { transform: translateX(20px); }
+input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.notify-nudge { display: flex; align-items: center; gap: 10px; padding: 10px 12px; margin: 0 0 12px; background: #fff; border: 1px solid var(--line); border-radius: 14px; font-size: 14px; }
+.notify-nudge > svg { color: var(--primary); flex: none; }
+.cal-sub-btn { display: flex; align-items: center; gap: 12px; width: 100%; margin: 12px 0 14px; padding: 12px 14px; border: 1px dashed var(--primary); border-radius: 14px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.cal-sub-btn > svg:first-child { color: var(--primary); flex: none; }
+.cal-sub-btn .grow > span { display: block; font-size: 13px; color: var(--muted); }
+.btn-col { display: grid; gap: 10px; margin: 14px 0; }
+.btn-col .btn { justify-content: center; text-decoration: none; }
+.fam-list { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 10px; }
+.fam-list .card { padding: 12px 14px; }
+.fam-adult { margin: 0 0 8px; }

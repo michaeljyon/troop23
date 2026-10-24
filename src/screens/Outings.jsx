@@ -7,12 +7,14 @@ import { useMe } from '../lib/store.js';
 import { today } from '../lib/dates.js';
 import { go } from '../lib/router.js';
 import { OutingRow } from './Home.jsx';
+import { useCalendarLink, webcal, googleAdd } from '../lib/calendar.js';
 
 export default function Outings() {
   const outings = useCol('outings');
   const leader = useLeaderMode();
   const [view, setView] = useState('upcoming');
   const [editing, setEditing] = useState(null);
+  const [subscribing, setSubscribing] = useState(false);
   const t = today();
   const list = view === 'upcoming' ? outings.items.filter(o => (o.end || o.start) >= t) : outings.items.filter(o => (o.end || o.start) < t).reverse();
 
@@ -22,13 +24,31 @@ export default function Outings() {
         {leader && <button className="btn small head-btn" onClick={() => setEditing({})}><Icon name="plus" size={16} />New</button>}
       </PageHead>
       <Seg label="Show" value={view} onChange={setView} options={[['upcoming', 'Upcoming'], ['past', 'Past']]} />
-      <div className="gap" />
+      <button className="cal-sub-btn" onClick={() => setSubscribing(true)}><Icon name="calendar" size={18} /><span className="grow"><b>Put troop outings in your phone's calendar</b><span>Stays up to date by itself</span></span><Icon name="chevronR" size={16} /></button>
       {outings.loading && !outings.data ? <p className="muted">Loading…</p>
         : outings.error && !outings.data ? <Empty icon="alert" title="Couldn't load outings">{outings.error.message}</Empty>
         : list.length === 0 ? <Empty icon="tent" title={view === 'upcoming' ? 'Nothing scheduled yet' : 'No past outings'}>{leader ? 'Tap New to add the next outing.' : 'Leaders add outings here.'}</Empty>
         : <ul className="outing-list">{list.map(o => <OutingRow key={o.id} o={o} />)}</ul>}
       {!leader && <p className="small muted center pad-top">Leaders: sign in under More → Leader tools to add outings.</p>}
+      <Sheet open={subscribing} onClose={() => setSubscribing(false)} title="Troop calendar"><CalendarSubscribe /></Sheet>
       <OutingForm outing={editing} onClose={() => setEditing(null)} onSaved={o => { setEditing(null); outings.refresh(); if (o) go(`outing/${o.id}`); }} />
+    </div>
+  );
+}
+
+function CalendarSubscribe() {
+  const url = useCalendarLink();
+  const [copied, setCopied] = useState(false);
+  if (!url) return <p className="muted">Getting your calendar link…</p>;
+  return (
+    <div>
+      <p>Subscribe once and every Troop 23 outing shows up in your phone's calendar. Changes and new outings come through on their own, usually within a few hours.</p>
+      <div className="btn-col">
+        <a className="btn" href={webcal(url)}><Icon name="calendar" size={18} />iPhone, iPad or Mac</a>
+        <a className="btn secondary" href={googleAdd(url)} target="_blank" rel="noopener noreferrer"><Icon name="external" size={18} />Google Calendar (Android)</a>
+        <button className="btn secondary" onClick={async () => { try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { prompt('Copy this link', url); } }}><Icon name="copy" size={18} />{copied ? 'Copied!' : 'Copy link (Outlook and others)'}</button>
+      </div>
+      <p className="small muted">On Google Calendar, open the link on a computer the first time if your phone doesn't offer to add it. The link is private to Troop 23 families, so please don't post it publicly.</p>
     </div>
   );
 }

@@ -33,7 +33,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,woff2}', 'brand/*.{png,svg}'],
-        globIgnores: ['ocr/**'],
+        globIgnores: ['ocr/**', 'sw-push.js'],
+        importScripts: ['/sw-push.js'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [

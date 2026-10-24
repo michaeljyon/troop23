@@ -3,6 +3,7 @@ import Icon from '../components/Icon.jsx';
 import { PageHead, Empty, Sheet, Pill } from '../components/ui.jsx';
 import { api, useAccount } from '../lib/api.js';
 import { go } from '../lib/router.js';
+import { NotifyNudge } from '../components/Notify.jsx';
 
 // Troop messaging built for Safeguarding Youth digital rules:
 // the Scoutmaster and Committee Chair are part of every conversation,
@@ -38,6 +39,7 @@ export default function Messages() {
       <PageHead title="Chat" sub="Patrol boards and messages for Troop 23.">
         <button className="btn small head-btn" onClick={() => setComposing(true)} disabled={!data}><Icon name="edit" size={16} />New</button>
       </PageHead>
+      <NotifyNudge />
       <TwoDeepBanner names={data?.guardians} />
       {error ? <Empty icon="alert" title="Chat isn't ready">{error.message}</Empty> : !data ? <p className="muted">Loading…</p> : (
         <>

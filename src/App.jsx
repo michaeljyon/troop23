@@ -42,6 +42,11 @@ export default function App() {
   const Screen = SCREENS[route.name] || Home;
   const inside = !!session || (!!code && !!me.name.trim());
   useEffect(() => { if (session) refreshAccount(); }, [session]);
+  useEffect(() => {   // tapping a notification while the app is open
+    const onMsg = e => { if (e.data?.type === 'open' && e.data.hash) location.hash = e.data.hash; };
+    navigator.serviceWorker?.addEventListener('message', onMsg);
+    return () => navigator.serviceWorker?.removeEventListener('message', onMsg);
+  }, []);
 
   if (route.name === 'join') return <Gate route={route} />;
   if (route.name === 'slideshow' && inside) return <Slideshow route={route} />;
@@ -84,11 +89,18 @@ function useUnread(on) {
   useEffect(() => {
     if (!on) { setN(0); return; }
     let stop = false;
-    const load = () => api('threads').then(d => !stop && setN(d.threads.filter(t => t.unread).length)).catch(() => {});
+    const load = () => api('threads').then(d => {
+      if (stop) return;
+      const c = d.threads.filter(t => t.unread).length;
+      setN(c);
+      try { if (c) navigator.setAppBadge?.(c); else navigator.clearAppBadge?.(); } catch { /* not supported */ }
+    }).catch(() => {});
     load();
+    const onShow = () => document.visibilityState === 'visible' && load();
+    document.addEventListener('visibilitychange', onShow);
     const id = setInterval(() => document.visibilityState === 'visible' && load(), 60000);
     addEventListener('threads-read', load);
-    return () => { stop = true; clearInterval(id); removeEventListener('threads-read', load); };
+    return () => { stop = true; clearInterval(id); removeEventListener('threads-read', load); document.removeEventListener('visibilitychange', onShow); };
   }, [on]);
   return n;
 }

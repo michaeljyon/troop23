@@ -12,6 +12,8 @@
 
 import troop from '../../troop/troop.js';
 import { resolveSession, memberRoutes, leaderPeople, redeem } from './people.mjs';
+import { pushRoutes, notify } from './push.mjs';
+import { calendarFeed, calendarLink } from './calendar.mjs';
 
 const MAX_PHOTO_BYTES = 4.2 * 1024 * 1024;
 const MAX_THUMB_BYTES = 400 * 1024;
@@ -406,6 +408,12 @@ async function leader(store, req, parts, body, now) {
 // ---------------------------------------------------------------- router
 // opts: { store, troopCode, leaderPasscode }
 export async function handle(req, opts) {
+  const pending = [];
+  const res = await route(req, { ...opts, pending });
+  if (pending.length) await Promise.allSettled(pending);   // no waitUntil: finish notifications before replying
+  return res;
+}
+async function route(req, opts) {
   const { store } = opts;
   const url = new URL(req.url);
   const parts = url.pathname.replace(/^\/(?:api|\.netlify\/functions\/api)\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
@@ -420,6 +428,9 @@ export async function handle(req, opts) {
     if (head === 'join' && req.method === 'POST') return same(body.code, opts.troopCode) ? json({ ok: true }) : err('That troop code doesn\'t match. Check with your Scoutmaster.', 401);
     if (head === 'auth' && rest[0] === 'redeem' && req.method === 'POST') return redeem(store, body, req, now);
 
+    // work that can finish after the response (phone notifications)
+    const later = p => { const q = Promise.resolve(p).catch(e => console.error(e)); if (opts.waitUntil) opts.waitUntil(q); else opts.pending.push(q); return q; };
+    if (head === 'calendar.ics' && req.method === 'GET') return calendarFeed(store, url, req);
     const session = await resolveSession(store, req);
     const leaderGiven = req.headers.get('x-leader-passcode') || url.searchParams.get('lk');
     const isLeader = (!!opts.leaderPasscode && same(leaderGiven, opts.leaderPasscode)) || !!session?.member.leader;
@@ -431,7 +442,9 @@ export async function handle(req, opts) {
     const code = req.headers.get('x-troop-code') || url.searchParams.get('k');
     if (!same(code, opts.troopCode) && !isLeader && !session) return err('Enter the troop code to continue.', 401);
 
-    const mr = await memberRoutes(store, head, rest, req, body, now, { session, isLeader, patrols: (await settings(store)).patrols });
+    if (head === 'push') { const r = await pushRoutes(store, rest, req, body, now, session?.member); if (r) return r; }
+    if (head === 'calendar' && rest[0] === 'link' && req.method === 'GET') return calendarLink(store, url);
+    const mr = await memberRoutes(store, head, rest, req, body, now, { session, isLeader, patrols: (await settings(store)).patrols, later, notify: (...a) => notify(store, ...a) });
     if (mr) return mr;
     if (head === 'pricebook' && req.method === 'GET') return json({ book: (await store.get('pricebook', { type: 'json' })) || {} });
 
@@ -441,7 +454,12 @@ export async function handle(req, opts) {
       if (!id && req.method === 'GET') return json({ items: await listCol(store, col, url) });
       if (!id || !ID.test(id)) return err('Bad id');
       if (req.method === 'GET') { const d = await getDoc(store, col, id); return d ? json({ item: d }) : err('Not found', 404); }
-      if (req.method === 'PUT') return putDoc(store, col, id, body, isLeader, now);
+      if (req.method === 'PUT') {
+        const isNew = col === 'posts' && !(await getDoc(store, col, id));
+        const res = await putDoc(store, col, id, body, isLeader, now);
+        if (isNew && res.status === 200) later(notify(store, null, 'news', { title: `📣 ${String(body.title || '').slice(0, 80)}`, body: body.body || 'New announcement from the troop leaders.', url: '#/', tag: `post-${id}` }));
+        return res;
+      }
       if (req.method === 'DELETE') {
         if (COLS[col].del === 'leader' && !isLeader) return err('Only leaders can delete this.', 403);
         await store.delete(`c/${col}/${id}`);

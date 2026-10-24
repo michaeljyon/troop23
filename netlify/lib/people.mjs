@@ -169,6 +169,12 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
       await store.setJSON(`threads/${t.id}`, saved);
       const reads = (await store.get(`reads/${me.id}`, { type: 'json' })) || {};
       reads[t.id] = now; await store.setJSON(`reads/${me.id}`, reads);
+      const to = t.members.filter(id => id !== me.id);
+      if (to.length && ctx.notify) {
+        const dm = t.kind === 'dm';
+        const title = dm ? (t.groupName ? `${t.groupName.replace(/^Request an? /, '')} · ${me.name}` : me.name) : `${t.emoji || '💬'} ${t.title}`;
+        ctx.later(ctx.notify(to, dm ? 'messages' : 'boards', { title, body: dm ? text : `${me.first || me.name}: ${text}`, url: `#/thread/${t.id}`, tag: t.id }));
+      }
       return json({ message: m });
     }
     if (sub === 'msgs' && mid && act === 'report' && req.method === 'POST') {

@@ -20,6 +20,8 @@ The troop code still works as a **guest** sign-in (no chat, nothing synced). Adu
 - **Chat**, built for Safeguarding Youth Training rules. The Scoutmaster and Committee Chair are automatically in every conversation, so there's never a one-on-one chat. Messages can't be deleted, and anyone can report one for leaders to review. Boards: whole troop, Patrol Leaders' Council, each patrol, adult leaders, and the troop's groups (from the TroopWebHost e-mail groups). Scouts also get **Ask a leader**: request a board of review or a Scoutmaster conference, which opens a conversation with the right adults plus the two-deep leaders.
 - **Advancement.** Each scout's rank ladder, next-rank requirements, Eagle-required badges, badges earned and in progress, and activity totals, imported from TroopWebHost. Scouts see their own record, parents see their linked scouts', leaders see everyone.
 - **Recipe scanner.** Photograph a recipe card or cookbook page. The phone reads it on the device, breaks out the ingredients and steps, scales it to the number of people going, and estimates the cost.
+- **Notifications.** Signed-in members turn them on per phone under More → Notifications, and choose messages, boards and announcements. On iPhone, Basecamp has to be added to the Home Screen first (iOS 16.4 or later). Notification keys are made automatically, so there's nothing to set up.
+- **Troop calendar.** Outings → "Put troop outings in your phone's calendar" subscribes Apple, Google or Outlook calendars to a live feed. Each outing also has Add to calendar.
 - **Food budget calculator** and a shopping-list price book: per-meal rates from `troop.mealCosts`, headcount from sign-ups, the amount to collect per scout, and prices remembered from past trips.
 
 ## Leader tools (More → Leader tools)
@@ -27,6 +29,7 @@ The troop code still works as a **guest** sign-in (no chat, nothing synced). Adu
 Signing in with the leader passcode turns on leader mode for that browser tab. Leaders can then add and edit outings and delete gear or recipes. The leader tools also have:
 
 - **Members.** Personal codes, invites, the Leader switch, parent ↔ scout links, and the two adults copied on every chat.
+- **Link families** (in Members). Suggests parent–scout pairs who share a last name, to confirm all at once.
 - **Groups.** The troop's groups as chat boards or "Ask a leader" requests. Add or remove people any time.
 - **Chat reports.** Hide or keep reported messages.
 - **Photos.** Review uploads against photo permission.
