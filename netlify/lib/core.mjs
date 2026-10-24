@@ -37,9 +37,22 @@ const scoutName = s => `${s.first}${s.lastInitial ? ` ${s.lastInitial}.` : ''}`;
 
 async function listJSON(store, prefix) {
   const { blobs } = await store.list({ prefix });
-  const out = await Promise.all(blobs.map(b => store.get(b.key, { type: 'json' })));
+  const out = [];
+  for (let i = 0; i < blobs.length; i += 60) out.push(...await Promise.all(blobs.slice(i, i + 60).map(b => store.get(b.key, { type: 'json' }))));
   return out.filter(Boolean);
 }
+
+// All photo records, from a cached index that's rebuilt after any photo change
+// (photos/rev). Keeps the gallery fast with a thousand-plus photos.
+async function photoMetas(store) {
+  const [rev, idx] = await Promise.all([store.get('photos/rev', { type: 'json' }), store.get('photos/index', { type: 'json' })]);
+  if (idx && idx.builtAt > (rev?.at || 0)) return idx.items;
+  const builtAt = Date.now();
+  const items = await listJSON(store, 'photos/meta/');
+  await store.setJSON('photos/index', { builtAt, items });
+  return items;
+}
+const touchPhotos = store => store.setJSON('photos/rev', { at: Date.now() });
 
 // ------------------------------------------------------------ shape/clean
 // spec: 's:80' string, 'n' number >= 0, 'b' bool, 'e:a|b' enum, 'date', 'id',
@@ -213,11 +226,11 @@ async function albums(store, withCounts = true) {
   const outings = (await listJSON(store, 'c/outings/')).sort((a, b) => b.start.localeCompare(a.start));
   const emoji = t => troop.outingTypes.find(x => x.id === t)?.emoji || '⭐';
   const list = [
-    ...outings.map(o => ({ id: o.id, title: o.title, emoji: emoji(o.type), date: o.start, outing: true })),
+    ...outings.map(o => ({ id: o.id, title: o.title, emoji: emoji(o.type), date: o.start, end: o.end || o.start, type: o.type, location: o.location || '', outing: true })),
     ...troop.albums.map(a => ({ ...a, builtIn: true })), ...s.albums,
   ];
   if (!withCounts) return list;
-  const photos = (await listJSON(store, 'photos/meta/')).filter(p => p.status === 'approved').sort((a, b) => b.at - a.at);
+  const photos = (await photoMetas(store)).filter(p => p.status === 'approved').sort((a, b) => b.at - a.at);
   return list.map(a => {
     const inAlbum = photos.filter(p => p.album === a.id);
     return { ...a, count: inAlbum.length, cover: inAlbum[0]?.id || null };
@@ -296,15 +309,21 @@ async function addPhoto(store, body, now) {
     status: troop.photos.requireApproval ? 'pending' : 'approved', public: false,
     type: img.type, size: img.bytes.byteLength, at: now,
   };
+  // photos brought over from an archive keep the date they were taken
+  const taken = /^\d{4}-\d{2}-\d{2}$/.test(body.takenAt || '') ? Date.parse(`${body.takenAt}T12:00:00-05:00`) : NaN;
+  if (taken > Date.parse('2000-01-01') && taken < now) { meta.at = taken; meta.uploaded = now; meta.source = clean(body.source, 60); }
   await store.set(`photos/img/${id}`, img.bytes, { metadata: { type: img.type } });
   if (thumb && !thumb.tooBig) await store.set(`photos/thumb/${id}`, thumb.bytes, { metadata: { type: thumb.type } });
   await store.setJSON(`photos/meta/${id}`, meta);
+  await touchPhotos(store);
   return json({ ok: true, id, status: meta.status });
 }
 
 async function photoList(store) {
-  const metas = (await listJSON(store, 'photos/meta/')).filter(p => p.status === 'approved').sort((a, b) => b.at - a.at);
-  return metas.map(({ id, display, caption, at, album, patrol }) => ({ id, name: display, caption, at, album, patrol }));
+  const [metas, scouts] = await Promise.all([photoMetas(store), roster(store)]);
+  const names = new Map(scouts.map(s => [s.id, scoutName(s)]));
+  return metas.filter(p => p.status === 'approved').sort((a, b) => b.at - a.at)
+    .map(({ id, display, caption, at, album, patrol, scouts: tagged }) => ({ id, name: display, caption, at, album, patrol, tags: (tagged || []).map(t => names.get(t)).filter(Boolean) }));
 }
 
 async function photoFile(store, id, { leader = false, thumb = false } = {}) {
@@ -331,7 +350,7 @@ async function exportCSV(store, kind) {
     rows = (await roster(store)).map(s => ({ scout: scoutName(s), patrol: s.patrol, photo_choice: troop.consentLevels.find(l => l.id === s.level)?.label || s.level, parent: s.parent, updated: iso(s.updated) }));
   } else if (kind === 'photos') {
     const byId = new Map((await roster(store)).map(s => [s.id, s]));
-    rows = (await listJSON(store, 'photos/meta/')).sort((a, b) => a.at - b.at).map(p => {
+    rows = (await photoMetas(store)).sort((a, b) => a.at - b.at).map(p => {
       const c = checkPhoto(p, byId);
       return { id: p.id, shared_by: p.name, role: p.role, album: outings.get(p.album)?.title || p.album, patrol: p.patrol, caption: p.caption, status: p.status, ok_for_public: p.public ? 'yes' : '', permission_check: c.flag, scouts_tagged: c.tagged.map(t => t.name).join('; '), shared: iso(p.at) };
     });
@@ -355,17 +374,23 @@ async function exportCSV(store, kind) {
 async function leader(store, req, parts, body, now) {
   const [what, id, sub] = parts;
   if (what === 'check') return json({ ok: true });
+  // scratch space for leader-run imports (e.g. a TroopWebHost photo list gathered in the browser)
+  if (what === 'inbox' && id && /^[a-z0-9-]{1,40}$/.test(id)) {
+    if (req.method === 'POST') { await store.setJSON(`inbox/${id}`, { at: now, data: body }); return json({ ok: true }); }
+    if (req.method === 'GET') return json((await store.get(`inbox/${id}`, { type: 'json' })) || {});
+    if (req.method === 'DELETE') { await store.delete(`inbox/${id}`); return json({ ok: true }); }
+  }
   if (what === 'photos' && req.method === 'GET' && id && sub === 'file') return photoFile(store, id, { leader: true });
   if (what === 'photos' && req.method === 'GET' && id && sub === 'thumb') return photoFile(store, id, { leader: true, thumb: true });
   if (what === 'photos' && req.method === 'GET') {
     const byId = new Map((await roster(store)).map(s => [s.id, s]));
-    const all = (await listJSON(store, 'photos/meta/')).sort((a, b) => b.at - a.at);
+    const all = (await photoMetas(store)).sort((a, b) => b.at - a.at);
     return json({ photos: all.map(p => ({ ...p, check: checkPhoto(p, byId) })) });
   }
   if (what === 'photos' && req.method === 'POST' && id) {
     const meta = await store.get(`photos/meta/${clean(id, 40)}`, { type: 'json' });
     if (!meta) return err('Not found', 404);
-    if (body.status === 'deleted') { for (const k of ['meta', 'img', 'thumb']) await store.delete(`photos/${k}/${meta.id}`); return json({ ok: true }); }
+    if (body.status === 'deleted') { for (const k of ['meta', 'img', 'thumb']) await store.delete(`photos/${k}/${meta.id}`); await touchPhotos(store); return json({ ok: true }); }
     if (body.status !== undefined) {
       if (!['approved', 'hidden', 'pending'].includes(body.status)) return err('Bad status');
       meta.status = body.status;
@@ -377,7 +402,22 @@ async function leader(store, req, parts, body, now) {
     if (Array.isArray(body.scouts)) meta.scouts = body.scouts.slice(0, 30).map(s => clean(s, 30)).filter(Boolean);
     if (body.album !== undefined && (await albums(store, false)).some(a => a.id === body.album)) meta.album = body.album;
     await store.setJSON(`photos/meta/${meta.id}`, meta);
+    await touchPhotos(store);
     return json({ ok: true, photo: meta });
+  }
+  // approve / hide many at once (photos with a "no photos" scout tagged are skipped)
+  if (what === 'photos-bulk' && req.method === 'POST') {
+    if (!['approved', 'hidden'].includes(body.status) || !Array.isArray(body.ids)) return err('Bad request');
+    const byId = new Map((await roster(store)).map(s => [s.id, s]));
+    let done = 0, skipped = 0;
+    for (const pid of body.ids.slice(0, 500)) {
+      const meta = await store.get(`photos/meta/${clean(pid, 40)}`, { type: 'json' });
+      if (!meta) continue;
+      if (body.status === 'approved' && checkPhoto(meta, byId).flag === 'blocked') { skipped++; continue; }
+      meta.status = body.status; await store.setJSON(`photos/meta/${meta.id}`, meta); done++;
+    }
+    await touchPhotos(store);
+    return json({ ok: true, done, skipped });
   }
   if (what === 'permissions' && req.method === 'GET') return json({ families: (await listJSON(store, 'consents/')).sort((a, b) => b.updated - a.updated) });
   if (what === 'permissions' && req.method === 'DELETE' && id) { await store.delete(`consents/${clean(id, 40)}`); return json({ ok: true }); }
@@ -395,7 +435,7 @@ async function leader(store, req, parts, body, now) {
   const pr = await leaderPeople(store, what, id, sub, req, body, now, {});
   if (pr) return pr;
   if (what === 'stats') {
-    const [photos, fams] = await Promise.all([listJSON(store, 'photos/meta/'), listJSON(store, 'consents/')]);
+    const [photos, fams] = await Promise.all([photoMetas(store), listJSON(store, 'consents/')]);
     const scouts = fams.flatMap(f => f.scouts);
     return json({
       pending: photos.filter(p => p.status === 'pending').length, approved: photos.filter(p => p.status === 'approved').length,

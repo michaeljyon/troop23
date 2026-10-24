@@ -79,11 +79,25 @@ function Review({ pass }) {
   const roster = useLeader('leader/permissions', pass);
   const albums = useLeader('leader/albums', pass);
   const [filter, setFilter] = useState('pending');
+  const [albumF, setAlbumF] = useState('');
+  const [shown, setShown] = useState(60);
   const [tagging, setTagging] = useState(null);
   const [view, setView] = useState(null);
   const [msg, setMsg] = useState('');
   const scouts = (roster.data?.families || []).flatMap(f => f.scouts.map(s => ({ id: s.id, name: `${s.first}${s.lastInitial ? ` ${s.lastInitial}.` : ''}`, patrol: s.patrol, level: s.level })));
-  const list = (photos.data?.photos || []).filter(p => filter === 'all' || p.status === filter);
+  const list = (photos.data?.photos || []).filter(p => (filter === 'all' || p.status === filter) && (!albumF || p.album === albumF));
+  const albumsWith = [...new Set((photos.data?.photos || []).filter(p => filter === 'all' || p.status === filter).map(p => p.album))];
+  async function bulk(status) {
+    const ids = list.filter(p => p.status !== status).map(p => p.id);
+    if (!ids.length || !confirm(`${status === 'approved' ? 'Approve' : 'Hide'} all ${ids.length} photos shown?${status === 'approved' ? ' Photos with a "no photos" scout tagged are skipped. Check them over first: approved photos show in the gallery for troop families.' : ''}`)) return;
+    setMsg('');
+    try {
+      let done = 0, skipped = 0;
+      for (let i = 0; i < ids.length; i += 200) { const r = await api('leader/photos-bulk', { method: 'POST', body: { ids: ids.slice(i, i + 200), status }, leader: pass }); done += r.done; skipped += r.skipped; }
+      setMsg(`${done} ${status === 'approved' ? 'approved' : 'hidden'}${skipped ? `, ${skipped} skipped (a "no photos" scout is tagged)` : ''}.`);
+      photos.load(); stats.load();
+    } catch (e) { setMsg(e.message); }
+  }
   const count = s => (photos.data?.photos || []).filter(p => p.status === s).length;
   const albumList = albums.data?.albums || troop.albums;
 
@@ -108,13 +122,27 @@ function Review({ pass }) {
       <div className="chip-scroll">
         {[['pending', `Waiting (${count('pending')})`], ['approved', `In gallery (${count('approved')})`], ['hidden', `Hidden (${count('hidden')})`], ['all', 'All']].map(([id, l]) => <button key={id} className={`chip ${filter === id ? 'on' : ''}`} onClick={() => setFilter(id)}>{l}</button>)}
       </div>
+      {albumsWith.length > 1 && (
+        <div className="review-tools">
+          <select value={albumF} onChange={e => { setAlbumF(e.target.value); setShown(60); }} aria-label="Filter by album">
+            <option value="">Every album ({albumsWith.length})</option>
+            {albumList.filter(a => albumsWith.includes(a.id)).map(a => <option key={a.id} value={a.id}>{a.emoji} {a.title}{a.date ? ` · ${a.date.slice(0, 4)}` : ''} ({(photos.data?.photos || []).filter(p => p.album === a.id && (filter === 'all' || p.status === filter)).length})</option>)}
+          </select>
+        </div>
+      )}
+      {list.length > 1 && filter !== 'all' && (
+        <div className="btn-row tight">
+          {filter !== 'approved' && <button className="btn small secondary" onClick={() => bulk('approved')}><Icon name="check" size={16} />Approve all {list.length}</button>}
+          {filter !== 'hidden' && <button className="btn small secondary" onClick={() => bulk('hidden')}><Icon name="eyeOff" size={16} />Hide all {list.length}</button>}
+        </div>
+      )}
       {msg && <p className="form-msg" role="alert">{msg}</p>}
       {photos.error ? <Empty icon="alert" title="Couldn't load photos">{photos.error.message}</Empty>
         : !photos.data ? <p className="muted">Loading…</p>
         : list.length === 0 ? <Empty icon="check" title={filter === 'pending' ? 'All caught up!' : 'Nothing here'}>{filter === 'pending' ? 'No photos waiting for review.' : ''}</Empty>
         : (
           <ul className="review-list">
-            {list.map(p => {
+            {list.slice(0, shown).map(p => {
               const f = FLAG[p.check.flag];
               const a = albumList.find(x => x.id === p.album);
               return (
@@ -143,6 +171,7 @@ function Review({ pass }) {
             })}
           </ul>
         )}
+      {list.length > shown && <div className="center"><button className="btn secondary" onClick={() => setShown(n => n + 60)}>Show more ({list.length - shown} left)</button></div>}
 
       <Sheet open={!!tagging} onClose={() => setTagging(null)} title="Who's in this photo?">
         {tagging && <>

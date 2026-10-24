@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import OutingsCalendar from './OutingsCalendar.jsx';
+import { useApi } from '../lib/api.js';
 import Icon from '../components/Icon.jsx';
 import { PageHead, Empty, Sheet, Seg } from '../components/ui.jsx';
 import { useCol, useLeaderMode, saveDoc, deleteDoc } from '../lib/api.js';
@@ -9,26 +11,50 @@ import { go } from '../lib/router.js';
 import { OutingRow } from './Home.jsx';
 import { useCalendarLink, webcal, googleAdd } from '../lib/calendar.js';
 
-export default function Outings() {
+export default function Outings({ route }) {
   const outings = useCol('outings');
+  const albums = useApi('albums');
   const leader = useLeaderMode();
-  const [view, setView] = useState('upcoming');
+  const view = route?.query?.view || 'upcoming';
+  const setView = v => go(`outings${v === 'upcoming' ? '' : `?view=${v}`}`);
+  const month = route?.query?.m || '';
+  const setMonth = m => go(`outings?view=calendar&m=${m}`);
+  const [pq, setPq] = useState('');
+  const [py, setPy] = useState('');
+  const [pt, setPt] = useState('');
   const [editing, setEditing] = useState(null);
   const [subscribing, setSubscribing] = useState(false);
   const t = today();
-  const list = view === 'upcoming' ? outings.items.filter(o => (o.end || o.start) >= t) : outings.items.filter(o => (o.end || o.start) < t).reverse();
+  const pastAll = outings.items.filter(o => (o.end || o.start) < t).reverse();
+  const pastYears = [...new Set(pastAll.map(o => o.start.slice(0, 4)))];
+  const pastTypes = [...new Set(pastAll.map(o => o.type))];
+  const list = view === 'upcoming' ? outings.items.filter(o => (o.end || o.start) >= t)
+    : pastAll.filter(o => (!py || o.start.startsWith(py)) && (!pt || o.type === pt) && (!pq || `${o.title} ${o.location}`.toLowerCase().includes(pq.toLowerCase())));
+  const photoCount = id => albums.data?.albums?.find(a => a.id === id)?.count || 0;
+  const pill = o => (photoCount(o.id) ? <span className="photo-pill"><Icon name="image" size={13} />{photoCount(o.id)}</span> : null);
+  const byYear = [];
+  for (const o of list) { const y = o.start.slice(0, 4); let g = byYear.find(x => x.y === y); if (!g) byYear.push(g = { y, list: [] }); g.list.push(o); }
 
   return (
     <div className="content">
       <PageHead title="Outings" sub="Campouts, hikes, service and meetings. Tap one for sign-ups, meals, gear and packing.">
         {leader && <button className="btn small head-btn" onClick={() => setEditing({})}><Icon name="plus" size={16} />New</button>}
       </PageHead>
-      <Seg label="Show" value={view} onChange={setView} options={[['upcoming', 'Upcoming'], ['past', 'Past']]} />
+      <Seg label="Show" value={view} onChange={setView} options={[['upcoming', 'Upcoming'], ['calendar', 'Calendar'], ['past', 'Past']]} />
       <button className="cal-sub-btn" onClick={() => setSubscribing(true)}><Icon name="calendar" size={18} /><span className="grow"><b>Put troop outings in your phone's calendar</b><span>Stays up to date by itself</span></span><Icon name="chevronR" size={16} /></button>
+      {view === 'past' && pastAll.length > 0 && (
+        <div className="gal-filters">
+          <div className="search-row"><Icon name="search" size={18} /><input value={pq} onChange={e => setPq(e.target.value)} placeholder="Search past outings and places" aria-label="Search past outings" /></div>
+          <div className="chip-scroll"><button className={`chip ${!py ? 'on' : ''}`} onClick={() => setPy('')}>All years</button>{pastYears.map(y => <button key={y} className={`chip ${py === y ? 'on' : ''}`} onClick={() => setPy(py === y ? '' : y)}>{y}<span className="chip-sub">{pastAll.filter(o => o.start.startsWith(y)).length}</span></button>)}</div>
+          {pastTypes.length > 1 && <div className="chip-scroll"><button className={`chip sm ${!pt ? 'on' : ''}`} onClick={() => setPt('')}>Every kind</button>{pastTypes.map(x => { const ty = troop.outingTypes.find(z => z.id === x); return <button key={x} className={`chip sm ${pt === x ? 'on' : ''}`} onClick={() => setPt(pt === x ? '' : x)}>{ty?.emoji} {ty?.label || x}</button>; })}</div>}
+        </div>
+      )}
       {outings.loading && !outings.data ? <p className="muted">Loading…</p>
         : outings.error && !outings.data ? <Empty icon="alert" title="Couldn't load outings">{outings.error.message}</Empty>
-        : list.length === 0 ? <Empty icon="tent" title={view === 'upcoming' ? 'Nothing scheduled yet' : 'No past outings'}>{leader ? 'Tap New to add the next outing.' : 'Leaders add outings here.'}</Empty>
-        : <ul className="outing-list">{list.map(o => <OutingRow key={o.id} o={o} />)}</ul>}
+        : view === 'calendar' ? <OutingsCalendar outings={outings.items} month={month} setMonth={setMonth} albums={albums.data?.albums} />
+        : list.length === 0 ? <Empty icon="tent" title={view === 'upcoming' ? 'Nothing scheduled yet' : 'No past outings match'}>{view === 'upcoming' ? (leader ? 'Tap New to add the next outing.' : 'Leaders add outings here.') : 'Try another year or search.'}</Empty>
+        : view === 'past' ? byYear.map(g => <section key={g.y}><h2 className="section-title sm">{g.y}<span className="muted"> · {g.list.length}</span></h2><ul className="outing-list">{g.list.map(o => <OutingRow key={o.id} o={o} extra={pill(o)} />)}</ul></section>)
+        : <ul className="outing-list">{list.map(o => <OutingRow key={o.id} o={o} extra={pill(o)} />)}</ul>}
       {!leader && <p className="small muted center pad-top">Leaders: sign in under More → Leader tools to add outings.</p>}
       <Sheet open={subscribing} onClose={() => setSubscribing(false)} title="Troop calendar"><CalendarSubscribe /></Sheet>
       <OutingForm outing={editing} onClose={() => setEditing(null)} onSaved={o => { setEditing(null); outings.refresh(); if (o) go(`outing/${o.id}`); }} />

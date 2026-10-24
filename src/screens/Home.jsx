@@ -110,7 +110,7 @@ export default function Home() {
   );
 }
 
-export function OutingRow({ o }) {
+export function OutingRow({ o, extra, showYear }) {
   const md = monthDay(o.start);
   const t = outingType(o.type);
   return (
@@ -119,8 +119,9 @@ export function OutingRow({ o }) {
         <span className="date-block"><span>{md.mon}</span><b>{md.day}</b></span>
         <span className="grow">
           <span className="outing-row-title">{o.title}</span>
-          <span className="outing-row-meta">{t.emoji} {t.label} · {rangeLabel(o.start, o.end)}{o.location ? ` · ${o.location}` : ''}</span>
+          <span className="outing-row-meta">{t.emoji} {t.label} · {rangeLabel(o.start, o.end)}{showYear ? `, ${o.start.slice(0, 4)}` : ''}{o.location ? ` · ${o.location}` : ''}</span>
         </span>
+        {extra}
         {o.cancelled ? <Pill tone="bad">Cancelled</Pill> : <Icon name="chevronR" />}
       </a>
     </li>
