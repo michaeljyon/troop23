@@ -15,7 +15,7 @@ export default function TagPicker({ scouts, patrol, tags, setTags, label = 'Scou
   return (
     <div className="tagger">
       <div className="tagger-head"><span className="field-label">{label}</span>{tags.length > 0 && <span className="count-pill">{tags.length} tagged</span>}</div>
-      <p className="small muted">Helps leaders check each family's photo choice. Tags are only visible to leaders.</p>
+      <p className="small muted">Lets families find photos of their scout and helps leaders check each family's photo choice. Families see first name and last initial.</p>
       {scouts.length > 12 && <input className="tag-search" value={q} onChange={e => setQ(e.target.value)} placeholder="Find a scout" aria-label="Find a scout" />}
       <div className="tag-chips">
         {shown.map(s => <button key={s.id} type="button" className={`chip ${tags.includes(s.id) ? 'on' : ''}`} aria-pressed={tags.includes(s.id)} onClick={() => toggle(s.id)}>{tags.includes(s.id) && <Icon name="check" size={14} />}{s.name}{s.patrol && <span className="chip-sub">{s.patrol}</span>}</button>)}

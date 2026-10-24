@@ -321,9 +321,12 @@ async function addPhoto(store, body, now) {
 
 async function photoList(store) {
   const [metas, scouts] = await Promise.all([photoMetas(store), roster(store)]);
-  const names = new Map(scouts.map(s => [s.id, scoutName(s)]));
+  const byId = new Map(scouts.map(s => [s.id, s]));
   return metas.filter(p => p.status === 'approved').sort((a, b) => b.at - a.at)
-    .map(({ id, display, caption, at, album, patrol, scouts: tagged }) => ({ id, name: display, caption, at, album, patrol, tags: (tagged || []).map(t => names.get(t)).filter(Boolean) }));
+    .map(({ id, display, caption, at, album, patrol, scouts: tagged }) => {
+      const t = (tagged || []).map(x => byId.get(x)).filter(Boolean);
+      return { id, name: display, caption, at, album, patrol, tags: t.map(scoutName), tagIds: t.map(x => x.id), tagPatrols: [...new Set(t.map(x => x.patrol).filter(Boolean))] };
+    });
 }
 
 async function photoFile(store, id, { leader = false, thumb = false } = {}) {
@@ -400,6 +403,9 @@ async function leader(store, req, parts, body, now) {
       meta.public = !!body.public;
     }
     if (Array.isArray(body.scouts)) meta.scouts = body.scouts.slice(0, 30).map(s => clean(s, 30)).filter(Boolean);
+    if (body.patrol !== undefined) meta.patrol = clean(body.patrol, 40);
+    // tagging a "no photos" scout takes the photo out of the gallery
+    if (meta.status === 'approved' && checkPhoto(meta, new Map((await roster(store)).map(s => [s.id, s]))).flag === 'blocked') { meta.status = 'hidden'; meta.public = false; }
     if (body.album !== undefined && (await albums(store, false)).some(a => a.id === body.album)) meta.album = body.album;
     await store.setJSON(`photos/meta/${meta.id}`, meta);
     await touchPhotos(store);
@@ -407,14 +413,19 @@ async function leader(store, req, parts, body, now) {
   }
   // approve / hide many at once (photos with a "no photos" scout tagged are skipped)
   if (what === 'photos-bulk' && req.method === 'POST') {
-    if (!['approved', 'hidden'].includes(body.status) || !Array.isArray(body.ids)) return err('Bad request');
+    if (!['approved', 'hidden'].includes(body.status)) return err('Bad request');
+    if (body.filter === 'archive-untagged') body.ids = (await photoMetas(store)).filter(p => p.status === 'pending' && p.source === 'TroopWebHost' && !(p.scouts || []).length).map(p => p.id);
+    if (!Array.isArray(body.ids)) return err('Bad request');
     const byId = new Map((await roster(store)).map(s => [s.id, s]));
     let done = 0, skipped = 0;
-    for (const pid of body.ids.slice(0, 500)) {
-      const meta = await store.get(`photos/meta/${clean(pid, 40)}`, { type: 'json' });
-      if (!meta) continue;
-      if (body.status === 'approved' && checkPhoto(meta, byId).flag === 'blocked') { skipped++; continue; }
-      meta.status = body.status; await store.setJSON(`photos/meta/${meta.id}`, meta); done++;
+    const ids = body.ids.slice(0, 2000);
+    for (let i = 0; i < ids.length; i += 25) {
+      await Promise.all(ids.slice(i, i + 25).map(async pid => {
+        const meta = await store.get(`photos/meta/${clean(pid, 40)}`, { type: 'json' });
+        if (!meta) return;
+        if (body.status === 'approved' && checkPhoto(meta, byId).flag === 'blocked') { skipped++; return; }
+        meta.status = body.status; await store.setJSON(`photos/meta/${meta.id}`, meta); done++;
+      }));
     }
     await touchPhotos(store);
     return json({ ok: true, done, skipped });

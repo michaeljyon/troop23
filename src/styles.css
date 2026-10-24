@@ -735,3 +735,9 @@ input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-off
 .cal-list-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; }
 .cal-ends { margin-top: 10px; }
 .cal-week + .cal-week { border-top: 1px solid var(--line); }
+.warm-card { background: #FFF6E5; border: 1px solid #F3D9A4; margin: 0 0 12px; }
+.warm-card p { margin: 0 0 10px; }
+.gal-note { display: flex; gap: 6px; align-items: flex-start; margin: -4px 0 10px; }
+.lb-sheet { position: fixed; inset: 0; z-index: 70; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; justify-content: center; }
+.lb-sheet-card { width: min(560px, 100%); max-height: 88vh; overflow-y: auto; background: var(--surface); color: var(--ink); border-radius: 20px 20px 0 0; padding: 6px 16px calc(env(safe-area-inset-bottom) + 12px); }
+.lb-sheet-card .tag-preview { max-height: 180px; width: auto; display: block; margin: 0 auto 10px; border-radius: 10px; }

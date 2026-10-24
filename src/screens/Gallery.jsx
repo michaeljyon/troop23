@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import { PageHead, Empty, Sheet } from '../components/ui.jsx';
-import { useApi, photoUrl, usePatrols, useSynced } from '../lib/api.js';
+import { api, useApi, photoUrl, usePatrols, useSynced, useLeaderMode } from '../lib/api.js';
+import TagPicker from '../components/TagPicker.jsx';
 import { troop } from '../lib/config.js';
 import { go } from '../lib/router.js';
 
@@ -32,7 +33,8 @@ export function filterPhotos(all, byAlbum, f, favs = []) {
     if (ids && !ids.has(p.album)) return false;
     if (f.year && String(yearOf(p.at)) !== String(f.year)) return false;
     if (f.type && a?.type !== f.type) return false;
-    if (f.patrol && p.patrol !== f.patrol) return false;
+    if (f.patrol && p.patrol !== f.patrol && !(p.tagPatrols || []).includes(f.patrol)) return false;
+    if (f.scout && !(p.tagIds || []).includes(f.scout)) return false;
     if (f.fav && !fav.has(p.id)) return false;
     if (q && !`${p.caption} ${(p.tags || []).join(' ')} ${p.name} ${a?.title || ''} ${a?.location || ''}`.toLowerCase().includes(q)) return false;
     return true;
@@ -42,7 +44,7 @@ export function filterPhotos(all, byAlbum, f, favs = []) {
 export default function Gallery({ route }) {
   const qy = route.query;
   const view = qy.album ? 'album' : qy.view || 'events';
-  const f = { album: qy.album || '', year: qy.year || '', type: qy.type || '', patrol: qy.patrol || '', q: qy.q || '', fav: qy.view === 'favs' };
+  const f = { album: qy.album || '', year: qy.year || '', type: qy.type || '', patrol: qy.patrol || '', scout: qy.scout || '', q: qy.q || '', fav: qy.view === 'favs' };
   const { photos, all, albumList, byAlbum } = useGalleryData();
   const patrols = usePatrols() || troop.patrols;
   const [favs, setFavs] = useSynced('fav-photos', []);
@@ -52,17 +54,19 @@ export default function Gallery({ route }) {
   const [builder, setBuilder] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const setQuery = patch => {
-    const next = { view: qy.view, album: qy.album, year: qy.year, type: qy.type, patrol: qy.patrol, q: qy.q, ...patch };
+    const next = { view: qy.view, album: qy.album, year: qy.year, type: qy.type, patrol: qy.patrol, scout: qy.scout, q: qy.q, ...patch };
     go(`gallery?${new URLSearchParams(Object.fromEntries(Object.entries(next).filter(([, v]) => v)))}`);
   };
   useEffect(() => { const t = setTimeout(() => search !== f.q && setQuery({ q: search, photo: '' }), 350); return () => clearTimeout(t); }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setLimit(PAGE); }, [qy.album, qy.year, qy.type, qy.patrol, qy.q, qy.view]);
+  useEffect(() => { setLimit(PAGE); }, [qy.album, qy.year, qy.type, qy.patrol, qy.scout, qy.q, qy.view]);
   useEffect(() => { if (!selecting) setSel([]); }, [selecting]);
 
-  const shown = useMemo(() => filterPhotos(all, byAlbum, f, favs), [all, byAlbum, f.album, f.year, f.type, f.patrol, f.q, f.fav, favs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = useMemo(() => filterPhotos(all, byAlbum, f, favs), [all, byAlbum, f.album, f.year, f.type, f.patrol, f.scout, f.q, f.fav, favs]); // eslint-disable-line react-hooks/exhaustive-deps
   const years = [...new Set(all.map(p => yearOf(p.at)))].sort((a, b) => b - a);
   const types = [...new Set(all.map(p => byAlbum.get(p.album)?.type).filter(Boolean))];
-  const usedPatrols = patrols.filter(p => all.some(x => x.patrol === p));
+  const usedPatrols = patrols.filter(p => all.some(x => x.patrol === p || (x.tagPatrols || []).includes(p)));
+  const tagged = useMemo(() => { const m = new Map(); for (const p of all) (p.tagIds || []).forEach((id, i) => m.set(id, p.tags[i])); return [...m].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)); }, [all]);
+  const untagged = all.filter(p => !(p.tagIds || []).length).length;
   // events with at least one photo matching the filters
   const events = useMemo(() => {
     const m = new Map();
@@ -74,7 +78,7 @@ export default function Gallery({ route }) {
   const openId = qy.photo;
   const idx = openId ? shown.findIndex(p => p.id === openId) : -1;
   const toggleFav = id => setFavs(favs.includes(id) ? favs.filter(x => x !== id) : [...favs, id]);
-  const filtersOn = !!(f.year || f.type || f.patrol || f.q);
+  const filtersOn = !!(f.year || f.type || f.patrol || f.scout || f.q);
 
   function playSelection(ids) {
     try { sessionStorage.setItem('t23-show-ids', JSON.stringify(ids)); } catch { /* private mode */ }
@@ -128,12 +132,21 @@ export default function Gallery({ route }) {
               </select>
             </label>
           )}
-          {filtersOn && <button className="link-btn small" onClick={() => { setSearch(''); setQuery({ year: '', type: '', patrol: '', q: '' }); }}><Icon name="x" size={14} />Clear filters</button>}
+          {tagged.length > 0 && (
+            <label className="den-filter"><Icon name="tag" size={18} />
+              <select value={f.scout} onChange={e => setQuery({ scout: e.target.value })} aria-label="Filter by scout">
+                <option value="">Every scout</option>
+                {tagged.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </label>
+          )}
+          {filtersOn && <button className="link-btn small" onClick={() => { setSearch(''); setQuery({ year: '', type: '', patrol: '', scout: '', q: '' }); }}><Icon name="x" size={14} />Clear filters</button>}
           <span className="grow" />
           {(view !== 'events' || album) && shown.length > 0 && <button className={`chip sm ${selecting ? 'on' : ''}`} onClick={() => setSelecting(s => !s)}><Icon name="check" size={14} />{selecting ? 'Done' : 'Select'}</button>}
         </div>
       </div>
 
+      {(f.patrol || f.scout) && untagged > 0 && <p className="small muted gal-note"><Icon name="info" size={14} /> Patrol and scout filters only find photos with scouts tagged. {untagged} photo{untagged === 1 ? ' isn\'t' : 's aren\'t'} tagged yet and still show under each event.</p>}
       {photos.loading && !photos.data ? <p className="muted">Loading photos…</p>
         : photos.error && !photos.data ? <Empty icon="alert" title="Couldn't load photos">{photos.error.message}</Empty>
         : shown.length === 0 ? (
@@ -173,7 +186,7 @@ export default function Gallery({ route }) {
         </div>
       )}
 
-      {idx >= 0 && <Lightbox photos={shown} index={idx} byAlbum={byAlbum} favs={favs} onFav={toggleFav} onClose={() => setQuery({ photo: '' })} onGo={i => setQuery({ photo: shown[i].id })} onPlay={() => go(`slideshow?albums=${shown[idx].album}`)} />}
+      {idx >= 0 && <Lightbox photos={shown} index={idx} byAlbum={byAlbum} favs={favs} onFav={toggleFav} onClose={() => setQuery({ photo: '' })} onGo={i => setQuery({ photo: shown[i].id })} onPlay={() => go(`slideshow?albums=${shown[idx].album}`)} onTagged={() => photos.refresh()} patrols={patrols} />}
       <Sheet open={builder} onClose={() => setBuilder(false)} title="Build a slideshow" wide>
         {builder && <SlideshowBuilder all={all} albumList={albumList} byAlbum={byAlbum} favs={favs} patrols={usedPatrols} initial={{ year: f.year, type: f.type, patrol: f.patrol, albums: f.album ? [f.album] : [] }} onStart={params => go(`slideshow?${params}`)} />}
       </Sheet>
@@ -233,14 +246,16 @@ function ShareButton({ ids }) {
   return <button className="btn small on-dark-btn" disabled={!ids.length || busy} onClick={run} title={ids.length > 20 ? 'Saves the first 20' : ''}><Icon name="download" size={15} />{busy ? 'Saving…' : 'Save'}</button>;
 }
 
-function Lightbox({ photos, index, byAlbum, favs, onFav, onClose, onGo, onPlay }) {
+function Lightbox({ photos, index, byAlbum, favs, onFav, onClose, onGo, onPlay, onTagged, patrols }) {
   const p = photos[index];
+  const leader = useLeaderMode();
+  const [tagging, setTagging] = useState(false);
   const touch = useRef(null);
   const [saving, setSaving] = useState(false);
   const prev = () => index > 0 && onGo(index - 1);
   const next = () => index < photos.length - 1 && onGo(index + 1);
   useEffect(() => {
-    const key = e => { if (e.key === 'Escape') onClose(); if (e.key === 'ArrowLeft') prev(); if (e.key === 'ArrowRight') next(); if (e.key === 'f') onFav(p.id); };
+    const key = e => { if (tagging) return; if (e.key === 'Escape') onClose(); if (e.key === 'ArrowLeft') prev(); if (e.key === 'ArrowRight') next(); if (e.key === 'f') onFav(p.id); };
     addEventListener('keydown', key); document.body.classList.add('no-scroll');
     return () => { removeEventListener('keydown', key); document.body.classList.remove('no-scroll'); };
   });
@@ -263,6 +278,7 @@ function Lightbox({ photos, index, byAlbum, favs, onFav, onClose, onGo, onPlay }
         <span className="lb-count">{index + 1} / {photos.length}</span>
         <span className="grow" />
         <button className={`icon-btn on-dark ${fav ? 'fav-on' : ''}`} onClick={() => onFav(p.id)} aria-pressed={fav} aria-label={fav ? 'Remove from favorites' : 'Add to favorites'}><Icon name="heart" /></button>
+        {leader && <button className="icon-btn on-dark" onClick={() => setTagging(true)} aria-label="Tag scouts and patrol"><Icon name="tag" /></button>}
         <button className="icon-btn on-dark" onClick={onPlay} aria-label="Play this event as a slideshow"><Icon name="play" /></button>
         <button className="icon-btn on-dark" onClick={onClose} aria-label="Close"><Icon name="x" /></button>
       </div>
@@ -275,7 +291,40 @@ function Lightbox({ photos, index, byAlbum, favs, onFav, onClose, onGo, onPlay }
         {p.caption && <p className="lb-caption">{p.caption}</p>}
         {p.tags?.length > 0 && <p className="lb-tags">{p.tags.map(t => <span key={t}>{t}</span>)}</p>}
         <p className="lb-meta">{a && <a href={`#/gallery?album=${a.id}`}>{a.emoji} {a.title}</a>}{a && ' · '}{p.patrol && <>{p.patrol} · </>}by {p.name} · {new Date(p.at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-        <button className="btn small on-dark-btn" onClick={save} disabled={saving}><Icon name="download" size={16} />{saving ? 'Saving…' : 'Save photo'}</button>
+        <div className="btn-row tight">
+          <button className="btn small on-dark-btn" onClick={save} disabled={saving}><Icon name="download" size={16} />{saving ? 'Saving…' : 'Save photo'}</button>
+          {leader && !p.tagIds?.length && <button className="btn small on-dark-btn" onClick={() => setTagging(true)}><Icon name="tag" size={16} />Tag scouts</button>}
+        </div>
+      </div>
+      {tagging && <TagSheet p={p} patrols={patrols} onClose={() => setTagging(false)} onSaved={() => { setTagging(false); onTagged(); }} />}
+    </div>
+  );
+}
+
+// Leaders tag who's in a photo (and its patrol) right from the gallery.
+function TagSheet({ p, patrols, onClose, onSaved }) {
+  const [roster, setRoster] = useState(null);
+  const [tags, setTags] = useState(p.tagIds || []);
+  const [patrol, setPatrol] = useState(p.patrol || '');
+  const [msg, setMsg] = useState('');
+  useEffect(() => { api('leader/permissions').then(d => setRoster(d.families.flatMap(f => f.scouts.map(s => ({ id: s.id, name: `${s.first}${s.lastInitial ? ` ${s.lastInitial}.` : ''}`, patrol: s.patrol, level: s.level }))))).catch(e => setMsg(e.message)); }, []);
+  async function save() {
+    setMsg('');
+    try {
+      const r = await api(`leader/photos/${p.id}`, { method: 'POST', body: { scouts: tags, patrol } });
+      if (r.photo?.status === 'hidden') alert('A scout tagged here has "no photos" permission, so this photo was taken out of the gallery.');
+      onSaved();
+    } catch (e) { setMsg(e.message); }
+  }
+  return (
+    <div className="lb-sheet" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="lb-sheet-card" role="dialog" aria-modal="true" aria-label="Tag this photo">
+        <div className="sheet-head"><h2>Who's in it?</h2><button className="icon-btn" onClick={onClose} aria-label="Close"><Icon name="x" /></button></div>
+        <img className="tag-preview" src={photoUrl(p.id, true)} alt="" />
+        <label className="field"><span>Patrol</span><select value={patrol} onChange={e => setPatrol(e.target.value)}><option value="">None / whole troop</option>{patrols.filter(x => !/adult/i.test(x)).map(x => <option key={x}>{x}</option>)}</select></label>
+        {roster ? <TagPicker scouts={roster} patrol={patrol} tags={tags} setTags={setTags} label="Scouts in this photo" /> : <p className="muted">Loading scouts…</p>}
+        {msg && <p className="form-msg" role="alert">{msg}</p>}
+        <div className="sheet-foot"><button className="btn" onClick={save}>Save tags</button></div>
       </div>
     </div>
   );

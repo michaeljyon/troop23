@@ -122,6 +122,20 @@ function Review({ pass }) {
       <div className="chip-scroll">
         {[['pending', `Waiting (${count('pending')})`], ['approved', `In gallery (${count('approved')})`], ['hidden', `Hidden (${count('hidden')})`], ['all', 'All']].map(([id, l]) => <button key={id} className={`chip ${filter === id ? 'on' : ''}`} onClick={() => setFilter(id)}>{l}</button>)}
       </div>
+      {(() => {
+        const arch = (photos.data?.photos || []).filter(p => p.status === 'pending' && p.source === 'TroopWebHost' && !(p.scouts || []).length).length;
+        return arch > 0 && (
+          <div className="card warm-card">
+            <p className="small"><b>{arch} photos from the old TroopWebHost gallery</b> are waiting. None have scouts tagged. Show them on their events now; they won't turn up in patrol or scout filters until someone tags them.</p>
+            <button className="btn small" onClick={async () => {
+              if (!confirm(`Show all ${arch} TroopWebHost photos on their events?`)) return;
+              setMsg('');
+              try { const r = await api('leader/photos-bulk', { method: 'POST', body: { filter: 'archive-untagged', status: 'approved' }, leader: pass }); setMsg(`${r.done} photos are now on their events.`); photos.load(); stats.load(); }
+              catch (e) { setMsg(e.message); }
+            }}><Icon name="image" size={16} />Show them on their events</button>
+          </div>
+        );
+      })()}
       {albumsWith.length > 1 && (
         <div className="review-tools">
           <select value={albumF} onChange={e => { setAlbumF(e.target.value); setShown(60); }} aria-label="Filter by album">
