@@ -82,6 +82,15 @@ async function listMsgs(store, threadId, since = 0, limit = 120) {
   return (await Promise.all(keys.map(k => store.get(k, { type: 'json' })))).filter(Boolean);
 }
 
+// chat attachments
+const ATT_MAX = 4 * 1024 * 1024;   // a Netlify function request tops out near 6 MB once base64-encoded
+const ATT_TYPES = /^(image\/(jpeg|png|gif|webp|heic|heif)|application\/pdf|text\/(plain|csv)|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|vnd\.ms-excel|vnd\.ms-powerpoint|rtf)|application\/vnd\.oasis\.opendocument\.(text|spreadsheet|presentation))$/;
+const BAD_EXT = /\.(exe|bat|cmd|com|msi|js|vbs|scr|ps1|sh|jar|apk|app|dmg|html?|svg)$/i;
+function attLabel(atts) {
+  const n = atts.filter(a => a.kind === 'image').length, f = atts.length - n;
+  return [n && `📷 ${n} photo${n > 1 ? 's' : ''}`, f && `📎 ${f} file${f > 1 ? 's' : ''}`].filter(Boolean).join(', ');
+}
+
 // --------------------------------------------------------------- routes for signed-in members
 export async function memberRoutes(store, head, rest, req, body, now, ctx) {
   const { session, patrols } = ctx;
@@ -150,7 +159,7 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
     if (!t || !canRead(t, me)) return err('Conversation not found.', 404);
     if (!sub && req.method === 'GET') {
       const since = Number(new URL(req.url).searchParams.get('since') || 0);
-      const msgs = (await listMsgs(store, t.id, since)).map(x => (x.hidden && !me.leader ? { ...x, text: '', hiddenNote: true } : x));
+      const msgs = (await listMsgs(store, t.id, since)).map(x => (x.hidden && !me.leader ? { ...x, text: '', attachments: undefined, hiddenNote: true } : x));
       if (t.members.includes(me.id) && t.last) {
         const reads = (await store.get(`reads/${me.id}`, { type: 'json' })) || {};
         if ((reads[t.id] || 0) < t.last.at) { reads[t.id] = t.last.at; await store.setJSON(`reads/${me.id}`, reads); }
@@ -161,14 +170,47 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
         messages: msgs,
       });
     }
+    // attachments: uploaded one at a time, then sent with a message
+    if (sub === 'att' && !mid && req.method === 'POST') {
+      if (!t.members.includes(me.id)) return err('Only people in this conversation can add files.', 403);
+      const name = clean(body.name, 120).replace(/[\\/:*?"<>|]+/g, '_') || 'file';
+      const type = clean(body.type, 100).toLowerCase();
+      if (!ATT_TYPES.test(type) || BAD_EXT.test(name)) return err('That kind of file can\'t be shared here. Photos, PDFs, Word, Excel, PowerPoint and text files are OK.');
+      const m = /^data:[^;,]*;base64,(.+)$/.exec(String(body.data || ''));
+      if (!m) return err('That file didn\'t come through. Try again.');
+      const bytes = Uint8Array.from(atob(m[1]), c => c.charCodeAt(0));
+      if (bytes.byteLength > ATT_MAX) return err(`${name} is too big. Files can be up to ${Math.round(ATT_MAX / 1048576)} MB.`);
+      const id = `${now.toString(36)}${rid().slice(-6)}`;
+      const meta = { id, name, type, size: bytes.byteLength, kind: type.startsWith('image/') ? 'image' : 'file', w: Number(body.w) || 0, h: Number(body.h) || 0, by: me.id, at: now };
+      await store.set(`att/${t.id}/${id}`, bytes, { metadata: meta });
+      return json({ attachment: meta });
+    }
+    if (sub === 'att' && mid && req.method === 'GET') {
+      const r = await store.getWithMetadata(`att/${t.id}/${clean(mid, 40)}`, { type: 'arrayBuffer' });
+      if (!r) return new Response('Not found', { status: 404 });
+      const mt = r.metadata || {};
+      if (mt.hidden && !me.leader) return new Response('Not found', { status: 404 });
+      const inline = String(mt.type).startsWith('image/') && new URL(req.url).searchParams.get('dl') !== '1';
+      return new Response(r.data, { headers: {
+        'content-type': inline ? mt.type : (mt.type || 'application/octet-stream'), 'x-content-type-options': 'nosniff', 'cache-control': 'private, max-age=604800',
+        'content-disposition': `${inline ? 'inline' : 'attachment'}; filename="${String(mt.name || 'file').replace(/[^\w.\- ]+/g, '_')}"`,
+        'content-security-policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+      } });
+    }
     if (sub === 'msgs' && !mid && req.method === 'POST') {
       if (!t.adultsOnly && !g.every(id => t.members.includes(id))) return err('This conversation is missing a required leader.', 409);
-      const text = clean(body.text, 2000);
-      if (!text) return err('Write a message first.');
-      const m = { id: `${now}-${rid().slice(-6)}`, by: me.id, byName: me.name, role: me.role, text, at: now };
+      const text = clean(body.text, 4000);
+      const atts = [];
+      for (const aid of (Array.isArray(body.attachments) ? body.attachments : []).slice(0, 10)) {
+        const meta = (await store.getMetadata(`att/${t.id}/${clean(aid, 40)}`))?.metadata;
+        if (meta && meta.by === me.id) atts.push({ id: meta.id, name: meta.name, type: meta.type, size: meta.size, kind: meta.kind, w: meta.w, h: meta.h });
+      }
+      if (!text && !atts.length) return err('Write a message first.');
+      const m = { id: `${now}-${rid().slice(-6)}`, by: me.id, byName: me.name, role: me.role, text, at: now, ...(atts.length ? { attachments: atts } : {}) };
+      const preview = text ? text.replace(/[*_~`>#]/g, '').slice(0, 120) : attLabel(atts);
       await store.setJSON(`msgs/${t.id}/${m.id}`, m);
       const saved = (await store.get(`threads/${t.id}`, { type: 'json' })) || { ...t, members: t.kind === 'dm' ? t.members : [] };
-      saved.id = t.id; saved.kind = t.kind; saved.last = { at: now, by: me.id, byName: me.first || me.name, text: text.slice(0, 120) };
+      saved.id = t.id; saved.kind = t.kind; saved.last = { at: now, by: me.id, byName: me.first || me.name, text: preview };
       if (t.kind !== 'dm') { saved.members = []; saved.title = t.title; }
       await store.setJSON(`threads/${t.id}`, saved);
       const reads = (await store.get(`reads/${me.id}`, { type: 'json' })) || {};
@@ -177,7 +219,7 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
       if (to.length && ctx.notify) {
         const dm = t.kind === 'dm';
         const title = dm ? (t.groupName ? `${t.groupName.replace(/^Request an? /, '')} · ${me.name}` : me.name) : `${t.emoji || '💬'} ${t.title}`;
-        ctx.later(ctx.notify(to, dm ? 'messages' : 'boards', { title, body: dm ? text : `${me.first || me.name}: ${text}`, url: `#/thread/${t.id}`, tag: t.id }));
+        ctx.later(ctx.notify(to, dm ? 'messages' : 'boards', { title, body: dm ? preview : `${me.first || me.name}: ${preview}`, url: `#/thread/${t.id}`, tag: t.id }));
       }
       return json({ message: m });
     }
@@ -317,7 +359,13 @@ export async function leaderPeople(store, what, id, sub, req, body, now, ctx) {
     if (!r) return err('Not found', 404);
     const k = `msgs/${r.threadId}/${r.msgId}`;
     const m = await store.get(k, { type: 'json' });
-    if (m && body.action === 'hide') { m.hidden = { by: ctx.leaderName || 'Leader', at: now }; await store.setJSON(k, m); }
+    if (m && body.action === 'hide') {
+      m.hidden = { by: ctx.leaderName || 'Leader', at: now }; await store.setJSON(k, m);
+      for (const a of m.attachments || []) {   // hidden messages' photos and files stop downloading for everyone but leaders
+        const ak = `att/${r.threadId}/${a.id}`, f = await store.getWithMetadata(ak, { type: 'arrayBuffer' });
+        if (f) await store.set(ak, f.data, { metadata: { ...(f.metadata || {}), hidden: true } });
+      }
+    }
     r.open = false; r.resolved = { action: body.action === 'hide' ? 'hidden' : 'kept', at: now };
     await store.setJSON(`reports/${id}`, r);
     return json({ ok: true });

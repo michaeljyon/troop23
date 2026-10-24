@@ -18,9 +18,9 @@ The troop code still works as a **guest** sign-in (no chat, nothing synced). Adu
 - **Photo gallery.** Browse by event (cover cards by year) or as one wall; filter by year, kind of outing, patrol, or search events, places, captions and who's tagged. Heart favorites (synced to your account), pick photos to play or save, and build a slideshow from any events, years, patrols or favorites, with event title cards, captions, speed and shuffle. Includes 1,000 photos from the TroopWebHost gallery (2022 on), each filed under its event.
 - **Photos.** The Pack 6 Photo Trail system: snap or upload, every outing is its own album, tag scouts, and location data is stripped on the phone. Leaders review every photo against each family's photo permission (Public OK / Troop only / No photos). There's also a full-screen slideshow for Courts of Honor.
 - **Bulletin.** Leader announcements on the Home screen, with pinning.
-- **Chat**, built for Safeguarding Youth Training rules. The Scoutmaster and Committee Chair are automatically in every conversation, so there's never a one-on-one chat. Messages can't be deleted, and anyone can report one for leaders to review. Boards: whole troop, Patrol Leaders' Council, each patrol, adult leaders, and the troop's groups (from the TroopWebHost e-mail groups). Scouts also get **Ask a leader**: request a board of review or a Scoutmaster conference, which opens a conversation with the right adults plus the two-deep leaders.
+- **Chat**, built for Safeguarding Youth Training rules. Conversations open full screen. Messages support **bold**, _italic_, ~~strike~~, bulleted and numbered lists and links (tap Aa), and up to 10 photos or files each (photos are resized on the phone with location data removed; PDFs, Word, Excel, PowerPoint and text files up to 4 MB). When a leader hides a reported message, its photos and files are hidden too. The Scoutmaster and Committee Chair are automatically in every conversation, so there's never a one-on-one chat. Messages can't be deleted, and anyone can report one for leaders to review. Boards: whole troop, Patrol Leaders' Council, each patrol, adult leaders, and the troop's groups (from the TroopWebHost e-mail groups). Scouts also get **Ask a leader**: request a board of review or a Scoutmaster conference, which opens a conversation with the right adults plus the two-deep leaders.
 - **Never miss a message.** A bell in the header and a pulsing Chat badge count conversations that need you. Home opens with a "waiting on you" card, and the first visit each session shows what came in. A conversation needs a reply when someone else spoke last (or named you on a board) in the last three weeks.
-- **Writing helper (✨ in Chat).** Suggests a clearer, kinder, complete version of a message and lists anything the other person asked that the draft doesn't answer. It never sends anything. It uses Claude Haiku through Netlify AI Gateway (no API keys; uses the site's Netlify credits, 40 suggestions per person per day) and falls back to built-in writing tips. Leaders can turn it off in Leader tools → Settings.
+- **Writing helper (✨ in Chat).** Suggests a clearer, kinder, complete version of a message and lists anything the other person asked that the draft doesn't answer. It never sends anything. It runs on Cloudflare Workers AI's free daily allowance (Llama 3.1 8B, roughly 1,000 suggestions a day; 40 per person) and never uses Netlify AI credits. Set `CF_ACCOUNT_ID` and `CF_AI_TOKEN` (a Cloudflare API token with Workers AI permission) in Netlify's environment variables. Without them, or once the free allowance runs out for the day, it gives built-in writing tips. Leaders can turn it off in Leader tools → Settings.
 - **Advancement.** Each scout's rank ladder, next-rank requirements, Eagle-required badges, badges earned and in progress, and activity totals, imported from TroopWebHost. Scouts see their own record, parents see their linked scouts', leaders see everyone.
 - **Recipe scanner.** Photograph a recipe card or cookbook page. The phone reads it on the device, breaks out the ingredients and steps, scales it to the number of people going, and estimates the cost.
 - **Notifications.** Signed-in members turn them on per phone under More → Notifications, and choose messages, boards and announcements. On iPhone, Basecamp has to be added to the Home Screen first (iOS 16.4 or later). Notification keys are made automatically, so there's nothing to set up.
@@ -34,6 +34,7 @@ Signing in with the leader passcode turns on leader mode for that browser tab. L
 
 - **Members.** Personal codes, invites, the Leader switch, parent ↔ scout links, and the two adults copied on every chat.
 - **Link families** (in Members). Suggests parent–scout pairs who share a last name, to confirm all at once.
+- **Troop setup.** Merit badge counselors (who counsels which badge; scouts find them under Advancement → Counselors and can message troop counselors), leadership positions for each member, places outings go (typing one in an outing fills in the address, phone, website and map pin), and shortcuts to everything else that came from TroopWebHost.
 - **Groups.** The troop's groups as chat boards or "Ask a leader" requests. Add or remove people any time.
 - **Chat reports.** Hide or keep reported messages.
 - **Photos.** Review uploads against photo permission.
@@ -54,6 +55,8 @@ Secrets go in Netlify → Site configuration → Environment variables:
 |---|---|
 | `TROOP_CODE` | The code everyone types to open the app. Not case-sensitive. Change it each year. |
 | `LEADER_PASSCODE` | Opens leader tools and leader mode. |
+| `CF_ACCOUNT_ID` | Cloudflare account ID for the free chat writing helper (optional). |
+| `CF_AI_TOKEN` | Cloudflare API token with Workers AI permission (optional, secret). |
 
 Data lives in Netlify Blobs, in a store named after `troop.id`. No database to set up.
 
@@ -70,6 +73,7 @@ python3 scripts/import-locations.py <Maintain_Event_Locations.csv> <site-url> <l
 - **Events** → outings (re-running updates the same outings).
 - **Everything else** reads the active roster, user permissions, leadership positions, rank and merit badge history, merit badges in progress, rank requirements, event participation, inventory and checked-out items, and e-mail groups. It brings over names, adult/scout, patrol, positions, rank, advancement, attendance, gear and groups. **Contact info, birthdays, ages, BSA IDs, medical, allergies, money and addresses are never read.** Re-running keeps everyone's personal code, leader changes, parent links and group edits.
 - **Photos** come from TroopWebHost → Photo Gallery → Download Photos, gathered in a signed-in browser. `scripts/import-twh-photo-events.py` makes a past outing for each event so photos land in the right album. Imported photos wait in Leader tools → Photos for review (filter by album, approve all shown) before families see them.
+- **Counselors and places**: `python3 scripts/import-twh-extras.py <exports-folder> <site-url> <leader-passcode>` adds merit badge counselors (from Merit Badges In Progress and the Merit Badge Counselor role) and every event location. Existing entries are kept.
 - **Locations** add the address, phone, website and map pin to outings by location name.
 
 Add `--dry` to see what would change without sending anything.

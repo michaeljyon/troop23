@@ -109,6 +109,16 @@ const COLS = {
     spec: { title: 's:120', body: 's:1500', pinned: 'b', link: 's:200' },
     write: 'leader', del: 'leader', required: ['title'],
   },
+  // merit badge counselors (troop members or outside counselors; no contact info stored)
+  counselors: {
+    spec: { memberId: 's:40', name: 's:80', badges: ['s:60', 120], notes: 's:300', active: 'b' },
+    write: 'leader', del: 'leader', required: ['name'],
+  },
+  // places outings go (from TroopWebHost event locations); suggested when adding an outing
+  places: {
+    spec: { name: 's:160', address: 's:200', phone: 's:40', web: 's:300', mapQ: 's:120', notes: 's:300' },
+    write: 'leader', del: 'leader', required: ['name'],
+  },
 };
 
 const builtInRecipes = () => troop.recipes.map(r => ({
@@ -503,6 +513,15 @@ async function route(req, opts) {
     if (head === 'calendar' && rest[0] === 'link' && req.method === 'GET') return calendarLink(store, url);
     const mr = await memberRoutes(store, head, rest, req, body, now, { session, isLeader, patrols: (await settings(store)).patrols, later, notify: (...a) => notify(store, ...a) });
     if (mr) return mr;
+    if (head === 'mbcatalog' && req.method === 'GET') {
+      const [advs, gear, counselors] = await Promise.all([listJSON(store, 'adv/'), listJSON(store, 'c/gear/'), listJSON(store, 'c/counselors/')]);
+      const names = new Map();
+      const add = (n, eagle) => { const k = clean(n, 60).replace(/^\*/, '').replace(/\s*\((?:[^)]*rqmts|old rqmts)\)\s*$/i, '').trim(); if (k) names.set(k, names.get(k) || !!eagle); };
+      for (const a of advs) { for (const b of a.badges || []) add(b.name, b.eagle); for (const b of a.inProgress || []) add(b.name, b.eagle); }
+      for (const g of gear) if (g.category === 'Merit badge library') add(g.name.replace(/ merit badge pamphlet$/i, ''), g.tag === 'Eagle req.');
+      for (const c of counselors) for (const b of c.badges || []) add(b);
+      return json({ badges: [...names].map(([name, eagle]) => ({ name, eagle })).sort((a, b) => a.name.localeCompare(b.name)) });
+    }
     if (head === 'pricebook' && req.method === 'GET') return json({ book: (await store.get('pricebook', { type: 'json' })) || {} });
 
     // generic collections: /api/c/:col[/:id]

@@ -22,6 +22,10 @@ export function fileStore(dir) {
       const metadata = fs.existsSync(metaF(key)) ? JSON.parse(fs.readFileSync(metaF(key), 'utf8')) : {};
       return { data, metadata };
     },
+    async getMetadata(key) {
+      if (!fs.existsSync(f(key))) return null;
+      return { metadata: fs.existsSync(metaF(key)) ? JSON.parse(fs.readFileSync(metaF(key), 'utf8')) : {} };
+    },
     async set(key, data, { metadata } = {}) {
       fs.writeFileSync(f(key), typeof data === 'string' ? data : Buffer.from(data));
       if (metadata) fs.writeFileSync(metaF(key), JSON.stringify(metadata));

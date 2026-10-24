@@ -1,8 +1,9 @@
-// Chat writing helper. Uses Netlify AI Gateway (Claude Haiku) when it's
-// available on the site, with no API keys to manage; otherwise falls back to
-// built-in writing tips. Nothing is ever sent for the member: they review,
-// edit, and press Send themselves.
-const MODELS = ['claude-haiku-4-5', 'claude-haiku-4-5-20251001'];
+// Chat writing helper. Uses Cloudflare Workers AI's free daily allowance
+// (Llama 3.1 8B) when CF_ACCOUNT_ID and CF_AI_TOKEN are set in Netlify's
+// environment variables; otherwise, or once the free allowance is used up for
+// the day, it gives built-in writing tips. It never uses Netlify AI credits.
+// Nothing is ever sent for the member: they review, edit, and press Send.
+const CF_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8-fast';
 const SYSTEM = `You help members of Scouts BSA Troop 23 in Tallahassee (scouts aged 11-17, parents and adult leaders) write clear, courteous messages in the troop's chat app. Two adult leaders are part of every chat.
 Rewrite the member's draft so it is clear, friendly, respectful (live the Scout Law) and complete, in the member's own voice and at their age level. Keep it short: usually one to four sentences.
 Rules:
@@ -33,23 +34,20 @@ export function ruleCoach(asked, draft) {
   return { message: '', missing: missing.slice(0, 3), tips: tips.slice(0, 3) };
 }
 
-async function callClaude(system, user) {
-  const key = process.env.ANTHROPIC_API_KEY, base = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/$/, '');
-  if (!key) return null;
-  for (const model of MODELS) {
-    const r = await fetch(`${base}/v1/messages`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model, max_tokens: 500, temperature: 0.4, system, messages: [{ role: 'user', content: user }] }),
-      signal: AbortSignal.timeout(20000),
-    }).catch(() => null);
-    if (!r) continue;
-    if (r.status === 404 || r.status === 400) { console.error('coach model', model, r.status, (await r.text()).slice(0, 200)); continue; }
-    if (!r.ok) { console.error('coach', r.status, (await r.text()).slice(0, 200)); return null; }
-    const d = await r.json();
-    return (d.content || []).map(c => c.text || '').join('');
-  }
-  return null;
+async function callCloudflare(system, user) {
+  const acct = process.env.CF_ACCOUNT_ID, token = process.env.CF_AI_TOKEN;
+  if (!acct || !token) return null;
+  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(acct)}/ai/run/${CF_MODEL}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify({ messages: [{ role: 'system', content: system }, { role: 'user', content: user }], max_tokens: 500, temperature: 0.4 }),
+    signal: AbortSignal.timeout(20000),
+  }).catch(e => { console.error('coach cf', e.message); return null; });
+  if (!r) return null;
+  if (!r.ok) { console.error('coach cf', r.status, (await r.text()).slice(0, 200)); return null; }   // over the free daily limit, bad token, etc.
+  const d = await r.json().catch(() => null);
+  const out = d?.result?.response;
+  return typeof out === 'string' ? out : out ? JSON.stringify(out) : null;
 }
 
 const clip = (s, n) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n);
@@ -62,7 +60,7 @@ export async function coach({ msgs, draft, me, title }) {
   const user = `<chat title="${clip(title, 80)}">\n${convo || '(no messages yet)'}\n</chat>\n\nThe member writing is ${me.first}, a ${me.role === 'scout' ? 'scout' : 'adult'}.\n${draft.trim() ? `Their draft:\n<draft>${clip(draft, 1500)}</draft>` : 'They haven\'t written anything yet. Draft a short reply that answers what was asked, using [placeholders] for anything only they know.'}`;
   let out = null;
   try {
-    const text = await callClaude(SYSTEM, user);
+    const text = await callCloudflare(SYSTEM, user);
     const m = text && text.match(/\{[\s\S]*\}/);
     if (m) { const j = JSON.parse(m[0]); if (typeof j.message === 'string' && j.message.trim()) out = j; }
   } catch (e) { console.error('coach parse', e.message); }

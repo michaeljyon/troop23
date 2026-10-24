@@ -23,6 +23,7 @@ import More from './screens/More.jsx';
 import Packing from './screens/Packing.jsx';
 import Messages, { Thread } from './screens/Messages.jsx';
 import Advancement from './screens/Advancement.jsx';
+import Counselors from './screens/Counselors.jsx';
 
 const TABS = [
   { id: 'home', label: 'Home', icon: 'home' },
@@ -31,7 +32,7 @@ const TABS = [
   { id: 'messages', label: 'Chat', icon: 'message', match: ['messages', 'thread'] },
   { id: 'more', label: 'More', icon: 'grid', match: ['more', 'kitchen', 'gallery', 'permission', 'packing', 'leaders', 'gear', 'advancement'] },
 ];
-const SCREENS = { home: Home, outings: Outings, outing: Outing, gear: Gear, kitchen: Kitchen, snap: Snap, gallery: Gallery, permission: Permission, leaders: Leaders, more: More, packing: Packing, messages: Messages, thread: Thread, advancement: Advancement };
+const SCREENS = { home: Home, outings: Outings, outing: Outing, gear: Gear, kitchen: Kitchen, snap: Snap, gallery: Gallery, permission: Permission, leaders: Leaders, more: More, packing: Packing, messages: Messages, thread: Thread, advancement: Advancement, counselors: Counselors };
 
 export default function App() {
   const route = useRoute();
@@ -56,7 +57,7 @@ export default function App() {
   if (!inside && route.name !== 'leaders') return <Gate />;
 
   return (
-    <div className="app">
+    <div className={`app ${route.name === 'thread' ? 'chat-mode' : ''}`}>
       <header className="app-header">
         <a className="header-brand" href="#/" aria-label={`${troop.appName} home`}>
           <Mark size={40} dark />

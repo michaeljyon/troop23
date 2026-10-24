@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import { PageHead, Empty, Sheet, Pill } from '../components/ui.jsx';
-import { api, useAccount } from '../lib/api.js';
+import { api, useAccount, sessionToken } from '../lib/api.js';
+import { RichText, applyFormat } from '../lib/richtext.jsx';
 import { go } from '../lib/router.js';
 import { NotifyNudge } from '../components/Notify.jsx';
 
@@ -146,11 +147,18 @@ export function Thread({ route }) {
   const [people, setPeople] = useState([]);
   const [error, setError] = useState(null);
   const [text, setText] = useState('');
+  const [files, setFiles] = useState([]);           // { key, name, kind, size, preview, data, type, w, h, status }
   const [busy, setBusy] = useState(false);
+  const [sendErr, setSendErr] = useState('');
   const [report, setReport] = useState(null);
   const [showPeople, setShowPeople] = useState(false);
   const [coaching, setCoaching] = useState(false);
+  const [viewer, setViewer] = useState(null);       // { list, i }
+  const [tools, setTools] = useState(false);
   const [aiOn, setAiOn] = useState(true);
+  const taRef = useRef(null);
+  const photoRef = useRef(null);
+  const fileRef = useRef(null);
   useEffect(() => { api('settings').then(s => setAiOn(s.aiHelper !== false)).catch(() => {}); }, []);
   const lastAt = useRef(0);
   const endRef = useRef(null);
@@ -174,36 +182,85 @@ export function Thread({ route }) {
   }, [id, acct?.member?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }); }, [msgs.length]);
 
+  async function addFiles(list, photos) {
+    setSendErr('');
+    const room = 10 - files.length;
+    for (const f of [...list].slice(0, room)) {
+      const key = `${Date.now()}-${Math.random()}`;
+      try {
+        const isImg = f.type.startsWith('image/') && !/gif/.test(f.type);
+        const item = isImg ? await shrinkImage(f) : { name: f.name, type: f.type || guessType(f.name), size: f.size, kind: f.type.startsWith('image/') ? 'image' : 'file', data: await asDataURL(f) };
+        if (item.size > ATT_MAX) { setSendErr(`${f.name} is too big (${fmtSize(item.size)}). Files can be up to 4 MB.`); continue; }
+        setFiles(x => [...x, { ...item, key, preview: item.kind === 'image' ? item.data : null }]);
+      } catch { setSendErr(`Couldn't read ${f.name}.`); }
+    }
+    if (list.length > room) setSendErr('Up to 10 attachments per message.');
+    if (photos) photoRef.current.value = ''; else fileRef.current.value = '';
+  }
+
   async function send(e) {
-    e.preventDefault();
-    if (!text.trim()) return;
-    setBusy(true);
-    try { await api(`threads/${id}/msgs`, { method: 'POST', body: { text } }); setText(''); await load(false); dispatchEvent(new Event('threads-read')); }
-    catch (err) { alert(err.message); } finally { setBusy(false); }
+    e?.preventDefault();
+    if (!text.trim() && !files.length) return;
+    setBusy(true); setSendErr('');
+    try {
+      const ids = [];
+      for (const f of files) {
+        setFiles(x => x.map(y => (y.key === f.key ? { ...y, status: 'up' } : y)));
+        const r = await api(`threads/${id}/att`, { method: 'POST', body: { name: f.name, type: f.type, data: f.data, w: f.w, h: f.h } });
+        ids.push(r.attachment.id);
+        setFiles(x => x.map(y => (y.key === f.key ? { ...y, status: 'done' } : y)));
+      }
+      await api(`threads/${id}/msgs`, { method: 'POST', body: { text, attachments: ids } });
+      setText(''); setFiles([]); await load(false); dispatchEvent(new Event('threads-read'));
+    } catch (err) { setSendErr(err.message); setFiles(x => x.map(y => ({ ...y, status: undefined }))); } finally { setBusy(false); }
+  }
+
+  function fmt(kind) {
+    const el = taRef.current; if (!el) return;
+    const r = applyFormat(el, text, kind); if (!r) return;
+    setText(r.value);
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(r.start, r.end); });
   }
 
   if (!acct) return <div className="content"><PageHead backTo="messages" /><Empty icon="message" title="Sign in with your personal code to use chat" /></div>;
   if (error) return <div className="content"><PageHead backTo="messages" /><Empty icon="alert" title="Can't open this conversation">{error.message}</Empty></div>;
   const guardians = people.filter(p => p.guardian);
   const me = acct.member.id;
+  const attUrl = (a, dl) => `/api/threads/${id}/att/${a.id}?s=${sessionToken()}${dl ? '&dl=1' : ''}`;
+  const last = [...msgs].reverse().find(m => !m.hiddenNote);
   return (
-    <div className="content thread-page">
-      <PageHead backTo="messages" title={t ? <>{t.kind === 'dm' ? '' : `${t.emoji} `}{t.title}</> : '…'}>
-        <button className="link-btn head-btn" onClick={() => setShowPeople(true)}><Icon name="users" size={16} />{people.length}</button>
-      </PageHead>
-      {t && !t.adultsOnly && (
-        <div className="twodeep slim"><Icon name="shield" size={16} /><span>{guardians.map(g => g.name).join(' and ')} {guardians.length === 1 ? 'is' : 'are'} in this conversation.</span></div>
-      )}
+    <div className="chat-full">
+      <header className="chat-top">
+        <button className="icon-btn" onClick={() => go('messages')} aria-label="Back to Chat"><Icon name="chevronL" size={24} /></button>
+        <span className="chat-top-title"><b>{t ? <>{t.kind === 'dm' ? '' : `${t.emoji} `}{t.title}</> : '…'}</b>
+          {t && <span>{t.adultsOnly ? 'Adults only' : `Two-deep: ${guardians.map(g => g.name.split(' ')[0]).join(' & ')} included`}</span>}</span>
+        <button className="link-btn chat-people" onClick={() => setShowPeople(true)} aria-label={`${people.length} people in this conversation`}><Icon name="users" size={18} />{people.length}</button>
+      </header>
       <ol className="msgs">
         {msgs.length === 0 && t && <li className="muted small center pad-top">No messages yet. Say hi!</li>}
         {msgs.map((m, i) => {
           const mine = m.by === me;
           const showName = !mine && (i === 0 || msgs[i - 1].by !== m.by);
+          const day = new Date(m.at).toDateString() !== (i ? new Date(msgs[i - 1].at).toDateString() : '');
+          const imgs = (m.attachments || []).filter(a => a.kind === 'image'), docs = (m.attachments || []).filter(a => a.kind !== 'image');
           return (
             <li key={m.id} className={`msg ${mine ? 'mine' : ''}`}>
+              {day && <span className="msg-day">{new Date(m.at).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</span>}
               {showName && <span className="msg-by">{m.byName}{people.find(p => p.id === m.by)?.guardian && <Pill tone="info">Leader</Pill>}</span>}
               <div className="msg-row">
-                <div className={`bubble ${m.hidden || m.hiddenNote ? 'removed' : ''}`}>{m.hiddenNote ? 'Removed by a leader' : <>{m.hidden && <span className="removed-tag">Hidden from others · </span>}{m.text}</>}</div>
+                <div className={`bubble ${m.hidden || m.hiddenNote ? 'removed' : ''} ${imgs.length && !m.text ? 'pics-only' : ''}`}>
+                  {m.hiddenNote ? 'Removed by a leader' : <>
+                    {m.hidden && <span className="removed-tag">Hidden from others · </span>}
+                    {imgs.length > 0 && <div className={`msg-pics n${Math.min(imgs.length, 4)}`}>{imgs.slice(0, 4).map((a, k) => (
+                      <button key={a.id} onClick={() => setViewer({ list: imgs, i: k })} aria-label={`Open photo ${k + 1} of ${imgs.length}`}>
+                        <img src={attUrl(a)} alt="" loading="lazy" />{k === 3 && imgs.length > 4 && <span className="more-pics">+{imgs.length - 4}</span>}
+                      </button>))}</div>}
+                    {docs.length > 0 && <div className="msg-files">{docs.map(a => (
+                      <a key={a.id} className="file-chip" href={attUrl(a, true)} download={a.name}><Icon name={fileIcon(a.name)} size={18} /><span className="grow"><b>{a.name}</b><span>{fmtSize(a.size)}</span></span><Icon name="download" size={16} /></a>
+                    ))}</div>}
+                    {m.text && <RichText text={m.text} />}
+                  </>}
+                </div>
                 {!mine && !m.hiddenNote && <button className="icon-btn sm msg-more" onClick={() => setReport(m)} aria-label="Report this message"><Icon name="more" size={18} /></button>}
               </div>
               <span className="msg-time">{when(m.at, true)}</span>
@@ -212,23 +269,90 @@ export function Thread({ route }) {
         })}
         <li ref={endRef} />
       </ol>
-      {(() => {
-        const last = [...msgs].reverse().find(m => !m.hiddenNote);
-        return last && last.by !== me && !text && (
-          <div className="reply-nudge"><Icon name="message" size={16} /><span className="grow"><b>{last.byName.split(' ')[0]}</b> is waiting on your reply.</span>{aiOn && <button className="link-btn small" onClick={() => setCoaching(true)}><Icon name="sparkle" size={15} />Help me reply</button>}</div>
-        );
-      })()}
-      <form className="composer" onSubmit={send}>
-        {aiOn && <button type="button" className="icon-btn coach-btn" onClick={() => setCoaching(true)} aria-label="Writing helper: check or improve my message"><Icon name="sparkle" size={20} /></button>}
-        <textarea rows={1} value={text} onChange={e => setText(e.target.value)} placeholder="Message" aria-label="Message" maxLength={2000}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); send(e); } }} />
-        <button className="btn" disabled={busy || !text.trim()} aria-label="Send"><Icon name="send" size={18} /></button>
+      {last && last.by !== me && !text && !files.length && (
+        <div className="reply-nudge"><Icon name="message" size={16} /><span className="grow"><b>{last.byName.split(' ')[0]}</b> is waiting on your reply.</span>{aiOn && <button className="link-btn small" onClick={() => setCoaching(true)}><Icon name="sparkle" size={15} />Help me reply</button>}</div>
+      )}
+      <form className="composer2" onSubmit={send}>
+        {files.length > 0 && (
+          <div className="att-tray">{files.map(f => (
+            <div key={f.key} className={`att-item ${f.status || ''}`}>
+              {f.preview ? <img src={f.preview} alt="" /> : <span className="att-doc"><Icon name={fileIcon(f.name)} size={20} /><span>{f.name}</span></span>}
+              {!busy && <button type="button" className="att-x" onClick={() => setFiles(x => x.filter(y => y.key !== f.key))} aria-label={`Remove ${f.name}`}><Icon name="x" size={12} /></button>}
+            </div>
+          ))}</div>
+        )}
+        {tools && (
+          <div className="fmt-bar" role="toolbar" aria-label="Formatting">
+            <button type="button" onClick={() => fmt('bold')} aria-label="Bold"><b>B</b></button>
+            <button type="button" onClick={() => fmt('italic')} aria-label="Italic"><i>I</i></button>
+            <button type="button" onClick={() => fmt('strike')} aria-label="Strikethrough"><s>S</s></button>
+            <button type="button" onClick={() => fmt('ul')} aria-label="Bulleted list"><Icon name="checklist" size={18} /></button>
+            <button type="button" onClick={() => fmt('ol')} aria-label="Numbered list">1.</button>
+            <button type="button" onClick={() => fmt('link')} aria-label="Add a link"><Icon name="external" size={17} /></button>
+          </div>
+        )}
+        <div className="compose-tools">
+          <button type="button" className={`icon-btn sm ${tools ? 'on' : ''}`} onClick={() => setTools(v => !v)} aria-label="Formatting" aria-pressed={tools}><span className="aa">Aa</span></button>
+          <button type="button" className="icon-btn sm" onClick={() => photoRef.current.click()} aria-label="Add photos"><Icon name="image" size={19} /><span className="tool-l">Photos</span></button>
+          <button type="button" className="icon-btn sm" onClick={() => fileRef.current.click()} aria-label="Attach files"><Icon name="paperclip" size={19} /><span className="tool-l">Files</span></button>
+          {aiOn && <button type="button" className="icon-btn sm coach-btn" onClick={() => setCoaching(true)} aria-label="Writing helper: check or improve my message"><Icon name="sparkle" size={19} /><span className="tool-l">Help me write</span></button>}
+          <input ref={photoRef} type="file" accept="image/*" multiple hidden onChange={e => addFiles(e.target.files, true)} />
+          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.odt,.ods,.odp,image/*" multiple hidden onChange={e => addFiles(e.target.files, false)} />
+        </div>
+        <div className="compose-row">
+          <textarea ref={taRef} rows={1} value={text} onChange={e => setText(e.target.value)} placeholder="Message" aria-label="Message" maxLength={4000}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); send(e); } }} />
+          <button className="btn send-btn" disabled={busy || (!text.trim() && !files.length)} aria-label="Send">{busy ? <span className="spinner sm" aria-hidden="true" /> : <Icon name="send" size={18} />}</button>
+        </div>
+        {sendErr && <p className="form-msg compose-err" role="alert">{sendErr}</p>}
       </form>
       <Sheet open={showPeople} onClose={() => setShowPeople(false)} title="In this conversation">
         <ul className="pick-list">{people.map(p => <li key={p.id} className="person-row"><span className="grow"><b>{p.name}</b><span className="small muted">{p.role === 'scout' ? `Scout${p.patrol ? ` · ${p.patrol}` : ''}` : p.positions[0] || 'Adult'}</span></span>{p.guardian && <Pill tone="info">Two-deep</Pill>}</li>)}</ul>
       </Sheet>
       <ReportSheet m={report} threadId={id} onClose={() => setReport(null)} />
       {coaching && <CoachSheet threadId={id} draft={text} onClose={() => setCoaching(false)} onUse={v => { setText(v); setCoaching(false); }} />}
+      {viewer && <PicViewer list={viewer.list} start={viewer.i} url={a => attUrl(a)} dl={a => attUrl(a, true)} onClose={() => setViewer(null)} />}
+    </div>
+  );
+}
+
+const ATT_MAX = 4 * 1024 * 1024;
+const fmtSize = n => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+const fileIcon = n => (/\.pdf$/i.test(n) ? 'file' : /\.(xlsx?|csv|ods)$/i.test(n) ? 'grid' : /\.(pptx?|odp)$/i.test(n) ? 'play' : 'file');
+const guessType = n => ({ pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', rtf: 'application/rtf' }[(n.split('.').pop() || '').toLowerCase()] || 'application/octet-stream');
+const asDataURL = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+// Photos are resized on the phone (and their location data dropped) before upload.
+async function shrinkImage(f) {
+  const url = URL.createObjectURL(f);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const s = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const data = c.toDataURL('image/jpeg', 0.82);
+    return { name: f.name.replace(/\.[^.]+$/, '') + '.jpg', type: 'image/jpeg', kind: 'image', data, size: Math.round((data.length - 23) * 0.75), w: c.width, h: c.height };
+  } finally { URL.revokeObjectURL(url); }
+}
+
+function PicViewer({ list, start, url, dl, onClose }) {
+  const [i, setI] = useState(start);
+  const touch = useRef(null);
+  useEffect(() => {
+    const key = e => { if (e.key === 'Escape') onClose(); if (e.key === 'ArrowLeft') setI(x => Math.max(0, x - 1)); if (e.key === 'ArrowRight') setI(x => Math.min(list.length - 1, x + 1)); };
+    addEventListener('keydown', key); document.body.classList.add('no-scroll');
+    return () => { removeEventListener('keydown', key); document.body.classList.remove('no-scroll'); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const a = list[i];
+  return (
+    <div className="lightbox" role="dialog" aria-modal="true" aria-label="Photo"
+      onTouchStart={e => { touch.current = e.touches[0].clientX; }}
+      onTouchEnd={e => { const dx = e.changedTouches[0].clientX - (touch.current ?? 0); if (Math.abs(dx) > 50) setI(x => Math.min(list.length - 1, Math.max(0, x + (dx > 0 ? -1 : 1)))); }}>
+      <div className="lb-top"><span className="lb-count">{i + 1} / {list.length}</span><span className="grow" /><a className="icon-btn on-dark" href={dl(a)} download={a.name} aria-label="Save photo"><Icon name="download" /></a><button className="icon-btn on-dark" onClick={onClose} aria-label="Close"><Icon name="x" /></button></div>
+      <div className="lb-stage">
+        <img key={a.id} src={url(a)} alt="" />
+        {i > 0 && <button className="lb-nav left" onClick={() => setI(i - 1)} aria-label="Previous photo"><Icon name="chevronL" size={28} /></button>}
+        {i < list.length - 1 && <button className="lb-nav right" onClick={() => setI(i + 1)} aria-label="Next photo"><Icon name="chevronR" size={28} /></button>}
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { PageHead, Section, Empty, Sheet } from '../components/ui.jsx';
 import TagPicker from '../components/TagPicker.jsx';
 import { api, leaderPhotoUrl, setLeaderPass, leaderPass, useCol, saveDoc, deleteDoc, useAccount, usePatrols } from '../lib/api.js';
 import { Members, Reports, Groups } from './LeaderMembers.jsx';
+import { Setup } from './LeaderSetup.jsx';
 import { troop, level, rid } from '../lib/config.js';
 import { useMe } from '../lib/store.js';
 
@@ -11,7 +12,7 @@ import { useMe } from '../lib/store.js';
 // permission roster, bulletin posts, patrols & albums, and records.
 // Signing in here also turns on leader mode across the app (add/edit
 // outings, delete gear and recipes).
-const TABS = [['members', 'Members', 'users'], ['groups', 'Groups', 'message'], ['reports', 'Chat reports', 'alert'], ['review', 'Photos', 'image'], ['roster', 'Permission', 'shield'], ['bulletin', 'Bulletin', 'megaphone'], ['settings', 'Settings', 'settings'], ['data', 'Records', 'download']];
+const TABS = [['members', 'Members', 'users'], ['groups', 'Groups', 'message'], ['reports', 'Chat reports', 'alert'], ['review', 'Photos', 'image'], ['roster', 'Permission', 'shield'], ['bulletin', 'Bulletin', 'megaphone'], ['setup', 'Troop setup', 'trophy'], ['settings', 'Settings', 'settings'], ['data', 'Records', 'download']];
 
 const FLAG = {
   blocked: { cls: 'bad', icon: 'eyeOff', title: 'Has a "No photos" scout', body: 'Hide or delete this photo.' },
@@ -59,6 +60,7 @@ export default function Leaders() {
       {tab === 'review' && <Review pass={pass} />}
       {tab === 'roster' && <Roster pass={pass} />}
       {tab === 'bulletin' && <Bulletin />}
+      {tab === 'setup' && <Setup pass={pass} goTab={setTab} />}
       {tab === 'settings' && <Settings pass={pass} />}
       {tab === 'data' && <Records pass={pass} />}
     </div>
@@ -301,7 +303,7 @@ function Settings({ pass }) {
       <Section title="Chat writing helper">
         <div className="card">
           <label className="switch-row">
-            <span className="grow"><b>AI writing helper in Chat</b><span className="small muted">Scouts and adults can tap ✨ to get a clearer, kinder version of their message and a reminder of anything they were asked but didn't answer. It only suggests; people still edit and press Send themselves. It reads the last few messages of that conversation to know what was asked. Uses the site's Netlify AI credits, up to 40 suggestions per person per day.</span></span>
+            <span className="grow"><b>AI writing helper in Chat</b><span className="small muted">Scouts and adults can tap ✨ to get a clearer, kinder version of their message and a reminder of anything they were asked but didn't answer. It only suggests; people still edit and press Send themselves. It reads the last few messages of that conversation to know what was asked. Runs on Cloudflare's free AI allowance (about 1,000 suggestions a day across the troop, up to 40 per person) and never uses Netlify credits. When the free allowance is used up, or before it's connected, people get built-in writing tips instead.</span></span>
             <input type="checkbox" role="switch" checked={s.data?.aiHelper !== false} onChange={async e => { await save({ aiHelper: e.target.checked }); s.load(); }} />
           </label>
         </div>

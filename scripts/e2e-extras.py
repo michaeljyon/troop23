@@ -11,7 +11,7 @@ with sync_playwright() as pw:
     p = c.new_page(); p.on('pageerror', lambda e: errors.append(str(e)))
     p.on('console', lambda m: m.type == 'error' and 'status of 40' not in m.text and errors.append(m.text)); p.on('dialog', lambda d: d.accept())
     shot = lambda n, full=False: (p.wait_for_timeout(600), p.screenshot(path=f'{SP}/{n}.png', full_page=full))
-    p.goto(f"{BASE}/#/join/{mike['code']}"); p.wait_for_selector('.hello', timeout=20000)
+    p.goto(f"{BASE}/#/join/{mike['code']}"); p.wait_for_selector('.hello', timeout=20000); p.wait_for_timeout(2500); p.locator('.sheet button:has-text("Later")').count() and p.click('.sheet button:has-text("Later")')
     p.goto(BASE + '/#/more'); p.wait_for_selector('.notify-card'); shot('x1-more-notify')
     print('notify card:', p.locator('.notify-card').inner_text().replace('\n', ' | '))
     p.goto(BASE + '/#/messages'); p.wait_for_selector('.thread-row'); shot('x2-chat-nudge')

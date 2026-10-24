@@ -33,7 +33,7 @@ with sync_playwright() as pw:
 
     # ---- Mike (leader + parent) signs in by invite link
     c1, p = phone(b)
-    p.goto(f"{BASE}/#/join/{mike['code']}"); p.wait_for_selector('.hello', timeout=20000); shot(p, 'a01-home-signed-in')
+    p.goto(f"{BASE}/#/join/{mike['code']}"); p.wait_for_selector('.hello', timeout=20000); p.wait_for_timeout(2500); p.locator('.sheet button:has-text("Later")').count() and p.click('.sheet button:has-text("Later")'); shot(p, 'a01-home-signed-in')
     p.goto(BASE + '/#/more'); p.wait_for_selector('.me-card'); shot(p, 'a02-more-account')
     p.goto(BASE + f"/#/outing/{blue['id']}"); p.wait_for_selector('.rsvp-person')
     p.click('.rsvp-person >> nth=0 >> .rsvp-yes'); p.click('.rsvp-person >> nth=1 >> .rsvp-yes'); p.click('.rsvp-person >> nth=2 >> .rsvp-maybe'); p.wait_for_timeout(700)
@@ -48,15 +48,15 @@ with sync_playwright() as pw:
     # chat
     p.goto(BASE + '/#/messages'); p.wait_for_selector('.thread-row'); shot(p, 'a08-chat-list', True)
     p.click('button:has-text("New")'); p.wait_for_selector('.pick-list label'); p.fill('.sheet .tag-search', 'Brandon'); p.click(".pick-list label:has-text('Brandon Yon')")
-    shot(p, 'a09-new-message'); p.click('.sheet-foot button'); p.wait_for_selector('.composer')
-    p.fill('.composer textarea', 'Brandon, can you bring the patrol box lantern to Blue Angels?'); p.click('.composer button'); p.wait_for_selector('.msg.mine')
-    p.goto(BASE + '/#/thread/board-troop'); p.wait_for_selector('.composer')
-    p.fill('.composer textarea', 'Reminder: Blue Angels sign-ups close Friday. Patrols, please finish your meal plans.'); p.click('.composer button'); p.wait_for_selector('.msg.mine')
+    shot(p, 'a09-new-message'); p.click('.sheet-foot button'); p.wait_for_selector('.composer2')
+    p.fill('.composer2 textarea', 'Brandon, can you bring the patrol box lantern to Blue Angels?'); p.click('.send-btn'); p.wait_for_selector('.msg.mine')
+    p.goto(BASE + '/#/thread/board-troop'); p.wait_for_selector('.composer2')
+    p.fill('.composer2 textarea', 'Reminder: Blue Angels sign-ups close Friday. Patrols, please finish your meal plans.'); p.click('.send-btn'); p.wait_for_selector('.msg.mine')
     # ---- Brandon (scout) on another phone
     c2, q = phone(b)
-    q.goto(f"{BASE}/#/join/{brandon['code']}"); q.wait_for_selector('.hello', timeout=20000)
+    q.goto(f"{BASE}/#/join/{brandon['code']}"); q.wait_for_selector('.hello', timeout=20000); q.wait_for_timeout(2500); q.locator('.sheet button:has-text("Later")').count() and q.click('.sheet button:has-text("Later")')
     q.goto(BASE + '/#/messages'); q.wait_for_selector('.thread-row.unread'); shot(q, 'a10-scout-chat-list')
-    q.click('.thread-row.unread >> nth=0'); q.wait_for_selector('.msg'); q.fill('.composer textarea', 'Yes sir, I will bring it!'); q.click('.composer button'); q.wait_for_selector('.msg.mine')
+    q.click('.thread-row.unread >> nth=0'); q.wait_for_selector('.msg'); q.fill('.composer2 textarea', 'Yes sir, I will bring it!'); q.click('.send-btn'); q.wait_for_selector('.msg.mine')
     shot(q, 'a11-scout-thread')
     q.click('.msg-more >> nth=0'); q.click('.chip:has-text("Something else")'); q.click('button:has-text("Send report")'); q.wait_for_selector('text=Thanks')
     q.keyboard.press('Escape')

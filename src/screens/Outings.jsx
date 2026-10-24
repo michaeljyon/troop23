@@ -92,6 +92,7 @@ export function OutingForm({ outing, onClose, onSaved }) {
 function OutingFields({ outing, onSaved }) {
   const [me] = useMe();
   const [cur, setF] = useState(() => ({ ...blank, ...outing, extrasText: (outing.extras || []).join('\n') }));
+  const places = useCol('places');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
   const set = patch => setF(c => ({ ...c, ...patch }));
@@ -120,7 +121,11 @@ function OutingFields({ outing, onSaved }) {
           <label className="field"><span>Starts</span><input type="date" value={cur.start} onChange={e => set({ start: e.target.value, end: cur.end && cur.end >= e.target.value ? cur.end : e.target.value })} required /></label>
           <label className="field"><span>Ends</span><input type="date" value={cur.end} min={cur.start} onChange={e => set({ end: e.target.value })} /></label>
         </div>
-        <label className="field"><span>Where</span><input value={cur.location} onChange={e => set({ location: e.target.value })} placeholder="Campground, park or address" /></label>
+        <label className="field"><span>Where</span><input value={cur.location} list="placelist" onChange={e => {
+          const v = e.target.value; const p = places.items.find(x => x.name.toLowerCase() === v.trim().toLowerCase());
+          set(p ? { location: p.name, address: cur.address || p.address || '', placePhone: cur.placePhone || p.phone || '', placeWeb: cur.placeWeb || p.web || '', mapQ: cur.mapQ || p.mapQ || '' } : { location: v });
+        }} placeholder="Campground, park or address" /></label>
+        <datalist id="placelist">{places.items.map(p => <option key={p.id} value={p.name} />)}</datalist>
         <label className="field"><span>Address <i className="opt">optional, for directions</i></span><input value={cur.address || ''} onChange={e => set({ address: e.target.value })} placeholder="Street, city" /></label>
         <div className="two-col">
           <label className="field"><span>Meet time</span><input value={cur.meetTime} onChange={e => set({ meetTime: e.target.value })} placeholder="Fri 5:30 PM" /></label>

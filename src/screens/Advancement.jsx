@@ -28,7 +28,7 @@ function ScoutList() {
   const byRank = r => RANKS.indexOf(r);
   return (
     <div className="content">
-      <PageHead backTo="more" title="Advancement" sub={leader ? 'The whole troop, from the latest TroopWebHost export.' : 'Your scouts\' trail to Eagle.'} />
+      <PageHead backTo="more" title="Advancement" sub={leader ? 'The whole troop, from the latest TroopWebHost export.' : 'Your scouts\' trail to Eagle.'}><a className="btn small secondary head-btn" href="#/counselors"><Icon name="people" size={15} />Counselors</a></PageHead>
       {error ? <Empty icon="alert" title="Couldn't load">{error.message}</Empty> : !data ? <p className="muted">Loading…</p> : (
         <>
           {leader && (
@@ -76,7 +76,7 @@ function ScoutRecord({ id }) {
   const yr = yearAct.reduce((a, x) => ({ nights: a.nights + x.nights, service: a.service + x.service, hiking: a.hiking + x.hiking }), { nights: 0, service: 0, hiking: 0 });
   return (
     <div className="content">
-      <PageHead backTo="advancement" />
+      <PageHead backTo="advancement"><a className="btn small secondary head-btn" href="#/counselors"><Icon name="people" size={15} />Counselors</a></PageHead>
       <section className="adv-hero">
         <span className={`rank-badge r${Math.max(0, rankIdx)}`}>{RANK_ABBR[s.rank] || '–'}</span>
         <div><p className="adv-kicker">{s.patrol || 'Troop 23'}{s.positions?.length ? ` · ${s.positions.join(', ')}` : ''}</p><h1>{s.name}</h1><p className="adv-rank">{s.rank ? `${s.rank} Scout` : 'Working on Scout rank'}{s.rankDate && ` · ${fmt(s.rankDate)}`}</p></div>
