@@ -26,7 +26,8 @@ export default function Snap({ route }) {
   const gallery = useApi('photos');
   const patrols = usePatrols() || troop.patrols;
   const list = albums.data?.albums || troop.albums;
-  const outingAlbums = list.filter(a => a.outing).slice(0, 8);
+  const near = d => Math.abs(new Date(`${d}T12:00`) - Date.now());
+  const outingAlbums = list.filter(a => a.outing && a.date && new Date(`${a.date}T12:00`) <= Date.now() + 86400000 * 3).sort((x, y) => near(x.date) - near(y.date)).slice(0, 8);
   const otherAlbums = list.filter(a => !a.outing);
 
   useEffect(() => { if (!album && list.length) setAlbum((outingAlbums[0] || list[0]).id); }, [albums.data]); // eslint-disable-line react-hooks/exhaustive-deps

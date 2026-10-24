@@ -198,7 +198,9 @@ code { font-size: .9em; background: var(--sand); padding: 1px 5px; border-radius
 .outing-hero { border-radius: 20px; padding: 18px; color: #fff; background: linear-gradient(160deg, #2B6649, var(--primary-dark)); margin-bottom: 12px; box-shadow: var(--shadow); }
 .outing-hero.type-paddle, .outing-hero.type-trip { background: linear-gradient(160deg, #2D6A84, #163C4F); }
 .outing-hero.type-service { background: linear-gradient(160deg, #8A4F1E, #4F2C10); }
-.outing-hero.type-meeting { background: linear-gradient(160deg, #4B5A52, #262E2A); }
+.outing-hero.type-meeting, .outing-hero.type-training { background: linear-gradient(160deg, #4B5A52, #262E2A); }
+.outing-hero.type-fundraiser { background: linear-gradient(160deg, #2E6B3F, #173A22); }
+.outing-hero.type-merit, .outing-hero.type-oa { background: linear-gradient(160deg, #7A3B2E, #3F1C15); }
 .outing-hero h1 { font-size: 34px; margin: 4px 0 8px; text-transform: uppercase; }
 .outing-kicker { margin: 0; font: 700 14px var(--head); letter-spacing: .14em; text-transform: uppercase; color: var(--khaki); }
 .outing-when, .outing-where { display: flex; align-items: center; gap: 6px; margin: 3px 0; color: #E3ECE6; text-decoration: none; }
