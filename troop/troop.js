@@ -62,6 +62,10 @@ const troop = {
 
   gearCategories: ['Shelter', 'Cooking', 'Water', 'Lighting', 'Tools', 'Safety & first aid', 'Program', 'Other'],
 
+  // Budget calculator defaults: food dollars per person per meal, and what
+  // to round the "collect from each scout" amount up to.
+  mealCosts: { breakfast: 3, lunch: 4, dinner: 6, snack: 1.5, roundTo: 5 },
+
   // Patrol duty roster roles, rotated across meals.
   dutyRoles: ['Cook', 'Assistant cook', 'Fire & water', 'Cleanup'],
 

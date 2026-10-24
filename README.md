@@ -1,6 +1,14 @@
 # Troop 23 Basecamp
 
-The private troop app for Scouts BSA Troop 23, Tallahassee, Florida. Scouts, parents and leaders open it with the troop code, say who they are and which patrol they're in, and get:
+The private troop app for Scouts BSA Troop 23, Tallahassee, Florida.
+
+## Signing in
+
+Everyone on the TroopWebHost roster has a **personal code** (like `K7QM-2XPA`) and a sign-in link (`…/#/join/K7QM-2XPA`). Opening the link, or typing the code, signs that phone in as that person. Their sign-ups, packing checklists, chat and advancement then follow them to any phone they sign in on. Leaders send codes from Leader tools → Members (**Send invite** on one person, or **Invite list (CSV)** for everyone). Parents get linked to their scouts there too, so one parent can sign the whole family up.
+
+The troop code still works as a **guest** sign-in (no chat, nothing synced). Adults marked Leader get leader mode automatically, with no passcode.
+
+## What's in it
 
 - **Outings.** Campouts, hikes, paddles, service and meetings, with dates, meeting place, cost and the plan. Everyone taps Going / Maybe / Can't go, and the outing shows who's coming by patrol.
 - **Patrol meal planning** for each outing. Meal slots fill in from the outing dates. Pick recipes or write your own, and quantities scale to the patrol's sign-ups. The shopping list builds itself, combining ingredients across meals, with checkboxes for the store and a note when the troop pantry already has something. Plus a food budget with receipts and cost per person, and a duty roster that rotates cook, assistant cook, fire & water and cleanup across every meal.
@@ -9,11 +17,18 @@ The private troop app for Scouts BSA Troop 23, Tallahassee, Florida. Scouts, par
 - **Packing lists.** The standard overnight list plus the leader's extras for each trip, checked off on the phone.
 - **Photos.** The Pack 6 Photo Trail system: snap or upload, every outing is its own album, tag scouts, and location data is stripped on the phone. Leaders review every photo against each family's photo permission (Public OK / Troop only / No photos). There's also a full-screen slideshow for Courts of Honor.
 - **Bulletin.** Leader announcements on the Home screen, with pinning.
+- **Chat**, built for Safeguarding Youth Training rules. The Scoutmaster and Committee Chair are automatically in every conversation, so there's never a one-on-one chat. Messages can't be deleted, and anyone can report one for leaders to review. Boards: whole troop, Patrol Leaders' Council, each patrol, adult leaders, and the troop's groups (from the TroopWebHost e-mail groups). Scouts also get **Ask a leader**: request a board of review or a Scoutmaster conference, which opens a conversation with the right adults plus the two-deep leaders.
+- **Advancement.** Each scout's rank ladder, next-rank requirements, Eagle-required badges, badges earned and in progress, and activity totals, imported from TroopWebHost. Scouts see their own record, parents see their linked scouts', leaders see everyone.
+- **Recipe scanner.** Photograph a recipe card or cookbook page. The phone reads it on the device, breaks out the ingredients and steps, scales it to the number of people going, and estimates the cost.
+- **Food budget calculator** and a shopping-list price book: per-meal rates from `troop.mealCosts`, headcount from sign-ups, the amount to collect per scout, and prices remembered from past trips.
 
 ## Leader tools (More → Leader tools)
 
 Signing in with the leader passcode turns on leader mode for that browser tab. Leaders can then add and edit outings and delete gear or recipes. The leader tools also have:
 
+- **Members.** Personal codes, invites, the Leader switch, parent ↔ scout links, and the two adults copied on every chat.
+- **Groups.** The troop's groups as chat boards or "Ask a leader" requests. Add or remove people any time.
+- **Chat reports.** Hide or keep reported messages.
 - **Photos.** Review uploads against photo permission.
 - **Permission.** The family roster, including the No-photos list.
 - **Bulletin.** Post and pin announcements.
@@ -35,6 +50,22 @@ Secrets go in Netlify → Site configuration → Environment variables:
 
 Data lives in Netlify Blobs, in a store named after `troop.id`. No database to set up.
 
+## Importing from TroopWebHost
+
+TroopWebHost has no way for another app to read it, so exports come over as CSV files (TroopWebHost → Reports → export to Excel). Put them in one folder, then run:
+
+```
+python3 scripts/import-troopwebhost.py <Export_Events.csv> <site-url> <leader-passcode>
+python3 scripts/import-troopwebhost-all.py <exports-folder> <site-url> <leader-passcode>
+python3 scripts/import-locations.py <Maintain_Event_Locations.csv> <site-url> <leader-passcode>
+```
+
+- **Events** → outings (re-running updates the same outings).
+- **Everything else** reads the active roster, user permissions, leadership positions, rank and merit badge history, merit badges in progress, rank requirements, event participation, inventory and checked-out items, and e-mail groups. It brings over names, adult/scout, patrol, positions, rank, advancement, attendance, gear and groups. **Contact info, birthdays, ages, BSA IDs, medical, allergies, money and addresses are never read.** Re-running keeps everyone's personal code, leader changes, parent links and group edits.
+- **Locations** add the address, phone, website and map pin to outings by location name.
+
+Add `--dry` to see what would change without sending anything.
+
 ## Run locally
 
 ```
@@ -42,7 +73,7 @@ npm install
 npm run dev
 ```
 
-Local troop code: `troop23`. Local leader passcode: `leader`. Data saves to `.data/`. Run `python3 scripts/e2e.py <folder>` for a full walkthrough that takes screenshots.
+Local troop code: `troop23`. Local leader passcode: `leader`. Data saves to `.data/`. Run `python3 scripts/e2e.py <folder>` (on an empty `.data`) for a full guest walkthrough with screenshots. After importing the TroopWebHost exports locally, `scripts/e2e-accounts.py` and `scripts/e2e-groups.py` walk through accounts, chat, advancement, the scanner, budgets and groups.
 
 ## Deploy
 

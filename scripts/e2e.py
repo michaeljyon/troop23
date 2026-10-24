@@ -18,8 +18,9 @@ with sync_playwright() as p:
     pg.on('dialog', lambda d: d.accept())
     # --- gate
     pg.goto(BASE); pg.wait_for_selector('.gate-form'); shot(pg, '01-gate')
-    pg.fill('.gate-form input', 'nope'); pg.click('text=Head to basecamp'); expect(pg.locator('.form-msg')).to_be_visible()
-    pg.fill('.gate-form input', 'TROOP23'); pg.click('text=Head to basecamp'); pg.wait_for_selector('text=Who\'s using this phone?')
+    pg.click('text=I only have the troop code'); pg.wait_for_selector('text=Continue')
+    pg.fill('.gate-form input', 'nope'); pg.click('button:has-text("Continue")'); expect(pg.locator('.form-msg')).to_be_visible()
+    pg.fill('.gate-form input', 'TROOP23'); pg.click('button:has-text("Continue")'); pg.wait_for_selector('text=Who\'s using this phone?')
     pg.fill('.gate-form input[autocomplete=name]', 'Eli Morgan'); pg.select_option('.gate-form select', 'Hawks'); shot(pg, '02-who')
     pg.click("text=Let's go"); pg.wait_for_selector('.hello'); shot(pg, '03-home-empty')
     # --- leader sign in + setup
@@ -100,7 +101,7 @@ with sync_playwright() as p:
     rs = {s['name']: s['id'] for s in api('roster')['scouts']}
     img = 'data:image/jpeg;base64,' + base64.b64encode(open(f'{DEMO}/trail.jpg', 'rb').read()).decode()
     api('photos', {'image': img, 'thumb': img, 'name': 'Dan Diaz', 'role': 'leader', 'album': oid, 'patrol': 'Hawks', 'scouts': [rs['Sam O.']], 'caption': 'Trail break', 'release': True})
-    pg.goto(BASE + '/#/leaders'); pg.wait_for_selector('.review-list'); shot(pg, '20-leader-review', True)
+    pg.goto(BASE + '/#/leaders'); pg.click('.tabs button:has-text("Photos")'); pg.wait_for_selector('.review-list'); shot(pg, '20-leader-review', True)
     for _ in range(6):
         btns = pg.locator('.review:not(:has(.flag.bad)) button:has-text("Approve")')
         if btns.count() == 0: break

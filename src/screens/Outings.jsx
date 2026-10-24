@@ -33,7 +33,7 @@ export default function Outings() {
   );
 }
 
-const blank = { title: '', type: 'campout', start: '', end: '', location: '', meetTime: '', meetPlace: '', returnTime: '', cost: '', details: '', extras: [], cancelled: false };
+const blank = { title: '', type: 'campout', start: '', end: '', location: '', address: '', placePhone: '', placeWeb: '', mapQ: '', meetTime: '', meetPlace: '', returnTime: '', cost: '', details: '', extras: [], cancelled: false };
 
 export function OutingForm({ outing, onClose, onSaved }) {
   return (
@@ -75,6 +75,7 @@ function OutingFields({ outing, onSaved }) {
           <label className="field"><span>Ends</span><input type="date" value={cur.end} min={cur.start} onChange={e => set({ end: e.target.value })} /></label>
         </div>
         <label className="field"><span>Where</span><input value={cur.location} onChange={e => set({ location: e.target.value })} placeholder="Campground, park or address" /></label>
+        <label className="field"><span>Address <i className="opt">optional, for directions</i></span><input value={cur.address || ''} onChange={e => set({ address: e.target.value })} placeholder="Street, city" /></label>
         <div className="two-col">
           <label className="field"><span>Meet time</span><input value={cur.meetTime} onChange={e => set({ meetTime: e.target.value })} placeholder="Fri 5:30 PM" /></label>
           <label className="field"><span>Meet place</span><input value={cur.meetPlace} onChange={e => set({ meetPlace: e.target.value })} placeholder="Church parking lot" /></label>

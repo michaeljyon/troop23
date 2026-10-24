@@ -35,7 +35,11 @@ export default function Outing({ route }) {
         <p className="outing-kicker">{t.emoji} {t.label} · {outing.cancelled ? 'Cancelled' : whenLabel(outing.start, outing.end)}</p>
         <h1>{outing.title}</h1>
         <p className="outing-when"><Icon name="calendar" size={17} />{rangeLabel(outing.start, outing.end)}</p>
-        {outing.location && <a className="outing-where" href={`https://maps.google.com/?q=${encodeURIComponent(outing.location)}`} target="_blank" rel="noopener noreferrer"><Icon name="pin" size={17} />{outing.location}<Icon name="external" size={14} /></a>}
+        {outing.location && <a className="outing-where" href={`https://maps.google.com/?q=${encodeURIComponent(outing.mapQ || outing.address || outing.location)}`} target="_blank" rel="noopener noreferrer"><Icon name="pin" size={17} /><span>{outing.location}{outing.address && <span className="outing-addr">{outing.address}</span>}</span><Icon name="external" size={14} /></a>}
+        {(outing.placePhone || /^https?:\/\//.test(outing.placeWeb || '')) && <p className="outing-links">
+          {outing.placePhone && <a href={`tel:${outing.placePhone.replace(/[^0-9+]/g, '')}`}><Icon name="phone" size={14} />Call</a>}
+          {/^https?:\/\//.test(outing.placeWeb || '') && <a href={outing.placeWeb} target="_blank" rel="noopener noreferrer"><Icon name="external" size={14} />Website</a>}
+        </p>}
       </section>
 
       <div className="tabs scroll" role="tablist">

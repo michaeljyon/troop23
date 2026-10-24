@@ -11,6 +11,7 @@
 // folder store in `npm run dev`.
 
 import troop from '../../troop/troop.js';
+import { resolveSession, memberRoutes, leaderPeople, redeem } from './people.mjs';
 
 const MAX_PHOTO_BYTES = 4.2 * 1024 * 1024;
 const MAX_THUMB_BYTES = 400 * 1024;
@@ -64,7 +65,7 @@ function shape(spec, v) {
 const ING = { name: 's:60', qty: 'n', unit: 's:20' };
 const COLS = {
   outings: {
-    spec: { title: 's:80', type: `e:${troop.outingTypes.map(t => t.id).join('|')}`, start: 'date', end: 'date', location: 's:160',
+    spec: { title: 's:80', type: `e:${troop.outingTypes.map(t => t.id).join('|')}`, start: 'date', end: 'date', location: 's:160', address: 's:200', placePhone: 's:40', placeWeb: 's:300', mapQ: 's:120',
       meetTime: 's:60', meetPlace: 's:120', returnTime: 's:60', details: 's:3000', cost: 's:60', extras: ['s:80', 40], cancelled: 'b' },
     write: 'leader', del: 'leader', required: ['title', 'start'],
   },
@@ -83,10 +84,10 @@ const COLS = {
   plans: {
     spec: { outingId: 'id', patrol: 's:40', grubmaster: 's:80', headcount: 'n', budget: 'n',
       meals: [{ id: 'id', slot: 's:40', recipeId: 's:40', title: 's:80', serves: 'n', ingredients: [ING, 40], notes: 's:300' }, 24] },
-    write: 'member', del: 'member', keep: ['checks', 'spend', 'duties'], required: ['outingId', 'patrol'],
+    write: 'member', del: 'member', keep: ['checks', 'spend', 'duties', 'prices'], required: ['outingId', 'patrol'],
   },
   rsvps: {
-    spec: { outingId: 'id', name: 's:80', patrol: 's:40', role: 'e:scout|adult', status: 'e:yes|maybe|no', note: 's:200' },
+    spec: { outingId: 'id', memberId: 's:40', name: 's:80', patrol: 's:40', role: 'e:scout|adult', status: 'e:yes|maybe|no', note: 's:200' },
     write: 'member', del: 'member', required: ['outingId', 'name'],
   },
   posts: {
@@ -129,7 +130,7 @@ async function putDoc(store, col, id, body, isLeader, now) {
   const doc = { ...data, id, created: prev?.created || now, updated: now, updatedBy: clean(body._by, 80) };
   for (const k of C.keep || []) if (prev?.[k] !== undefined) doc[k] = prev[k];
   if (col === 'gear') { doc.log ||= []; doc.checkout ||= null; if (!prev) doc.log.push({ at: now, by: doc.updatedBy, what: 'Added to the gear locker' }); }
-  if (col === 'plans') { doc.checks ||= {}; doc.spend ||= []; doc.duties ||= null; }
+  if (col === 'plans') { doc.checks ||= {}; doc.spend ||= []; doc.duties ||= null; doc.prices ||= {}; }
   await store.setJSON(`c/${col}/${id}`, doc);
   return json({ ok: true, item: doc });
 }
@@ -144,7 +145,7 @@ async function gearAction(store, id, action, body, now) {
   if (action === 'checkout') {
     if (g.checkout) return err(`Already checked out to ${g.checkout.who}.`, 409);
     if (g.condition === 'retired') return err('This item is retired.');
-    g.checkout = { who, patrol: clean(body.patrol, 40), outingId: shape('id', body.outingId), outingTitle: clean(body.outingTitle, 80), due: shape('date', body.due), at: now };
+    g.checkout = { who, memberId: clean(body.memberId, 40), patrol: clean(body.patrol, 40), outingId: shape('id', body.outingId), outingTitle: clean(body.outingTitle, 80), due: shape('date', body.due), at: now };
     g.log.push({ at: now, by: who, what: `Checked out${g.checkout.outingTitle ? ` for ${g.checkout.outingTitle}` : ''}${g.checkout.patrol ? ` (${g.checkout.patrol})` : ''}` });
   } else if (action === 'checkin') {
     if (!g.checkout) return err('This item is already in the locker.');
@@ -174,6 +175,16 @@ async function planAction(store, id, parts, req, body, now) {
     p.spend = [...(p.spend || []), { id: rid(), amount, note: clean(body.note, 120), by: clean(body.by, 80), at: now }].slice(-50);
   } else if (action === 'spend' && req.method === 'DELETE' && sub) {
     p.spend = (p.spend || []).filter(s => s.id !== sub);
+  } else if (action === 'price') {
+    const key = clean(body.key, 120); if (!key) return err('Bad request');
+    const price = shape('n', body.price);
+    p.prices ||= {};
+    if (price) p.prices[key] = price; else delete p.prices[key];
+    if (price && body.name) {
+      const book = (await store.get('pricebook', { type: 'json' })) || {};
+      book[clean(body.name, 60).toLowerCase()] = { price, unit: clean(body.unit, 20), qty: shape('n', body.qty), at: now };
+      await store.setJSON('pricebook', book);
+    }
   } else if (action === 'duties') {
     const roles = shape(['s:40', 8], body.roles);
     const grid = {};
@@ -379,6 +390,8 @@ async function leader(store, req, parts, body, now) {
     return json({ ok: true, settings: { patrols, albums: albumsIn } });
   }
   if (what === 'export') return exportCSV(store, id);
+  const pr = await leaderPeople(store, what, id, sub, req, body, now, {});
+  if (pr) return pr;
   if (what === 'stats') {
     const [photos, fams] = await Promise.all([listJSON(store, 'photos/meta/'), listJSON(store, 'consents/')]);
     const scouts = fams.flatMap(f => f.scouts);
@@ -405,17 +418,22 @@ export async function handle(req, opts) {
     if (head === 'health') return json({ ok: true, app: troop.id });
     if (!opts.troopCode) return err('The troop code isn\'t set yet. Add TROOP_CODE in Netlify → Site configuration → Environment variables.', 503);
     if (head === 'join' && req.method === 'POST') return same(body.code, opts.troopCode) ? json({ ok: true }) : err('That troop code doesn\'t match. Check with your Scoutmaster.', 401);
+    if (head === 'auth' && rest[0] === 'redeem' && req.method === 'POST') return redeem(store, body, req, now);
 
+    const session = await resolveSession(store, req);
     const leaderGiven = req.headers.get('x-leader-passcode') || url.searchParams.get('lk');
-    const isLeader = !!opts.leaderPasscode && same(leaderGiven, opts.leaderPasscode);
+    const isLeader = (!!opts.leaderPasscode && same(leaderGiven, opts.leaderPasscode)) || !!session?.member.leader;
     if (head === 'leader') {
-      if (!opts.leaderPasscode) return err('Leader tools are off. Add LEADER_PASSCODE in Netlify → Site configuration → Environment variables.', 403);
-      if (!isLeader) return err('Wrong leader passcode.', 401);
+      if (!isLeader) return err(opts.leaderPasscode ? 'Wrong leader passcode.' : 'Leader tools are off.', 401);
       return leader(store, req, rest, body, now);
     }
 
     const code = req.headers.get('x-troop-code') || url.searchParams.get('k');
-    if (!same(code, opts.troopCode) && !isLeader) return err('Enter the troop code to continue.', 401);
+    if (!same(code, opts.troopCode) && !isLeader && !session) return err('Enter the troop code to continue.', 401);
+
+    const mr = await memberRoutes(store, head, rest, req, body, now, { session, isLeader, patrols: (await settings(store)).patrols });
+    if (mr) return mr;
+    if (head === 'pricebook' && req.method === 'GET') return json({ book: (await store.get('pricebook', { type: 'json' })) || {} });
 
     // generic collections: /api/c/:col[/:id]
     if (head === 'c' && COLS[rest[0]]) {

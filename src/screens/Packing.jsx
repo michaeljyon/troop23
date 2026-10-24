@@ -1,11 +1,11 @@
 import Icon from '../components/Icon.jsx';
 import { PageHead, Section, Progress } from '../components/ui.jsx';
-import { useLocal } from '../lib/store.js';
+import { useSynced } from '../lib/api.js';
 import { troop } from '../lib/config.js';
 
 // Personal packing checklist, saved on this phone (one per outing).
 export function PackingList({ storeKey, extras = [], title }) {
-  const [done, setDone] = useLocal(storeKey, {});
+  const [done, setDone] = useSynced(storeKey, {});
   const groups = [...(extras.length ? [{ group: 'For this trip', items: extras, special: true }] : []), ...troop.packing];
   const all = groups.flatMap(g => g.items.map(i => `${g.group}|${i}`));
   const n = all.filter(k => done[k]).length;
@@ -26,7 +26,7 @@ export function PackingList({ storeKey, extras = [], title }) {
           </ul>
         </Section>
       ))}
-      <p className="small muted center pad-top">Saved on this phone only.</p>
+      <p className="small muted center pad-top">Saved to your account when you're signed in, or on this phone for guests.</p>
     </>
   );
 }

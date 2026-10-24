@@ -17,10 +17,13 @@
     "@fontsource/barlow-condensed": "^5.3.0",
     "@netlify/blobs": "^11.1.6",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "tesseract.js": "^5.1.1"
   },
   "devDependencies": {
+    "@tesseract.js-data/eng": "^1.0.0",
     "@vitejs/plugin-react": "^6.1.2",
+    "tesseract.js-core": "^5.1.1",
     "vite": "^8.3.5",
     "vite-plugin-pwa": "^2.0.0",
     "workbox-window": "^7.4.1"

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import { PageHead, Section, Empty, Sheet } from '../components/ui.jsx';
 import TagPicker from '../components/TagPicker.jsx';
-import { api, leaderPhotoUrl, setLeaderPass, leaderPass, useCol, saveDoc, deleteDoc } from '../lib/api.js';
+import { api, leaderPhotoUrl, setLeaderPass, leaderPass, useCol, saveDoc, deleteDoc, useAccount, usePatrols } from '../lib/api.js';
+import { Members, Reports, Groups } from './LeaderMembers.jsx';
 import { troop, level, rid } from '../lib/config.js';
 import { useMe } from '../lib/store.js';
 
@@ -10,7 +11,7 @@ import { useMe } from '../lib/store.js';
 // permission roster, bulletin posts, patrols & albums, and records.
 // Signing in here also turns on leader mode across the app (add/edit
 // outings, delete gear and recipes).
-const TABS = [['review', 'Photos', 'image'], ['roster', 'Permission', 'shield'], ['bulletin', 'Bulletin', 'megaphone'], ['settings', 'Settings', 'settings'], ['data', 'Records', 'download']];
+const TABS = [['members', 'Members', 'users'], ['groups', 'Groups', 'message'], ['reports', 'Chat reports', 'alert'], ['review', 'Photos', 'image'], ['roster', 'Permission', 'shield'], ['bulletin', 'Bulletin', 'megaphone'], ['settings', 'Settings', 'settings'], ['data', 'Records', 'download']];
 
 const FLAG = {
   blocked: { cls: 'bad', icon: 'eyeOff', title: 'Has a "No photos" scout', body: 'Hide or delete this photo.' },
@@ -20,10 +21,12 @@ const FLAG = {
 };
 
 export default function Leaders() {
+  const acct = useAccount();
   const [pass, setPass] = useState(leaderPass());
-  const [ok, setOk] = useState(false);
+  const [ok, setOk] = useState(!!acct?.member?.leader);
   const [err, setErr] = useState('');
-  const [tab, setTab] = useState('review');
+  const [tab, setTab] = useState('members');
+  useEffect(() => { if (acct?.member?.leader) setOk(true); }, [acct?.member?.leader]);
 
   async function login(p = pass) {
     setErr('');
@@ -33,7 +36,7 @@ export default function Leaders() {
   useEffect(() => { if (pass) login(pass); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!ok) return (
-    <div className="content"><PageHead backTo="more" title="Leader tools" sub={`For ${troop.unit} leaders. Signing in also lets you add outings and manage gear and recipes.`} />
+    <div className="content"><PageHead backTo="more" title="Leader tools" sub={`For ${troop.unit} leaders. Leaders who sign in with their personal code get in automatically. Otherwise, enter the leader passcode.`} />
       <form className="card narrow" onSubmit={e => { e.preventDefault(); login(pass.trim()); }}>
         <label className="field"><span>Leader passcode</span><input type="password" value={pass} onChange={e => setPass(e.target.value)} autoComplete="current-password" autoCapitalize="none" autoCorrect="off" spellCheck="false" /></label>
         {err && <p className="form-msg" role="alert">{err}</p>}
@@ -45,11 +48,14 @@ export default function Leaders() {
   return (
     <div className="content wide">
       <PageHead backTo="more" title="Leader tools">
-        <button className="link-btn head-btn" onClick={() => { setLeaderPass(''); setOk(false); setPass(''); }}><Icon name="logout" size={16} /> Sign out</button>
+        {!acct?.member?.leader && <button className="link-btn head-btn" onClick={() => { setLeaderPass(''); setOk(false); setPass(''); }}><Icon name="logout" size={16} /> Sign out</button>}
       </PageHead>
       <div className="tabs scroll" role="tablist">
         {TABS.map(([id, l, ic]) => <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}><Icon name={ic} size={17} />{l}</button>)}
       </div>
+      {tab === 'members' && <Members pass={pass} />}
+      {tab === 'groups' && <Groups pass={pass} />}
+      {tab === 'reports' && <Reports pass={pass} />}
       {tab === 'review' && <Review pass={pass} />}
       {tab === 'roster' && <Roster pass={pass} />}
       {tab === 'bulletin' && <Bulletin />}

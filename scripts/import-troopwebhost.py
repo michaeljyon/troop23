@@ -14,7 +14,7 @@ TYPE = {
     'Community Service': 'service', 'Service Hours': 'service', 'Living Christmas': 'service', 'Wallwood Workday': 'service',
     'Christmas Tree Sales': 'fundraiser', 'Fundraiser': 'fundraiser',
     'Troop Meeting': 'meeting', 'Council/Committee Meetings': 'meeting', 'Patrol Leadership Council Meeting': 'meeting',
-    'Assistant Scoutmaster Meeting': 'meeting', 'Outdoor Activities Committee': 'meeting', 'Scout Rank Scoutmaster Conference': 'meeting',
+    'Assistant Scoutmaster Meeting': 'meeting', 'Outdoor Activities Committee': 'meeting', 'Scout Rank Scoutmaster Conference': 'meeting', 'Scoutmaster Conference': 'meeting',
     'Merit Badge Opportunity': 'merit', 'Training': 'training', 'Order of the Arrow Fellowship': 'oa', 'OA Event': 'oa',
     'Pack Outreach Event': 'service', 'Webelos Event': 'service',
 }

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import { Section, Empty, Sheet, Progress } from '../components/ui.jsx';
-import { api, saveDoc, useCol, usePatrols } from '../lib/api.js';
+import { api, saveDoc, useCol, usePatrols, useApi } from '../lib/api.js';
+import { priceFor } from './KitchenTools.jsx';
 import { troop, rid, slug } from '../lib/config.js';
 import { useMe } from '../lib/store.js';
 import { defaultSlots, scaled, shoppingList, fmtQty, inPantry, money } from '../lib/food.js';
@@ -66,6 +67,16 @@ function PlanView({ outing, plan, save, setLocal, reload, people, going, recipes
   const [editMeal, setEditMeal] = useState(null);
   const list = useMemo(() => shoppingList(plan.meals.filter(m => m.ingredients?.length), people), [plan.meals, people]);
   const bought = list.filter(i => plan.checks?.[i.key]).length;
+  const book = useApi('pricebook');
+  const priceOf = i => plan.prices?.[i.key] ?? null;
+  const suggest = i => priceFor(i, book.data?.book);
+  const estTotal = list.reduce((n, i) => n + (priceOf(i) ?? suggest(i) ?? 0), 0);
+  const unpriced = list.filter(i => priceOf(i) == null && suggest(i) == null).length;
+  async function setPrice(i, v) {
+    const price = Number(v) || 0;
+    setLocal({ ...plan, prices: { ...(plan.prices || {}), [i.key]: price || undefined } });
+    await api(`plans/${plan.id}/price`, { method: 'POST', body: { key: i.key, price, name: i.name, unit: i.unit, qty: i.qty } }).catch(() => {});
+  }
   const spent = (plan.spend || []).reduce((n, s) => n + s.amount, 0);
   const budgetTotal = (plan.budget || 0) * people;
   const planned = plan.meals.filter(m => m.title).length;
@@ -111,6 +122,11 @@ function PlanView({ outing, plan, save, setLocal, reload, people, going, recipes
         {list.length === 0 ? <p className="muted small">Pick recipes for the menu and the list fills in here, scaled for {people || 'your'} {people === 1 ? 'person' : 'people'}.</p> : (
           <div className="card">
             <div className="shop-head"><span><b>{bought}</b> of {list.length} in the cart</span><Progress value={bought} max={list.length} label="Shopping progress" /></div>
+            <div className={`est-bar ${budgetTotal && estTotal > budgetTotal ? 'over' : ''}`}>
+              <span><Icon name="dollar" size={16} />Estimated <b>{money(estTotal)}</b>{people ? ` · ${money(estTotal / people)} each` : ''}</span>
+              <span>{budgetTotal ? (estTotal > budgetTotal ? `${money(estTotal - budgetTotal)} over budget` : `${money(budgetTotal - estTotal)} under budget`) : 'Set a budget above'}</span>
+            </div>
+            {unpriced > 0 && <p className="small muted">{unpriced} item{unpriced > 1 ? 's have' : ' has'} no price yet. Type what it costs, and the troop price book remembers it for next time.</p>}
             <ul className="shop">
               {list.map(i => {
                 const pan = inPantry(pantry, i.name);
@@ -121,6 +137,7 @@ function PlanView({ outing, plan, save, setLocal, reload, people, going, recipes
                       <span className="grow"><span className="shop-name">{i.name}</span><span className="shop-for">{i.meals.join(', ')}</span></span>
                       <span className="shop-qty">{fmtQty(i)}</span>
                     </label>
+                    <label className="price-in" onClick={e => e.stopPropagation()}><span>$</span><input type="number" min="0" step="0.01" inputMode="decimal" defaultValue={priceOf(i) ?? ''} placeholder={suggest(i) != null ? suggest(i).toFixed(2) : '0.00'} onBlur={e => { const v = e.target.value; if ((Number(v) || 0) !== (priceOf(i) || 0)) setPrice(i, v); }} aria-label={`Price for ${i.name}`} /></label>
                     {pan && <span className="pantry-hint"><Icon name="basket" size={13} />Troop pantry has {pan.name.toLowerCase()}{pan.qty ? ` (${pan.qty} ${pan.unit})` : ''}</span>}
                   </li>
                 );

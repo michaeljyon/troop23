@@ -7,6 +7,7 @@ import { rid } from '../lib/config.js';
 import { useMe } from '../lib/store.js';
 import { scaled, fmtQty } from '../lib/food.js';
 import { go } from '../lib/router.js';
+import { Scan, Budget } from './KitchenTools.jsx';
 
 const MEALS = [['', 'All'], ['breakfast', 'Breakfast'], ['lunch', 'Lunch'], ['dinner', 'Dinner'], ['dessert', 'Dessert'], ['snack', 'Snack'], ['drink', 'Drink']];
 const EMOJI = { breakfast: '🍳', lunch: '🌯', dinner: '🍲', dessert: '🍑', snack: '🥨', drink: '☕' };
@@ -15,12 +16,14 @@ export default function Kitchen({ route }) {
   const tab = route.query.tab || 'recipes';
   return (
     <div className="content">
-      <PageHead backTo="more" title="Troop kitchen" sub="Recipes that work at camp, and what's in the troop pantry." />
+      <PageHead backTo="more" title="Troop kitchen" sub="Camp recipes, recipe scanning, budgets, and the troop pantry." />
       <div className="seg" role="tablist">
-        <button role="tab" aria-selected={tab === 'recipes'} className={tab === 'recipes' ? 'on' : ''} onClick={() => go('kitchen')}>Recipes</button>
-        <button role="tab" aria-selected={tab === 'pantry'} className={tab === 'pantry' ? 'on' : ''} onClick={() => go('kitchen?tab=pantry')}>Pantry</button>
+        {[['recipes', 'Recipes'], ['scan', 'Scan'], ['budget', 'Budget'], ['pantry', 'Pantry']].map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => go(k === 'recipes' ? 'kitchen' : `kitchen?tab=${k}`)}>{l}</button>)}
       </div>
-      {tab === 'recipes' ? <Recipes /> : <Pantry />}
+      {tab === 'recipes' && <Recipes />}
+      {tab === 'scan' && <Scan RecipeForm={RecipeForm} onSaved={() => go('kitchen')} />}
+      {tab === 'budget' && <Budget />}
+      {tab === 'pantry' && <Pantry />}
     </div>
   );
 }
@@ -49,7 +52,7 @@ function Recipes() {
           {list.length === 0 && <Empty icon="pot" title="No recipes match" />}
         </ul>
       )}
-      <button className="btn secondary" onClick={() => setEdit({})}><Icon name="plus" size={18} />Add a recipe</button>
+      <div className="btn-row"><button className="btn secondary" onClick={() => setEdit({})}><Icon name="plus" size={18} />Add a recipe</button><button className="btn secondary" onClick={() => go('kitchen?tab=scan')}><Icon name="camera" size={18} />Scan a recipe</button></div>
       <Sheet open={!!current} onClose={() => setOpen(null)} title={current?.title || ''} wide>
         {current && <RecipeView r={current} onEdit={() => { setEdit(current); setOpen(null); }} onDeleted={() => { setOpen(null); recipes.refresh(); }} />}
       </Sheet>
