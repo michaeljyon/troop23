@@ -1,0 +1,8 @@
+node_modules
+dist
+.data
+.netlify
+*.zip
+pack6-preview.png
+*.zip
+troop23-preview.png

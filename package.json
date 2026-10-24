@@ -1,0 +1,28 @@
+{
+  "name": "troop23-basecamp",
+  "version": "1.0.0",
+  "description": "Scouts BSA Troop 23 (Tallahassee, FL) app: outings, sign-ups, gear locker, patrol meal planning, recipes, pantry, packing lists, photos and photo permission.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/barlow-condensed": "^5.3.0",
+    "@netlify/blobs": "^11.1.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "vite": "^8.3.5",
+    "vite-plugin-pwa": "^2.0.0",
+    "workbox-window": "^7.4.1"
+  }
+}
