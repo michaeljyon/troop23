@@ -407,7 +407,7 @@ export async function handle(req, opts) {
     if (head === 'join' && req.method === 'POST') return same(body.code, opts.troopCode) ? json({ ok: true }) : err('That troop code doesn\'t match. Check with your Scoutmaster.', 401);
 
     const leaderGiven = req.headers.get('x-leader-passcode') || url.searchParams.get('lk');
-    const isLeader = !!opts.leaderPasscode && leaderGiven === opts.leaderPasscode;
+    const isLeader = !!opts.leaderPasscode && same(leaderGiven, opts.leaderPasscode);
     if (head === 'leader') {
       if (!opts.leaderPasscode) return err('Leader tools are off. Add LEADER_PASSCODE in Netlify → Site configuration → Environment variables.', 403);
       if (!isLeader) return err('Wrong leader passcode.', 401);
