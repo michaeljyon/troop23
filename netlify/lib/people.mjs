@@ -159,7 +159,7 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
     if (!t || !canRead(t, me)) return err('Conversation not found.', 404);
     if (!sub && req.method === 'GET') {
       const since = Number(new URL(req.url).searchParams.get('since') || 0);
-      const msgs = (await listMsgs(store, t.id, since)).map(x => (x.hidden && !me.leader ? { ...x, text: '', attachments: undefined, hiddenNote: true } : x));
+      const msgs = (await listMsgs(store, t.id, since)).map(x => (x.hidden && !me.leader ? { ...x, text: '', html: undefined, subject: undefined, attachments: undefined, hiddenNote: true } : x));
       if (t.members.includes(me.id) && t.last) {
         const reads = (await store.get(`reads/${me.id}`, { type: 'json' })) || {};
         if ((reads[t.id] || 0) < t.last.at) { reads[t.id] = t.last.at; await store.setJSON(`reads/${me.id}`, reads); }
@@ -199,15 +199,18 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
     }
     if (sub === 'msgs' && !mid && req.method === 'POST') {
       if (!t.adultsOnly && !g.every(id => t.members.includes(id))) return err('This conversation is missing a required leader.', 409);
-      const text = clean(body.text, 4000);
+      const text = clean(body.text, 8000);
+      const subject = clean(body.subject, 150);
+      // email-style messages: the HTML is only ever rebuilt tag-by-tag on the phone (never injected), and capped in size
+      const html = typeof body.html === 'string' && text ? body.html.replace(/<(script|style|iframe|object|embed)[\s\S]*?<\/\1>/gi, '').slice(0, 40000) : '';
       const atts = [];
       for (const aid of (Array.isArray(body.attachments) ? body.attachments : []).slice(0, 10)) {
         const meta = (await store.getMetadata(`att/${t.id}/${clean(aid, 40)}`))?.metadata;
         if (meta && meta.by === me.id) atts.push({ id: meta.id, name: meta.name, type: meta.type, size: meta.size, kind: meta.kind, w: meta.w, h: meta.h });
       }
       if (!text && !atts.length) return err('Write a message first.');
-      const m = { id: `${now}-${rid().slice(-6)}`, by: me.id, byName: me.name, role: me.role, text, at: now, ...(atts.length ? { attachments: atts } : {}) };
-      const preview = text ? text.replace(/[*_~`>#]/g, '').slice(0, 120) : attLabel(atts);
+      const m = { id: `${now}-${rid().slice(-6)}`, by: me.id, byName: me.name, role: me.role, text, at: now, ...(subject ? { subject } : {}), ...(html ? { html } : {}), ...(atts.length ? { attachments: atts } : {}) };
+      const preview = (subject ? `${subject}: ` : '') + (text ? text.replace(/[*_~`>#]/g, '').replace(/\s+/g, ' ').slice(0, 120) : attLabel(atts));
       await store.setJSON(`msgs/${t.id}/${m.id}`, m);
       const saved = (await store.get(`threads/${t.id}`, { type: 'json' })) || { ...t, members: t.kind === 'dm' ? t.members : [] };
       saved.id = t.id; saved.kind = t.kind; saved.last = { at: now, by: me.id, byName: me.first || me.name, text: preview };

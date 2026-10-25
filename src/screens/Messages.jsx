@@ -3,6 +3,8 @@ import Icon from '../components/Icon.jsx';
 import { PageHead, Empty, Sheet, Pill } from '../components/ui.jsx';
 import { api, useAccount, sessionToken } from '../lib/api.js';
 import { RichText, applyFormat } from '../lib/richtext.jsx';
+import { SafeHtml } from '../lib/safehtml.jsx';
+import LetterEditor from '../components/LetterEditor.jsx';
 import { go } from '../lib/router.js';
 import { NotifyNudge } from '../components/Notify.jsx';
 
@@ -152,14 +154,29 @@ export function Thread({ route }) {
   const [sendErr, setSendErr] = useState('');
   const [report, setReport] = useState(null);
   const [showPeople, setShowPeople] = useState(false);
-  const [coaching, setCoaching] = useState(false);
+  const [coaching, setCoaching] = useState(false);   // false | { draft, apply }
+  const [letter, setLetter] = useState(false);
   const [viewer, setViewer] = useState(null);       // { list, i }
   const [tools, setTools] = useState(false);
   const [aiOn, setAiOn] = useState(true);
   const taRef = useRef(null);
+  const formRef = useRef(null);
+  useEffect(() => {   // keep the last messages visible above the (growing) composer
+    const el = formRef.current; if (!el || !window.ResizeObserver) return undefined;
+    const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--compose-h', `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
   const photoRef = useRef(null);
   const fileRef = useRef(null);
   useEffect(() => { api('settings').then(s => setAiOn(s.aiHelper !== false)).catch(() => {}); }, []);
+  useEffect(() => {
+    const el = taRef.current; if (!el) return;
+    el.style.height = 'auto';
+    const max = Math.round(window.innerHeight * 0.45);
+    el.style.height = `${Math.min(el.scrollHeight + 2, max)}px`;
+    el.style.overflowY = el.scrollHeight + 2 > max ? 'auto' : 'hidden';
+  }, [text]);
   const lastAt = useRef(0);
   const endRef = useRef(null);
 
@@ -198,9 +215,10 @@ export function Thread({ route }) {
     if (photos) photoRef.current.value = ''; else fileRef.current.value = '';
   }
 
-  async function send(e) {
+  async function send(e, rich) {
     e?.preventDefault();
-    if (!text.trim() && !files.length) return;
+    const body = rich || { text };
+    if (!(body.text || '').trim() && !files.length) return;
     setBusy(true); setSendErr('');
     try {
       const ids = [];
@@ -210,8 +228,9 @@ export function Thread({ route }) {
         ids.push(r.attachment.id);
         setFiles(x => x.map(y => (y.key === f.key ? { ...y, status: 'done' } : y)));
       }
-      await api(`threads/${id}/msgs`, { method: 'POST', body: { text, attachments: ids } });
-      setText(''); setFiles([]); await load(false); dispatchEvent(new Event('threads-read'));
+      await api(`threads/${id}/msgs`, { method: 'POST', body: { ...body, attachments: ids } });
+      if (rich) setLetter(false); else setText('');
+      setFiles([]); await load(false); dispatchEvent(new Event('threads-read'));
     } catch (err) { setSendErr(err.message); setFiles(x => x.map(y => ({ ...y, status: undefined }))); } finally { setBusy(false); }
   }
 
@@ -248,9 +267,10 @@ export function Thread({ route }) {
               {day && <span className="msg-day">{new Date(m.at).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</span>}
               {showName && <span className="msg-by">{m.byName}{people.find(p => p.id === m.by)?.guardian && <Pill tone="info">Leader</Pill>}</span>}
               <div className="msg-row">
-                <div className={`bubble ${m.hidden || m.hiddenNote ? 'removed' : ''} ${imgs.length && !m.text ? 'pics-only' : ''}`}>
+                <div className={`bubble ${m.hidden || m.hiddenNote ? 'removed' : ''} ${imgs.length && !m.text ? 'pics-only' : ''} ${m.html || m.subject ? 'letter-bubble' : ''}`}>
                   {m.hiddenNote ? 'Removed by a leader' : <>
                     {m.hidden && <span className="removed-tag">Hidden from others · </span>}
+                    {m.subject && <p className="letter-subj">{m.subject}</p>}
                     {imgs.length > 0 && <div className={`msg-pics n${Math.min(imgs.length, 4)}`}>{imgs.slice(0, 4).map((a, k) => (
                       <button key={a.id} onClick={() => setViewer({ list: imgs, i: k })} aria-label={`Open photo ${k + 1} of ${imgs.length}`}>
                         <img src={attUrl(a)} alt="" loading="lazy" />{k === 3 && imgs.length > 4 && <span className="more-pics">+{imgs.length - 4}</span>}
@@ -258,7 +278,7 @@ export function Thread({ route }) {
                     {docs.length > 0 && <div className="msg-files">{docs.map(a => (
                       <a key={a.id} className="file-chip" href={attUrl(a, true)} download={a.name}><Icon name={fileIcon(a.name)} size={18} /><span className="grow"><b>{a.name}</b><span>{fmtSize(a.size)}</span></span><Icon name="download" size={16} /></a>
                     ))}</div>}
-                    {m.text && <RichText text={m.text} />}
+                    {m.html ? <SafeHtml html={m.html} /> : m.text && <RichText text={m.text} />}
                   </>}
                 </div>
                 {!mine && !m.hiddenNote && <button className="icon-btn sm msg-more" onClick={() => setReport(m)} aria-label="Report this message"><Icon name="more" size={18} /></button>}
@@ -270,9 +290,9 @@ export function Thread({ route }) {
         <li ref={endRef} />
       </ol>
       {last && last.by !== me && !text && !files.length && (
-        <div className="reply-nudge"><Icon name="message" size={16} /><span className="grow"><b>{last.byName.split(' ')[0]}</b> is waiting on your reply.</span>{aiOn && <button className="link-btn small" onClick={() => setCoaching(true)}><Icon name="sparkle" size={15} />Help me reply</button>}</div>
+        <div className="reply-nudge"><Icon name="message" size={16} /><span className="grow"><b>{last.byName.split(' ')[0]}</b> is waiting on your reply.</span>{aiOn && <button className="link-btn small" onClick={() => setCoaching({ draft: text, apply: v => setText(v) })}><Icon name="sparkle" size={15} />Help me reply</button>}</div>
       )}
-      <form className="composer2" onSubmit={send}>
+      <form ref={formRef} className="composer2" onSubmit={send}>
         {files.length > 0 && (
           <div className="att-tray">{files.map(f => (
             <div key={f.key} className={`att-item ${f.status || ''}`}>
@@ -293,14 +313,15 @@ export function Thread({ route }) {
         )}
         <div className="compose-tools">
           <button type="button" className={`icon-btn sm ${tools ? 'on' : ''}`} onClick={() => setTools(v => !v)} aria-label="Formatting" aria-pressed={tools}><span className="aa">Aa</span></button>
-          <button type="button" className="icon-btn sm" onClick={() => photoRef.current.click()} aria-label="Add photos"><Icon name="image" size={19} /><span className="tool-l">Photos</span></button>
-          <button type="button" className="icon-btn sm" onClick={() => fileRef.current.click()} aria-label="Attach files"><Icon name="paperclip" size={19} /><span className="tool-l">Files</span></button>
-          {aiOn && <button type="button" className="icon-btn sm coach-btn" onClick={() => setCoaching(true)} aria-label="Writing helper: check or improve my message"><Icon name="sparkle" size={19} /><span className="tool-l">Help me write</span></button>}
+          <button type="button" className="icon-btn sm photo-btn" onClick={() => photoRef.current.click()} aria-label="Add photos"><Icon name="image" size={19} /><span className="tool-l">Photos</span></button>
+          <button type="button" className="icon-btn sm file-btn" onClick={() => fileRef.current.click()} aria-label="Attach files"><Icon name="paperclip" size={19} /><span className="tool-l">Files</span></button>
+          {t?.kind === 'dm' && <button type="button" className="icon-btn sm letter-btn" onClick={() => setLetter(true)} aria-label="Write a full message"><Icon name="edit" size={18} /><span className="tool-l">Full message</span></button>}
+          {aiOn && <button type="button" className="icon-btn sm coach-btn" onClick={() => setCoaching({ draft: text, apply: v => setText(v) })} aria-label="Writing helper: check or improve my message"><Icon name="sparkle" size={19} /><span className="tool-l">Help me write</span></button>}
           <input ref={photoRef} type="file" accept="image/*" multiple hidden onChange={e => addFiles(e.target.files, true)} />
           <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.odt,.ods,.odp,image/*" multiple hidden onChange={e => addFiles(e.target.files, false)} />
         </div>
         <div className="compose-row">
-          <textarea ref={taRef} rows={1} value={text} onChange={e => setText(e.target.value)} placeholder="Message" aria-label="Message" maxLength={4000}
+          <textarea ref={taRef} rows={t?.kind === 'dm' ? 3 : 1} className={t?.kind === 'dm' ? 'tall' : ''} value={text} onChange={e => setText(e.target.value)} placeholder="Message" aria-label="Message" maxLength={4000}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); send(e); } }} />
           <button className="btn send-btn" disabled={busy || (!text.trim() && !files.length)} aria-label="Send">{busy ? <span className="spinner sm" aria-hidden="true" /> : <Icon name="send" size={18} />}</button>
         </div>
@@ -310,7 +331,18 @@ export function Thread({ route }) {
         <ul className="pick-list">{people.map(p => <li key={p.id} className="person-row"><span className="grow"><b>{p.name}</b><span className="small muted">{p.role === 'scout' ? `Scout${p.patrol ? ` · ${p.patrol}` : ''}` : p.positions[0] || 'Adult'}</span></span>{p.guardian && <Pill tone="info">Two-deep</Pill>}</li>)}</ul>
       </Sheet>
       <ReportSheet m={report} threadId={id} onClose={() => setReport(null)} />
-      {coaching && <CoachSheet threadId={id} draft={text} onClose={() => setCoaching(false)} onUse={v => { setText(v); setCoaching(false); }} />}
+      {letter && (
+        <LetterEditor title={t?.title || ''} initialText={text} busy={busy} error={sendErr}
+          attachTray={files.length > 0 ? <div className="att-tray letter-tray">{files.map(f => (
+            <div key={f.key} className={`att-item ${f.status || ''}`}>
+              {f.preview ? <img src={f.preview} alt="" /> : <span className="att-doc"><Icon name={fileIcon(f.name)} size={20} /><span>{f.name}</span></span>}
+              {!busy && <button type="button" className="att-x" onClick={() => setFiles(x => x.filter(y => y.key !== f.key))} aria-label={`Remove ${f.name}`}><Icon name="x" size={12} /></button>}
+            </div>))}</div> : null}
+          onAddPhotos={() => photoRef.current.click()} onAddFiles={() => fileRef.current.click()}
+          onHelp={aiOn ? (draft, apply) => setCoaching({ draft, apply }) : null}
+          onSend={payload => send(null, payload)} onClose={() => setLetter(false)} />
+      )}
+      {coaching && <CoachSheet threadId={id} draft={coaching.draft} onClose={() => setCoaching(false)} onUse={v => { coaching.apply(v); setCoaching(false); }} />}
       {viewer && <PicViewer list={viewer.list} start={viewer.i} url={a => attUrl(a)} dl={a => attUrl(a, true)} onClose={() => setViewer(null)} />}
     </div>
   );
