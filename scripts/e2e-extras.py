@@ -21,10 +21,11 @@ with sync_playwright() as pw:
     p.keyboard.press('Escape'); p.click('.outing-list a >> nth=0'); p.wait_for_selector('.outing-links a'); shot('x4-outing-cal')
     href = p.locator('.outing-links a >> nth=0').get_attribute('href'); print('add to cal:', href)
     print('ics status:', urllib.request.urlopen(href.replace('http://localhost/', BASE + '/')).status)
-    p.goto(BASE + '/#/leaders'); p.wait_for_selector('.gear-list'); p.click('button:has-text("Link families")'); p.wait_for_selector('.fam-list'); shot('x5-link-families')
+    p.goto(BASE + '/#/leaders'); p.wait_for_selector('.gear-list'); p.click('button:has-text("Link families")'); p.wait_for_selector('.fam-list, .sheet .empty'); shot('x5-link-families')
     n = p.locator('.fam-list .chip.on').count(); print('suggested pairs:', n)
-    p.click('.fam-list li >> nth=0 >> .chip >> nth=0')   # untick one
-    p.click('.sheet-foot button'); p.wait_for_selector('.fam-list', state='detached', timeout=30000); p.wait_for_timeout(800)
+    if n > 1: p.click('.fam-list li >> nth=0 >> .chip >> nth=0')   # untick one
+    if n: p.click('.sheet-foot button')
+    else: p.keyboard.press('Escape'); p.wait_for_selector('.fam-list', state='detached', timeout=30000); p.wait_for_timeout(800)
     linked = [m for m in json.loads(urllib.request.urlopen(r).read())['members'] if m.get('scouts')]
     print('adults linked now:', len(linked))
     b.close()

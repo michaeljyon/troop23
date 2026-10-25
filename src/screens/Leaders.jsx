@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import { PageHead, Section, Empty, Sheet } from '../components/ui.jsx';
 import TagPicker from '../components/TagPicker.jsx';
-import { api, leaderPhotoUrl, setLeaderPass, leaderPass, useCol, saveDoc, deleteDoc, useAccount, usePatrols } from '../lib/api.js';
+import { api, leaderPhotoUrl, setLeaderPass, leaderPass, useCol, saveDoc, deleteDoc, useAccount } from '../lib/api.js';
 import { Members, Reports, Groups } from './LeaderMembers.jsx';
 import { Setup } from './LeaderSetup.jsx';
 import { troop, level, rid } from '../lib/config.js';

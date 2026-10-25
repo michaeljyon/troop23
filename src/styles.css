@@ -489,6 +489,7 @@ button.stat { cursor: pointer; } .stat.sel { border-color: var(--primary); }
 .tab-badge { position: absolute; top: -4px; right: -2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad); color: #fff; font: 700 11px/18px var(--body); text-align: center; }
 .tabbar .tab-ico { position: relative; }
 .guest-chip { font: 700 12px var(--body); text-transform: uppercase; letter-spacing: .06em; color: var(--khaki); border: 1.5px solid rgba(217,205,168,.5); border-radius: 999px; padding: 3px 8px; }
+.demo-chip { font: 800 12px var(--body); text-transform: uppercase; letter-spacing: .08em; color: #2B1300; background: #F6D365; border-radius: 999px; padding: 4px 9px; }
 .code-input { font: 700 22px var(--head) !important; letter-spacing: .14em; text-transform: uppercase; text-align: center; }
 .center-btn { display: flex; margin: 6px auto 0; }
 .good-text { color: var(--good); display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; }
@@ -546,6 +547,8 @@ button.stat { cursor: pointer; } .stat.sel { border-color: var(--primary); }
 .composer textarea { flex: 1; resize: none; border: 1.5px solid var(--line-strong); border-radius: 22px; padding: 10px 16px; font-size: 16px; min-height: 44px; max-height: 140px; background: var(--surface); field-sizing: content; }
 .composer .btn { border-radius: 50%; width: 46px; min-height: 46px; padding: 0; }
 .quote { margin: 8px 0; padding: 10px 12px; border-left: 4px solid var(--line-strong); background: var(--page); border-radius: 0 10px 10px 0; white-space: pre-wrap; }
+.report-atts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+.report-atts img { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; display: block; }
 
 /* ---------- advancement */
 .adv-list { list-style: none; margin: 8px 0 0; padding: 0; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
@@ -910,3 +913,72 @@ input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-off
 .composer2 { bottom: var(--kb, 0px); }
 .chat-full .reply-nudge { bottom: calc(var(--compose-h, 120px) + var(--kb, 0px) + 6px); }
 .version-line { margin-top: 4px; }
+
+/* ---------- spacing rhythm: every block on a page gets breathing room */
+:where(.content > * + *) { margin-top: 14px; }
+.section { margin-top: 28px; }
+.section-row { margin-bottom: 12px; }
+.rsvp-wrap.many { gap: 12px; }
+.tiles { gap: 12px; }
+.posts, .outing-list { gap: 10px; }
+.inbox-card { margin-bottom: 18px; }
+.snap-bar { background: linear-gradient(to top, var(--page) calc(100% - 16px), rgba(244,241,232,0)); margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; }
+.snap-bar .btn:disabled { opacity: 1; background: var(--sand); border-color: var(--line-strong); color: var(--muted); }
+
+/* rows that scroll sideways on phones: a soft fade shows there's more */
+.chip-scroll, .tabs.scroll { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent); }
+
+/* with a mouse (desktop/laptop) there's no swiping, so these rows wrap instead */
+@media (hover: hover) and (pointer: fine) {
+  .chip-scroll, .tabs.scroll { flex-wrap: wrap; overflow: visible; margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; -webkit-mask-image: none; mask-image: none; }
+  .chip-scroll .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .tabs { flex-wrap: wrap; }
+  .letter-tools, .compose-tools { flex-wrap: wrap; overflow: visible; }
+  .att-tray { flex-wrap: wrap; overflow: visible; }
+}
+
+/* ---------- tablet */
+@media (min-width: 760px) {
+  .content { padding: 22px 24px 32px; }
+  .snap-bar { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; }
+}
+
+/* ---------- desktop: side navigation and a wider page */
+@media (min-width: 1000px) {
+  .app-header { padding-left: 20px; padding-right: 20px; }
+  .tabbar { top: 0; right: auto; bottom: 0; width: 220px; display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+    padding: calc(env(safe-area-inset-top) + 82px) 12px 20px; border-top: 0; border-right: 1px solid var(--line); box-shadow: none; z-index: 15; }
+  .tabbar a { flex-direction: row; justify-content: flex-start; gap: 10px; padding: 6px 10px; font-size: 16px; border-radius: 12px; letter-spacing: 0; }
+  .tabbar a:hover { background: var(--page); color: var(--primary); }
+  .tabbar a.active { background: var(--mint); }
+  .tabbar a.active .tab-ico { background: transparent; }
+  .tabbar .tab-ico { width: 34px; height: 34px; }
+  .tabbar a.big { order: 9; margin-top: 14px; background: var(--accent); color: #fff; justify-content: center; }
+  .tabbar a.big:hover { background: var(--accent); filter: brightness(1.07); color: #fff; }
+  .tabbar a.big .tab-ico { width: 34px; height: 34px; margin: 0; background: transparent; box-shadow: none; }
+  .tabbar a.big .tab-ico svg { width: 22px; height: 22px; }
+  .tab-badge { top: -2px; right: -4px; }
+  .app:not(.chat-mode) .app-main { margin-left: 220px; padding-bottom: 48px; }
+  .content { max-width: 1040px; padding: 28px 36px 48px; }
+  .page-head h1 { font-size: 40px; }
+  .snap-bar { position: static; background: none; }
+  .select-bar { left: 240px; right: 20px; bottom: 20px; }
+  .composer { left: 220px; bottom: 0; }
+  .outing-list.two-up, .gear-list.two-up { grid-template-columns: 1fr 1fr; }
+  .gallery { grid-template-columns: repeat(5, 1fr); }
+  .ev-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .review-list { grid-template-columns: repeat(3, 1fr); }
+  .sheet { max-width: 620px; }
+}
+@media (min-width: 1100px) {
+  .home { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(320px, 1fr); gap: 0 32px; align-items: start; }
+  .home > .hello, .home > .home-foot, .home > .empty { grid-column: 1 / -1; }
+  .home > .home-main, .home > .home-side { margin-top: 0; }
+  .home-side .tiles { grid-template-columns: 1fr 1fr; margin-top: 0; }
+  .home-side > .section:first-of-type { margin-top: 28px; }
+  .home-side { position: sticky; top: 86px; }
+}
+@media (min-width: 1400px) {
+  .content { max-width: 1180px; }
+  .gallery { grid-template-columns: repeat(6, 1fr); }
+}

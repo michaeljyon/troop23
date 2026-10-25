@@ -13,6 +13,8 @@ export default function Meals({ outing, rsvps }) {
   const [me] = useMe();
   const patrols = usePatrols() || troop.patrols;
   const [patrol, setPatrol] = useState(me.patrol && patrols.includes(me.patrol) ? me.patrol : patrols[0]);
+  // the troop's patrol list arrives after the first paint: keep the choice valid
+  useEffect(() => { if (!patrols.includes(patrol)) setPatrol(me.patrol && patrols.includes(me.patrol) ? me.patrol : patrols[0]); }, [patrols.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
   const planId = `${outing.id}__${slug(patrol)}`.slice(0, 80);
   const [plan, setPlan] = useState(undefined);
   const [msg, setMsg] = useState('');

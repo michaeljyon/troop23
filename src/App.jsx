@@ -2,8 +2,8 @@ import Icon from './components/Icon.jsx';
 import { Mark } from './components/ui.jsx';
 import { useRoute } from './lib/router.js';
 import { useLocal, useMe } from './lib/store.js';
-import { useEffect, useState } from 'react';
-import { useLeaderMode, refreshAccount, api, useAccount } from './lib/api.js';
+import { useEffect } from 'react';
+import { useLeaderMode, refreshAccount, useAccount, isDemo } from './lib/api.js';
 import { troop } from './lib/config.js';
 import { useInbox } from './lib/inbox.js';
 import { WelcomeBack } from './components/Inbox.jsx';
@@ -65,7 +65,8 @@ export default function App() {
         </a>
         <div className="header-right">
           {leader && <a className="leader-chip" href="#/leaders"><Icon name="shield" size={14} />Leader</a>}
-          {!acct && session === '' && <span className="guest-chip">Guest</span>}
+          {isDemo() && <span className="demo-chip" title="Sample troop for showing off the app">Demo</span>}
+          {!acct && session === '' && !isDemo() && <span className="guest-chip">Guest</span>}
           {acct && <a className={`icon-btn on-dark bell ${inbox.reply ? 'hot' : ''}`} href="#/messages" aria-label={unread ? `${unread} conversation${unread > 1 ? 's' : ''} need you` : 'Messages'}><Icon name="bell" />{unread > 0 && <span className="bell-badge">{unread > 9 ? '9+' : unread}</span>}</a>}
           <a className="icon-btn on-dark" href="#/snap" aria-label="Share a photo"><Icon name="camera" /></a>
         </div>

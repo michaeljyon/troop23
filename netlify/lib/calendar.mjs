@@ -3,6 +3,7 @@
 // once and kept in the Blobs store. Signed-in members and troop-code guests can
 // get the link from GET /api/calendar/link.
 import troop from '../../troop/troop.js';
+import { colItems } from './core.mjs';
 
 const TZ = 'America/New_York';
 const keyOf = async store => {
@@ -63,9 +64,8 @@ export async function calendarFeed(store, url) {
   const key = await keyOf(store);
   if (url.searchParams.get('c') !== key) return new Response('Calendar link expired. Get a new one in the Basecamp app under Outings.', { status: 401 });
   const one = url.searchParams.get('id');
-  const { blobs } = await store.list({ prefix: 'c/outings/' });
   const since = new Date(Date.now() - 86400000 * 90).toISOString().slice(0, 10);
-  let items = (await Promise.all(blobs.map(b => store.get(b.key, { type: 'json' })))).filter(Boolean);
+  let items = [...await colItems(store, 'outings')];
   items = one ? items.filter(o => o.id === one) : items.filter(o => (o.end || o.start) >= since);
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
   const name = `${troop.unit || 'Troop 23'} Basecamp`;

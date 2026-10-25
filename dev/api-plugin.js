@@ -9,19 +9,21 @@ export default function devApi() {
   let handle;
   const mount = (server) => {
     const store = fileStore(path.resolve('.data', `basecamp-${troop.id}`));
+    const demoStore = fileStore(path.resolve('.data', `basecamp-${troop.id}-demo`));
     server.middlewares.use(async (req, res, next) => {
       if (!req.url.startsWith('/api/')) return next();
       try {
-        handle ||= (await import('../netlify/lib/core.mjs')).handle;
+        const core = await import('../netlify/lib/core.mjs'); handle ||= core.handle;
         const chunks = [];
         for await (const c of req) chunks.push(c);
         const body = chunks.length ? Buffer.concat(chunks) : undefined;
         const request = new Request(`http://localhost${req.url}`, {
           method: req.method, headers: req.headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : body,
         });
+        const demo = await core.isDemoRequest(request);
         const out = await handle(request, {
-          store,
-          troopCode: process.env.TROOP_CODE || 'troop23',
+          store: demo ? demoStore : store, demo,
+          troopCode: demo ? 'demo' : process.env.TROOP_CODE || 'troop23',
           leaderPasscode: process.env.LEADER_PASSCODE || 'leader',
         });
         res.statusCode = out.status;

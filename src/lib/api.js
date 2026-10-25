@@ -3,7 +3,8 @@ import { readLocal, writeLocal, useLocal } from './store.js';
 
 export const troopCode = () => readLocal('troop-code', '');
 export const sessionToken = () => readLocal('session', '');
-export const setTroopCode = c => writeLocal('troop-code', c);
+export const setTroopCode = c => { if (c !== readLocal('troop-code', '')) try { clearApiCache(); } catch { /* first load */ } writeLocal('troop-code', c); };
+export const isDemo = () => sessionToken().startsWith('demo') || troopCode().trim().toLowerCase() === 'demo';
 export const leaderPass = () => sessionStorage.getItem('leader-pass') || '';
 
 export async function api(path, { method = 'GET', body, leader } = {}) {
@@ -34,14 +35,33 @@ export const photoUrl = (id, thumb) => `/api/photos/${id}${thumb ? '/thumb' : ''
 export const leaderPhotoUrl = (id, pass, thumb) => `/api/leader/photos/${id}/${thumb ? 'thumb' : 'file'}?${pass ? `lk=${encodeURIComponent(pass)}` : `s=${sessionToken()}`}`;
 
 // Small shared fetch hook with a refresh().
+// Results are remembered (in memory, and on the phone for the lists Home needs)
+// so screens show the last copy instantly and refresh it in the background.
+const memo = new Map();
+const KEEP = /^(c\/(outings|posts|gear)|settings|albums|photos\?limit=24)$/;
+const cacheGet = path => {
+  if (memo.has(path)) return memo.get(path);
+  if (!KEEP.test(path)) return null;
+  try { const v = JSON.parse(localStorage.getItem(`ac:${path}`) || 'null'); if (v) memo.set(path, v); return v; } catch { return null; }
+};
+const cachePut = (path, data) => {
+  memo.set(path, data);
+  if (KEEP.test(path)) try { localStorage.setItem(`ac:${path}`, JSON.stringify(data)); } catch { /* storage full or blocked */ }
+};
+export function clearApiCache() {
+  memo.clear();
+  try { Object.keys(localStorage).filter(k => k.startsWith('ac:')).forEach(k => localStorage.removeItem(k)); } catch { /* blocked */ }
+}
+
 export function useApi(path, deps = []) {
-  const [state, setState] = useState({ data: null, error: null, loading: true });
+  const [state, setState] = useState(() => { const c = cacheGet(path); return { data: c, error: null, loading: true }; });
   const [tick, setTick] = useState(0);
   useEffect(() => {
     let stop = false;
-    setState(s => ({ ...s, loading: true }));
-    api(path).then(data => !stop && setState({ data, error: null, loading: false }))
-      .catch(error => !stop && setState(s => ({ data: s.data, error, loading: false })));
+    const c = cacheGet(path);
+    setState(s => ({ data: c ?? (s.path === path ? s.data : null), error: null, loading: true, path }));
+    api(path).then(data => { cachePut(path, data); if (!stop) setState({ data, error: null, loading: false, path }); })
+      .catch(error => !stop && setState(s => ({ ...s, error, loading: false })));
     return () => { stop = true; };
   }, [path, tick, ...deps]); // eslint-disable-line react-hooks/exhaustive-deps
   return { ...state, refresh: () => setTick(x => x + 1) };
@@ -78,6 +98,7 @@ export const usePatrols = () => { const s = useApi('settings'); return s.data?.p
 // scouts stay current, and it fills in the local "me" profile.
 export async function redeemCode(code) {
   const r = await api('auth/redeem', { method: 'POST', body: { code } });
+  clearApiCache();   // never show one troop's saved lists to another (e.g. the demo)
   writeLocal('session', r.token);
   await refreshAccount();
   return r;
@@ -98,6 +119,7 @@ export async function refreshAccount() {
 export async function signOut() {
   await api('auth/signout', { method: 'POST', body: {} }).catch(() => {});
   writeLocal('session', ''); writeLocal('account', null); writeLocal('me', { name: '', role: 'scout', patrol: '' }); writeLocal('troop-code', '');
+  clearApiCache();
 }
 export const useAccount = () => useLocal('account', null)[0];
 

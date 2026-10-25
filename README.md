@@ -28,6 +28,20 @@ The troop code still works as a **guest** sign-in (no chat, nothing synced). Adu
 - **Troop calendar.** Outings → "Put troop outings in your phone's calendar" subscribes Apple, Google or Outlook calendars to a live feed. Each outing also has Add to calendar.
 - **Food budget calculator** and a shopping-list price book: per-meal rates from `troop.mealCosts`, headcount from sign-ups, the amount to collect per scout, and prices remembered from past trips.
 
+## Demo troop (for showing the app to others)
+
+A separate, made-up troop lives alongside the real one, with its own data. Nothing in it is real, and nobody signed into the demo can see the real troop.
+
+- **XXXX-XXXX**: Demo Leader (Scoutmaster, leader tools on)
+- **XXXX-XXXS**: Demo Scout (Eagles patrol, First Class)
+- **demo**: the troop code for a guest look
+
+Sign in by typing the code on the sign-in screen, or open `…/#/join/XXXX-XXXX`. A yellow **Demo** tag shows in the header. To go back to the real troop, More → Sign out and sign in with your own code. To fill or refill the demo, run `python3 scripts/seed-demo.py https://troop23-basecamp.netlify.app <LEADER_PASSCODE>` (it's safe to run again).
+
+## Phones, tablets and computers
+
+On phones, the tabs are along the bottom. On computers (1000 px and wider) they move to a sidebar on the left, Home shows two columns, and rows of patrols, filters and tabs wrap onto extra lines so everything is reachable with a mouse.
+
 ## Leader tools (More → Leader tools)
 
 Signing in with the leader passcode turns on leader mode for that browser tab. Leaders can then add and edit outings and delete gear or recipes. The leader tools also have:

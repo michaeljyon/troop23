@@ -18,12 +18,12 @@ export default function Home() {
   const outings = useCol('outings');
   const posts = useCol('posts');
   const gear = useCol('gear');
-  const photos = useApi('photos');
+  const photos = useApi('photos?limit=24');
   const upcoming = outings.items.filter(o => (o.end || o.start) >= today());
   const next = upcoming[0];
   const rsvps = useCol('rsvps', next ? { outing: next.id } : { outing: '_none' });
   const myGear = gear.items.filter(g => g.checkout && g.checkout.who.trim().toLowerCase() === me.name.trim().toLowerCase());
-  const recent = (photos.data?.photos || []).slice(0, 6);
+  const recent = (photos.data?.photos || []).slice(0, 6);  // newest first
   const first = me.name.trim().split(/\s+/)[0];
 
   useEffect(() => {
@@ -36,6 +36,7 @@ export default function Home() {
   return (
     <div className="content home">
       <p className="hello">Hey {first}{me.patrol ? <span> · {me.patrol}</span> : null}</p>
+      <div className="home-main">
       <InboxCard inbox={inbox} />
 
       {outings.loading && !outings.data ? <div className="next-card skeleton" /> : next ? (
@@ -90,6 +91,8 @@ export default function Home() {
         </a>
       )}
 
+      </div>
+      <div className="home-side">
       <div className="tiles">
         <a className="tile" href="#/kitchen"><Icon name="pot" size={26} /><b>Kitchen</b><span>Recipes & pantry</span></a>
         <a className="tile" href="#/gear"><Icon name="box" size={26} /><b>Gear locker</b><span>Check out & in</span></a>
@@ -107,6 +110,7 @@ export default function Home() {
         {recent.length === 0 ? <Empty icon="camera" title="No photos yet" action={<a className="btn small" href="#/snap">Share the first one</a>}>Approved photos show up here.</Empty>
           : <ul className="strip">{recent.map(p => <li key={p.id}><a href={`#/gallery?photo=${p.id}`}><img src={photoUrl(p.id, true)} alt={p.caption || 'Troop photo'} loading="lazy" /></a></li>)}</ul>}
       </Section>
+      </div>
 
       <footer className="home-foot">
         <p><Icon name="lock" size={15} /> Private to {troop.unit}. Location data is removed from every photo before it's sent.</p>

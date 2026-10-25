@@ -125,8 +125,27 @@ const builtInRecipes = () => troop.recipes.map(r => ({
   ...r, builtIn: true, ingredients: r.ingredients.map(([name, qty, unit]) => ({ name, qty, unit })),
 }));
 
+// Each collection is also kept as one cached index blob (cidx/<col>), rebuilt
+// after any change (crev/<col>, bumped automatically by trackCols below).
+// Reading 130 outings one blob at a time took seconds; the index is one read.
+export async function colItems(store, col) {
+  const [rev, idx] = await Promise.all([store.get(`crev/${col}`, { type: 'json' }), store.get(`cidx/${col}`, { type: 'json' })]);
+  if (idx && idx.builtAt > (rev?.at || 0)) return idx.items;
+  const builtAt = Date.now();
+  const items = await listJSON(store, `c/${col}/`);
+  await store.setJSON(`cidx/${col}`, { builtAt, items });
+  return items;
+}
+function trackCols(store) {
+  const bump = key => { const m = /^c\/([a-z]+)\//.exec(key); return m ? store.setJSON(`crev/${m[1]}`, { at: Date.now() + 1 }) : null; };
+  return new Proxy(store, { get(t, p) {
+    if (p === 'setJSON' || p === 'set' || p === 'delete') return async (key, ...a) => { const r = await t[p](key, ...a); await bump(key); return r; };
+    const v = t[p]; return typeof v === 'function' ? v.bind(t) : v;
+  } });
+}
+
 async function listCol(store, col, url) {
-  let items = await listJSON(store, `c/${col}/`);
+  let items = [...await colItems(store, col)];
   const outing = url.searchParams.get('outing');
   if (outing) items = items.filter(x => x.outingId === outing);
   if (col === 'recipes') {
@@ -233,7 +252,7 @@ async function settings(store) {
 // ---------------------------------------------------------------- albums
 async function albums(store, withCounts = true) {
   const s = await settings(store);
-  const outings = (await listJSON(store, 'c/outings/')).sort((a, b) => b.start.localeCompare(a.start));
+  const outings = (await colItems(store, 'outings')).sort((a, b) => b.start.localeCompare(a.start));
   const emoji = t => troop.outingTypes.find(x => x.id === t)?.emoji || '⭐';
   const list = [
     ...outings.map(o => ({ id: o.id, title: o.title, emoji: emoji(o.type), date: o.start, end: o.end || o.start, type: o.type, location: o.location || '', outing: true })),
@@ -360,7 +379,7 @@ const iso = t => (t ? new Date(t).toISOString() : '');
 
 async function exportCSV(store, kind) {
   let rows;
-  const outings = new Map((await listJSON(store, 'c/outings/')).map(o => [o.id, o]));
+  const outings = new Map((await colItems(store, 'outings')).map(o => [o.id, o]));
   if (kind === 'permissions') {
     rows = (await roster(store)).map(s => ({ scout: scoutName(s), patrol: s.patrol, photo_choice: troop.consentLevels.find(l => l.id === s.level)?.label || s.level, parent: s.parent, updated: iso(s.updated) }));
   } else if (kind === 'photos') {
@@ -370,17 +389,17 @@ async function exportCSV(store, kind) {
       return { id: p.id, shared_by: p.name, role: p.role, album: outings.get(p.album)?.title || p.album, patrol: p.patrol, caption: p.caption, status: p.status, ok_for_public: p.public ? 'yes' : '', permission_check: c.flag, scouts_tagged: c.tagged.map(t => t.name).join('; '), shared: iso(p.at) };
     });
   } else if (kind === 'gear') {
-    rows = (await listJSON(store, 'c/gear/')).sort((a, b) => a.name.localeCompare(b.name)).map(g => ({
+    rows = (await colItems(store, 'gear')).sort((a, b) => a.name.localeCompare(b.name)).map(g => ({
       item: g.name, tag: g.tag, category: g.category, qty: g.qty, condition: g.condition, location: g.location,
       checked_out_to: g.checkout?.who || '', patrol: g.checkout?.patrol || '', outing: g.checkout?.outingTitle || '', due: g.checkout?.due || '', notes: g.notes,
     }));
   } else if (kind === 'gear-log') {
-    rows = (await listJSON(store, 'c/gear/')).flatMap(g => (g.log || []).map(l => ({ when: iso(l.at), item: g.name, tag: g.tag, by: l.by, what: l.what }))).sort((a, b) => a.when.localeCompare(b.when));
+    rows = (await colItems(store, 'gear')).flatMap(g => (g.log || []).map(l => ({ when: iso(l.at), item: g.name, tag: g.tag, by: l.by, what: l.what }))).sort((a, b) => a.when.localeCompare(b.when));
   } else if (kind === 'signups') {
-    rows = (await listJSON(store, 'c/rsvps/')).map(r => ({ outing: outings.get(r.outingId)?.title || r.outingId, date: outings.get(r.outingId)?.start || '', name: r.name, patrol: r.patrol, role: r.role, status: r.status, note: r.note, updated: iso(r.updated) }))
+    rows = (await colItems(store, 'rsvps')).map(r => ({ outing: outings.get(r.outingId)?.title || r.outingId, date: outings.get(r.outingId)?.start || '', name: r.name, patrol: r.patrol, role: r.role, status: r.status, note: r.note, updated: iso(r.updated) }))
       .sort((a, b) => a.date.localeCompare(b.date) || a.patrol.localeCompare(b.patrol) || a.name.localeCompare(b.name));
   } else if (kind === 'spending') {
-    rows = (await listJSON(store, 'c/plans/')).flatMap(p => (p.spend || []).map(s => ({ outing: outings.get(p.outingId)?.title || p.outingId, patrol: p.patrol, amount: s.amount.toFixed(2), note: s.note, by: s.by, when: iso(s.at) })));
+    rows = (await colItems(store, 'plans')).flatMap(p => (p.spend || []).map(s => ({ outing: outings.get(p.outingId)?.title || p.outingId, patrol: p.patrol, amount: s.amount.toFixed(2), note: s.note, by: s.by, when: iso(s.at) })));
   } else return err('Unknown export.');
   return new Response(toCSV(rows), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${troop.id}-${kind}.csv"` } });
 }
@@ -472,11 +491,26 @@ async function leader(store, req, parts, body, now) {
   return err('Not found', 404);
 }
 
+// ---------------------------------------------------------------- demo
+// A demo copy of the app (made-up troop, scouts and photos) lives in its own
+// data store. A request belongs to it when it uses the troop code "demo", a
+// demo personal code (XXXX-XXXX leader, XXXX-XXXS scout), or a session made from one (tokens start "demo").
+export async function isDemoRequest(req) {
+  const url = new URL(req.url);
+  const tc = (req.headers.get('x-troop-code') || url.searchParams.get('k') || '').trim().toLowerCase();
+  const tok = req.headers.get('x-session') || url.searchParams.get('s') || '';
+  if (tc === 'demo' || tok.startsWith('demo') || url.searchParams.get('demo') === '1') return true;
+  if (req.method === 'POST' && /\/(auth\/redeem|join)$/.test(url.pathname)) {
+    try { return /^(demo|xxxx)/i.test(String((await req.clone().json()).code || '').replace(/[^a-z0-9]/gi, '')); } catch { return false; }
+  }
+  return false;
+}
+
 // ---------------------------------------------------------------- router
-// opts: { store, troopCode, leaderPasscode }
+// opts: { store, troopCode, leaderPasscode, demo }
 export async function handle(req, opts) {
   const pending = [];
-  const res = await route(req, { ...opts, pending });
+  const res = await route(req, { ...opts, store: trackCols(opts.store), pending });
   if (pending.length) await Promise.allSettled(pending);   // no waitUntil: finish notifications before replying
   return res;
 }
@@ -493,7 +527,7 @@ async function route(req, opts) {
     if (head === 'health') return json({ ok: true, app: troop.id });
     if (!opts.troopCode) return err('The troop code isn\'t set yet. Add TROOP_CODE in Netlify → Site configuration → Environment variables.', 503);
     if (head === 'join' && req.method === 'POST') return same(body.code, opts.troopCode) ? json({ ok: true }) : err('That troop code doesn\'t match. Check with your Scoutmaster.', 401);
-    if (head === 'auth' && rest[0] === 'redeem' && req.method === 'POST') return redeem(store, body, req, now);
+    if (head === 'auth' && rest[0] === 'redeem' && req.method === 'POST') return redeem(store, body, req, now, opts.demo ? 'demo' : '');
 
     // work that can finish after the response (phone notifications)
     const later = p => { const q = Promise.resolve(p).catch(e => console.error(e)); if (opts.waitUntil) opts.waitUntil(q); else opts.pending.push(q); return q; };
@@ -510,11 +544,16 @@ async function route(req, opts) {
     if (!same(code, opts.troopCode) && !isLeader && !session) return err('Enter the troop code to continue.', 401);
 
     if (head === 'push') { const r = await pushRoutes(store, rest, req, body, now, session?.member); if (r) return r; }
-    if (head === 'calendar' && rest[0] === 'link' && req.method === 'GET') return calendarLink(store, url);
+    if (head === 'calendar' && rest[0] === 'link' && req.method === 'GET') {
+      const r = await calendarLink(store, url);
+      if (!opts.demo) return r;
+      const d = await r.json(); return json({ url: `${d.url}&demo=1` });
+    }
+    if (head === 'demo' && req.method === 'GET') return json({ demo: !!opts.demo });
     const mr = await memberRoutes(store, head, rest, req, body, now, { session, isLeader, patrols: (await settings(store)).patrols, later, notify: (...a) => notify(store, ...a) });
     if (mr) return mr;
     if (head === 'mbcatalog' && req.method === 'GET') {
-      const [advs, gear, counselors] = await Promise.all([listJSON(store, 'adv/'), listJSON(store, 'c/gear/'), listJSON(store, 'c/counselors/')]);
+      const [advs, gear, counselors] = await Promise.all([listJSON(store, 'adv/'), colItems(store, 'gear'), colItems(store, 'counselors')]);
       const names = new Map();
       const add = (n, eagle) => { const k = clean(n, 60).replace(/^\*/, '').replace(/\s*\((?:[^)]*rqmts|old rqmts)\)\s*$/i, '').trim(); if (k) names.set(k, names.get(k) || !!eagle); };
       for (const a of advs) { for (const b of a.badges || []) add(b.name, b.eagle); for (const b of a.inProgress || []) add(b.name, b.eagle); }
@@ -548,7 +587,7 @@ async function route(req, opts) {
 
     if (head === 'albums' && req.method === 'GET') return json({ albums: await albums(store) });
     if (head === 'photos' && req.method === 'GET' && rest[0]) return photoFile(store, rest[0], { thumb: rest[1] === 'thumb' });
-    if (head === 'photos' && req.method === 'GET') return json({ photos: await photoList(store) });
+    if (head === 'photos' && req.method === 'GET') { const lim = Number(url.searchParams.get('limit')) || 0; const all = await photoList(store); return json({ photos: lim ? all.slice(0, lim) : all }); }
     if (head === 'photos' && req.method === 'POST') return addPhoto(store, body, now);
     if (head === 'roster' && req.method === 'GET') return json({ scouts: (await roster(store)).map(s => ({ id: s.id, name: scoutName(s), patrol: s.patrol })) });
     if (head === 'consent' && req.method === 'POST') return saveConsent(store, body, now);

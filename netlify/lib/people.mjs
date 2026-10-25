@@ -34,7 +34,7 @@ const selfMember = m => ({ ...publicMember(m), last: m.last, scouts: m.scouts ||
 
 export async function resolveSession(store, req) {
   const tok = req.headers.get('x-session') || new URL(req.url).searchParams.get('s');
-  if (!tok || !/^[a-f0-9]{48}$/.test(tok)) return null;
+  if (!tok || !/^(demo)?[a-f0-9]{48}$/.test(tok)) return null;
   const s = await store.get(`sessions/${tok}`, { type: 'json' });
   if (!s) return null;
   const p = await loadPeople(store);
@@ -287,13 +287,13 @@ function dmTitle(t, people, me) {
 }
 
 // --------------------------------------------------------------- redeem a personal code
-export async function redeem(store, body, req, now) {
+export async function redeem(store, body, req, now, prefix = '') {
   const code = normCode(body.code);
   if (code.length !== 8) return err('That code should look like ABCD-EF23.');
   const p = await loadPeople(store);
   const m = p.members.find(x => normCode(x.code) === code && x.active !== false);
   if (!m) return err('That code doesn\'t match anyone. Check with a leader for a new one.', 401);
-  const token = newToken();
+  const token = prefix + newToken();
   await store.setJSON(`sessions/${token}`, { memberId: m.id, created: now, ua: clean(req.headers.get('user-agent'), 160) });
   m.lastSignIn = now; await savePeople(store, p);
   return json({ ok: true, token, member: selfMember(m) });
@@ -349,6 +349,18 @@ export async function leaderPeople(store, what, id, sub, req, body, now, ctx) {
     p.guardians = { scoutmaster: body.scoutmaster, chair: body.chair };
     await savePeople(store, p); return json({ ok: true, guardians: p.guardians });
   }
+  // reported photos and files, so the reviewing leader can see what was reported (hidden or not)
+  if (what === 'att' && id && sub && req.method === 'GET') {
+    const r = await store.getWithMetadata(`att/${clean(id, 60)}/${clean(sub, 40)}`, { type: 'arrayBuffer' });
+    if (!r) return new Response('Not found', { status: 404 });
+    const mt = r.metadata || {};
+    const inline = String(mt.type).startsWith('image/');
+    return new Response(r.data, { headers: {
+      'content-type': mt.type || 'application/octet-stream', 'x-content-type-options': 'nosniff', 'cache-control': 'no-store',
+      'content-disposition': `${inline ? 'inline' : 'attachment'}; filename="${String(mt.name || 'file').replace(/[^\w.\- ]+/g, '_')}"`,
+      'content-security-policy': "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+    } });
+  }
   if (what === 'reports' && req.method === 'GET') {
     const { blobs } = await store.list({ prefix: 'reports/' });
     const reps = (await Promise.all(blobs.map(b => store.get(b.key, { type: 'json' })))).filter(r => r?.open);
@@ -368,6 +380,9 @@ export async function leaderPeople(store, what, id, sub, req, body, now, ctx) {
         const ak = `att/${r.threadId}/${a.id}`, f = await store.getWithMetadata(ak, { type: 'arrayBuffer' });
         if (f) await store.set(ak, f.data, { metadata: { ...(f.metadata || {}), hidden: true } });
       }
+      // the chat list preview shouldn't keep showing it either
+      const th = await store.get(`threads/${r.threadId}`, { type: 'json' });
+      if (th?.last && th.last.at === m.at && th.last.by === m.by) { th.last.text = 'Message hidden by a leader'; await store.setJSON(`threads/${r.threadId}`, th); }
     }
     r.open = false; r.resolved = { action: body.action === 'hide' ? 'hidden' : 'kept', at: now };
     await store.setJSON(`reports/${id}`, r);
@@ -397,6 +412,7 @@ async function importData(store, body, now) {
       rank: clean(x.rank, 20), rankDate: clean(x.rankDate, 12), totals: x.totals || null, active: true,
     });
     if (m.leader === undefined) m.leader = !!x.leader;
+    if (/^(DEMO|XXXX)[A-Z0-9]{4}$/.test(normCode(x.code || ''))) { const c = normCode(x.code); m.code = `${c.slice(0, 4)}-${c.slice(4)}`; }
   }
   for (const a of body.adv || []) {
     const m = byKey.get(a.key); if (!m) continue;

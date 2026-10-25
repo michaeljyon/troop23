@@ -33,7 +33,7 @@ const troop = {
   },
 
   // Starting patrols (leaders can rename/add these in Leader tools → Settings).
-  patrols: ['Flaming Arrows', 'Hawks', 'Sharks', 'Adults'],
+  patrols: ['American Gladiators', 'Boxing Goldfish', 'Fiery Ferrets', 'Flaming Flamingos', 'Iron Horses', 'Spartans', 'Speedy Sloths', 'Wandering Woodsman', 'Adults'],
 
   outingTypes: [
     { id: 'campout', label: 'Campout', emoji: '🏕️' },

@@ -23,7 +23,7 @@ export default function Counselors() {
   }
   return (
     <div className="content">
-      <PageHead backTo="advancement" title="Merit badge counselors" sub={`${byBadge.size} badges · ${active.length} counselors`} />
+      <PageHead backTo="advancement" title="Merit badge counselors" sub={`${byBadge.size} badge${byBadge.size === 1 ? "" : "s"} · ${active.length} counselor${active.length === 1 ? "" : "s"}`} />
       <div className="card tip"><Icon name="info" size={20} /><span>Talk with the Scoutmaster before starting a badge, then reach out to a counselor. Messages here always include the Scoutmaster and Committee Chair.</span></div>
       <div className="search-row mt"><Icon name="search" size={18} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Search a badge or counselor" aria-label="Search merit badges" /></div>
       {msg && <p className="form-msg" role="alert">{msg}</p>}

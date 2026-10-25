@@ -21,7 +21,7 @@ with sync_playwright() as p:
     pg.click('text=I only have the troop code'); pg.wait_for_selector('text=Continue')
     pg.fill('.gate-form input', 'nope'); pg.click('button:has-text("Continue")'); expect(pg.locator('.form-msg')).to_be_visible()
     pg.fill('.gate-form input', 'TROOP23'); pg.click('button:has-text("Continue")'); pg.wait_for_selector('text=Who\'s using this phone?')
-    pg.fill('.gate-form input[autocomplete=name]', 'Eli Morgan'); pg.select_option('.gate-form select', 'Hawks'); shot(pg, '02-who')
+    pg.fill('.gate-form input[autocomplete=name]', 'Eli Morgan'); pg.select_option('.gate-form select', 'Iron Horses'); shot(pg, '02-who')
     pg.click("text=Let's go"); pg.wait_for_selector('.hello'); shot(pg, '03-home-empty')
     # --- leader sign in + setup
     pg.goto(BASE + '/#/leaders'); pg.fill('input[type=password]', 'leader'); pg.click('button:has-text("Sign in")'); pg.wait_for_selector('.tabs')
@@ -39,13 +39,13 @@ with sync_playwright() as p:
     api(f'c/outings/o-svc1', {'title': 'Food Drive Service Project', 'type': 'service', 'start': '2026-11-21', 'location': 'Second Harvest'}, method='PUT', leader=True)
     # RSVPs
     pg.click('.rsvp-btn:has-text("Going")'); pg.wait_for_timeout(400)
-    for n, pt, role in [('Sam Ortiz', 'Hawks', 'scout'), ('Leo Park', 'Hawks', 'scout'), ('Ava Chen', 'Hawks', 'scout'), ('Noah Diaz', 'Flaming Arrows', 'scout'), ('Mia Brooks', 'Flaming Arrows', 'scout'), ('Dan Diaz', 'Adults', 'adult')]:
+    for n, pt, role in [('Sam Ortiz', 'Iron Horses', 'scout'), ('Leo Park', 'Iron Horses', 'scout'), ('Ava Chen', 'Iron Horses', 'scout'), ('Noah Diaz', 'Spartans', 'scout'), ('Mia Brooks', 'Spartans', 'scout'), ('Dan Diaz', 'Adults', 'adult')]:
         api(f"c/rsvps/{oid}__{n.lower().replace(' ', '-')}", {'outingId': oid, 'name': n, 'patrol': pt, 'role': role, 'status': 'yes'}, method='PUT')
     api(f"c/rsvps/{oid}__jo-kim", {'outingId': oid, 'name': 'Jo Kim', 'patrol': 'Sharks', 'role': 'scout', 'status': 'maybe'}, method='PUT')
     pg.reload(); pg.wait_for_selector('.patrol-group'); shot(pg, '05-outing-overview', True)
     # gear via API + UI
     for gid, name, cat, tag, qty in [('g1', 'Eureka 4-person tent', 'Shelter', 'T-01', 1), ('g2', 'Eureka 4-person tent', 'Shelter', 'T-02', 1), ('g3', 'Eureka 4-person tent', 'Shelter', 'T-03', 1),
-                                      ('g4', 'Two-burner propane stove', 'Cooking', 'S-01', 1), ('g5', '12" Dutch oven', 'Cooking', 'DO-1', 1), ('g6', 'Hawks patrol box', 'Cooking', 'PB-H', 1),
+                                      ('g4', 'Two-burner propane stove', 'Cooking', 'S-01', 1), ('g5', '12" Dutch oven', 'Cooking', 'DO-1', 1), ('g6', 'Iron Horses patrol box', 'Cooking', 'PB-H', 1),
                                       ('g7', 'LED lantern', 'Lighting', 'L-01', 2), ('g8', '5-gal water jug', 'Water', 'W-01', 2), ('g9', 'Troop first-aid kit', 'Safety & first aid', 'FA-1', 1), ('g10', 'Dining fly 12x12', 'Shelter', 'F-01', 1)]:
         api(f'c/gear/{gid}', {'name': name, 'category': cat, 'tag': tag, 'qty': qty, 'condition': 'good', 'location': 'Trailer'}, method='PUT')
     api('c/gear/g11', {'name': 'Hatchet', 'category': 'Tools', 'tag': 'H-02', 'qty': 1, 'condition': 'repair', 'location': 'Trailer', 'notes': 'Handle cracked'}, method='PUT')
@@ -69,7 +69,7 @@ with sync_playwright() as p:
     shot(pg, '10-meals-plan', True)
     # pantry, recipe
     pg.goto(BASE + '/#/kitchen?tab=pantry'); pg.wait_for_selector('.pantry-add')
-    for name, q, u, loc in [('Cooking oil', '1', 'bottle', 'Hawks patrol box'), ('Salt & pepper', '1', 'set', 'Hawks patrol box'), ('Heavy-duty foil', '2', 'roll', 'Trailer'), ('Dish soap', '1', 'bottle', 'Trailer'), ('Trash bags', '1', 'box', 'Trailer')]:
+    for name, q, u, loc in [('Cooking oil', '1', 'bottle', 'Iron Horses patrol box'), ('Salt & pepper', '1', 'set', 'Iron Horses patrol box'), ('Heavy-duty foil', '2', 'roll', 'Trailer'), ('Dish soap', '1', 'bottle', 'Trailer'), ('Trash bags', '1', 'box', 'Trailer')]:
         pg.fill('.pantry-add input >> nth=0', name); pg.fill('.pantry-add input >> nth=1', q); pg.fill('.pantry-add input >> nth=2', u); pg.fill('.pantry-add input >> nth=3', loc); pg.click('.pantry-add button'); pg.wait_for_timeout(350)
     pg.click('.pantry li:has-text("Dish soap") button:has-text("Mark low")'); pg.wait_for_timeout(400); shot(pg, '11-pantry', True)
     pg.goto(BASE + '/#/kitchen'); pg.wait_for_selector('.recipe-card'); shot(pg, '12-recipes')
@@ -93,14 +93,14 @@ with sync_playwright() as p:
     shot(pg, '18-packing')
     # photos
     roster = []
-    api('consent', {'parent': {'name': 'Kara Morgan'}, 'scouts': [{'first': 'Eli', 'lastInitial': 'M', 'patrol': 'Hawks', 'level': 'public'}], 'signature': 'Kara Morgan', 'agreed': True})
-    api('consent', {'parent': {'name': 'Tom Ortiz'}, 'scouts': [{'first': 'Sam', 'lastInitial': 'O', 'patrol': 'Hawks', 'level': 'none'}], 'signature': 'Tom Ortiz', 'agreed': True})
+    api('consent', {'parent': {'name': 'Kara Morgan'}, 'scouts': [{'first': 'Eli', 'lastInitial': 'M', 'patrol': 'Iron Horses', 'level': 'public'}], 'signature': 'Kara Morgan', 'agreed': True})
+    api('consent', {'parent': {'name': 'Tom Ortiz'}, 'scouts': [{'first': 'Sam', 'lastInitial': 'O', 'patrol': 'Iron Horses', 'level': 'none'}], 'signature': 'Tom Ortiz', 'agreed': True})
     pg.goto(BASE + f'/#/snap?album={oid}'); pg.wait_for_selector('.setup'); pg.check('.setup .check input'); pg.wait_for_selector('.tag-chips', timeout=5000)
     pg.click('.mission:has-text("Camp kitchen")'); pg.click('.tag-chips .chip:has-text("Eli M.")'); shot(pg, '19-snap', True)
     pg.set_input_files('input[type=file][multiple]', [f'{DEMO}/campfire.jpg', f'{DEMO}/tents.jpg', f'{DEMO}/lake.jpg']); pg.wait_for_selector('.form-msg.good', timeout=20000)
     rs = {s['name']: s['id'] for s in api('roster')['scouts']}
     img = 'data:image/jpeg;base64,' + base64.b64encode(open(f'{DEMO}/trail.jpg', 'rb').read()).decode()
-    api('photos', {'image': img, 'thumb': img, 'name': 'Dan Diaz', 'role': 'leader', 'album': oid, 'patrol': 'Hawks', 'scouts': [rs['Sam O.']], 'caption': 'Trail break', 'release': True})
+    api('photos', {'image': img, 'thumb': img, 'name': 'Dan Diaz', 'role': 'leader', 'album': oid, 'patrol': 'Iron Horses', 'scouts': [rs['Sam O.']], 'caption': 'Trail break', 'release': True})
     pg.goto(BASE + '/#/leaders'); pg.click('.tabs button:has-text("Photos")'); pg.wait_for_selector('.review-list'); shot(pg, '20-leader-review', True)
     for _ in range(6):
         btns = pg.locator('.review:not(:has(.flag.bad)) button:has-text("Approve")')
@@ -121,6 +121,6 @@ with sync_playwright() as p:
 for k in ['signups', 'gear', 'gear-log', 'spending', 'permissions']:
     r = urllib.request.urlopen(urllib.request.Request(BASE + f'/api/leader/export/{k}', headers={'x-leader-passcode': 'leader'})).read().decode()
     print(f'--- {k}\n' + '\n'.join(r.splitlines()[:5]))
-plan = api(f'c/plans/{oid}__hawks')['item']
+plan = api(f'c/plans/{oid}__iron-horses')['item']
 print('plan', plan['grubmaster'], plan['budget'], len(plan['meals']), 'checks', len(plan['checks']), 'spend', plan['spend'][0]['amount'], 'duties roles', plan['duties']['roles'])
 print('ERRORS', errors)

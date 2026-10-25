@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import { Section, Empty, Sheet, Pill, Seg } from '../components/ui.jsx';
-import { api, usePatrols } from '../lib/api.js';
+import { api, usePatrols, sessionToken } from '../lib/api.js';
 import { troop } from '../lib/config.js';
 
 // Leader tools → Members: personal codes and invite links, leader role,
@@ -176,7 +176,15 @@ export function Reports({ pass }) {
         <ul className="review-list">{data.reports.map(r => (
           <li key={r.threadId + r.msgId} className="card">
             <p className="small muted">{r.threadTitle} · {new Date(r.message.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</p>
-            <blockquote className="quote">{r.message.text}</blockquote>
+            <blockquote className="quote">{r.message.subject && <b>{r.message.subject}<br /></b>}{r.message.text}</blockquote>
+            {!!r.message.attachments?.length && (
+              <div className="report-atts">{r.message.attachments.map(a => {
+                const u = `/api/leader/att/${r.threadId}/${a.id}?${pass ? `lk=${encodeURIComponent(pass)}` : `s=${sessionToken()}`}`;
+                return a.kind === 'image'
+                  ? <a key={a.id} href={u} target="_blank" rel="noreferrer"><img src={u} alt={a.name} /></a>
+                  : <a key={a.id} className="chip" href={u} target="_blank" rel="noreferrer"><Icon name="paperclip" size={14} />{a.name}</a>;
+              })}</div>
+            )}
             <p className="small"><b>{r.message.byName}</b> · reported {r.message.reports.length}× ({r.message.reports.map(x => x.reason || 'no reason').join('; ')})</p>
             <div className="btn-row tight"><button className="btn small" onClick={() => act(r, 'hide')}><Icon name="eyeOff" size={16} />Hide message</button><button className="btn small secondary" onClick={() => act(r, 'keep')}>Keep it</button></div>
           </li>
