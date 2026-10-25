@@ -5,6 +5,7 @@ import troop from './troop/troop.js';
 import devApi from './dev/api-plugin.js';
 
 export default defineConfig({
+  define: { __BUILD__: JSON.stringify(new Date().toISOString()) },
   plugins: [
     react(),
     devApi(),

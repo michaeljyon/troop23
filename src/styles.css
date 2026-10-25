@@ -907,3 +907,6 @@ input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-off
 .compose-row textarea { max-height: none; }
 .chat-full .msgs { padding-bottom: calc(var(--compose-h, 150px) + 16px); }
 .chat-full .reply-nudge { bottom: calc(var(--compose-h, 120px) + 6px); }
+.composer2 { bottom: var(--kb, 0px); }
+.chat-full .reply-nudge { bottom: calc(var(--compose-h, 120px) + var(--kb, 0px) + 6px); }
+.version-line { margin-top: 4px; }

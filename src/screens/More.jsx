@@ -43,6 +43,7 @@ export default function More() {
       <div className="card tip"><Icon name="share" size={20} /><span><b>Add Basecamp to your home screen.</b> iPhone: Share → Add to Home Screen. Android: menu ⋮ → Add to Home screen.</span></div>
       <p className="center"><button className="link-btn" onClick={async () => { if (confirm(acct ? 'Sign out on this phone? You\'ll need your personal code to sign back in.' : 'Sign out on this phone? You\'ll need the troop code to get back in.')) { if (acct) await signOut(); else setTroopCode(''); location.hash = '#/'; } }}><Icon name="logout" size={16} />Sign out</button></p>
       <p className="small muted center">{troop.appName} · {troop.place}</p>
+      <AppVersion />
       <Sheet open={editing} onClose={() => setEditing(false)} title="About you">{editing && <MeForm me={me} onSave={v => { setMe(v); setEditing(false); }} />}</Sheet>
     </div>
   );
@@ -78,5 +79,28 @@ function GuestCard({ me, onEdit }) {
         {msg && <p className="form-msg" role="alert">{msg}</p>}
       </form>
     </div>
+  );
+}
+
+// Shows which version this phone is running, with a one-tap update.
+function AppVersion() {
+  const [state, setState] = useState('');
+  const built = new Date(__BUILD__); // eslint-disable-line no-undef
+  async function update() {
+    setState('Checking…');
+    try {
+      const reg = await navigator.serviceWorker?.getRegistration();
+      await reg?.update();
+      if (reg?.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      const keys = (await caches?.keys?.()) || [];
+      await Promise.all(keys.filter(k => k !== 'photos').map(k => caches.delete(k)));   // drop the cached app; photos stay
+    } catch { /* offline */ }
+    location.reload();
+  }
+  return (
+    <p className="small muted center version-line">
+      Version {built.toLocaleDateString([], { month: 'short', day: 'numeric' })}, {built.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+      {' · '}<button className="link-btn small" onClick={update}>{state || 'Get the latest version'}</button>
+    </p>
   );
 }

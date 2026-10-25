@@ -161,6 +161,15 @@ export function Thread({ route }) {
   const [aiOn, setAiOn] = useState(true);
   const taRef = useRef(null);
   const formRef = useRef(null);
+  useEffect(() => {   // iPhone keyboard: keep the composer just above it
+    const vv = window.visualViewport; if (!vv) return undefined;
+    const fit = () => {
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty('--kb', `${kb}px`);
+    };
+    fit(); vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit);
+    return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); document.documentElement.style.setProperty('--kb', '0px'); };
+  }, []);
   useEffect(() => {   // keep the last messages visible above the (growing) composer
     const el = formRef.current; if (!el || !window.ResizeObserver) return undefined;
     const ro = new ResizeObserver(() => document.documentElement.style.setProperty('--compose-h', `${el.offsetHeight}px`));
