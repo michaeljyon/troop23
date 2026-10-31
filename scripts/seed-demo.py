@@ -212,4 +212,25 @@ for who, games, skill in [('Mason Reyes', 4, .9), ('Demo Scout', 2, .75), ('Etha
     for g in range(games):
         pick = random.sample(Q, 10)
         call('quiz/result', {'mode': 'trail', 'answers': [{'id': q['id'], 'a': ans(q, random.random() < skill)} for q in pick], 'secs': 120}, s=sess[who])
+
+# ---------------------------------------------------------------- uniform inspections and a past election
+if not call('inspect', s=sess['Demo Leader'])['recent']:
+    def insp(who, patrol, marks_by_name, date):
+        ros = call(f'inspect/roster?patrol={patrol}', s=sess[who])['scouts']
+        call('inspect', {'patrol': patrol, 'date': date, 'scouts': [{'id': r['id'], 'marks': {**({'office': 'na'} if not r['positions'] else {}), **marks_by_name.get(r['name'], {})}, 'absent': marks_by_name.get(r['name']) == 'absent'} for r in ros]}, s=sess[who])
+    insp('Demo Scout', 'Eagles', {'Liam Carter': {'neck': 'miss', 'shirt': 'fix'}}, D(-14))
+    insp('Mason Reyes', 'Foxes', {'Ethan Brooks': {'socks': 'fix'}}, D(-14))
+    insp('Owen Harris', 'Wolverines', {'Jack Lopez': {'patrol': 'miss', 'belt': 'miss'}}, D(-7))
+if not call('elect', s=sess['Demo Leader'])['elections']:
+    S_ = {m['name']: m['id'] for m in call('leader/members', leader=True)['members'] if m['role'] == 'scout'}
+    el = call('elect', {'title': 'Spring 2026 troop elections', 'live': True, 'positions': [
+        {'title': 'Senior Patrol Leader', 'candidates': [S_['Mason Reyes'], S_['Ethan Brooks']]},
+        {'title': 'Chaplain Aide', 'candidates': [S_['Liam Carter'], S_['Jack Lopez']]},
+        {'title': 'Troop Quartermaster', 'candidates': [S_['Ethan Brooks'], S_['Owen Harris']]}]}, s=sess['Demo Leader'])['election']
+    call(f"elect/{el['id']}/open", {}, s=sess['Demo Leader'])
+    pos = [p['id'] for p in el['positions']]
+    for i, name in enumerate(sorted(S_)):
+        pick = lambda p: p['candidates'][0 if (i % 3) else 1]['id']
+        call(f"elect/{el['id']}/vote", {'for': S_[name], 'votes': {p['id']: pick(p) for p in el['positions']}}, s=sess['Demo Leader'])
+    call(f"elect/{el['id']}/close", {}, s=sess['Demo Leader'])
 print('Demo ready. Leader code XXXX-XXXX, scout code XXXX-XXXS, guest troop code "demo".')

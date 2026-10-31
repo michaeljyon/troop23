@@ -256,4 +256,62 @@ st, _ = call(f'quiz/live/{code}/end', {}, s=S['other']); check('only the host ca
 call(f'quiz/live/{code}/end', {}, s=S['scout'])
 bad = [r for r in results if not r[0]]
 print(f'\nWITH GAMES {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+
+# --- uniform inspections
+pl = next(m for m in active if m['role'] == 'scout' and any(p == 'Patrol Leader' for p in m.get('positions', [])))
+pl_patrol = pl['patrol']
+mate = next(m for m in active if m['role'] == 'scout' and m.get('patrol') == pl_patrol and m['id'] != pl['id'] and not any('Leader' in p for p in m.get('positions', [])))
+mate2 = next((m for m in active if m['role'] == 'scout' and m.get('patrol') == pl_patrol and m['id'] not in (pl['id'], mate['id'])), None)
+outsider = next(m for m in active if m['role'] == 'scout' and m.get('patrol') and m['patrol'] != pl_patrol and not re.search(r'senior|troop guide|\bspl\b', ', '.join(m.get('positions', [])), re.I))
+S.update(pl=sess(pl), mate=sess(mate), outsider=sess(outsider))
+st, _ = call('inspect', troop=True); check('inspections need a personal code', st == 401, st)
+st, _ = call('inspect', {'patrol': pl_patrol, 'scouts': [{'id': mate['id'], 'marks': {}}]}, s=S['mate']); check('a scout who is not a patrol leader cannot inspect', st == 403, st)
+st, _ = call('inspect', {'patrol': outsider['patrol'], 'scouts': [{'id': outsider['id'], 'marks': {}}]}, s=S['pl']); check("a patrol leader cannot inspect another patrol", st == 403, st)
+st, _ = call('inspect', {'patrol': pl_patrol, 'scouts': [{'id': mate['id'], 'marks': {}}]}, s=S['parent']); check('parents cannot inspect', st == 403, st)
+body = {'patrol': pl_patrol, 'scouts': [{'id': mate['id'], 'marks': {'socks': 'miss', 'shirt': 'fix', 'bogus': 'good'}, 'score': 100}, {'id': outsider['id'], 'marks': {}}] + ([{'id': mate2['id'], 'marks': {}}] if mate2 else [])}
+st, r = call('inspect', body, s=S['pl']); check('patrol leader can inspect own patrol', st == 200, r)
+ins = r['inspection']; row = next(x for x in ins['scouts'] if x['id'] == mate['id'])
+check('scores are worked out on the server', row['score'] < 100 and 'bogus' not in row['marks'], row)
+check('scouts from other patrols are dropped', all(x['id'] != outsider['id'] for x in ins['scouts']), [x['id'] for x in ins['scouts']])
+if mate2:
+    st, d = call(f"inspect/{ins['id']}", s=S['mate'])
+    check("a scout sees only their own marks", st == 200 and [x['id'] for x in d['inspection']['scouts']] == [mate['id']], [x['id'] for x in d['inspection']['scouts']])
+st, d = call('inspect', s=S['outsider']); check('everyone sees patrol averages', st == 200 and any(x['patrol'] == pl_patrol and x['count'] for x in d['standings']), st)
+st, d = call(f"inspect/{ins['id']}", s=S['outsider']); check("other patrols can't see anyone's marks", st == 200 and d['inspection']['scouts'] == [], d.get('inspection', {}).get('scouts'))
+st, _ = call(f"inspect/{ins['id']}", method='DELETE', s=S['mate']); check('only the inspector or a leader can delete', st == 403, st)
+st, _ = call('inspect/config', {'off': ['shirt']}, s=S['pl']); check('only leaders change the checklist', st == 403, st)
+st, _ = call(f"inspect/{ins['id']}", method='DELETE', s=S['pl']); check('inspector can delete their inspection', st == 200, st)
+bad = [r for r in results if not r[0]]
+print(f'\nWITH INSPECTIONS {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+
+# --- troop elections
+S.update(leader=S.get('leader') or sess(leader))
+cands = [m['id'] for m in active if m['role'] == 'scout'][:3]
+st, _ = call('elect', {'title': 'x', 'positions': [{'title': 'SPL', 'candidates': cands}]}, s=S['scout']); check('scouts cannot set up elections', st == 403, st)
+st, r = call('elect', {'title': 'Sec election', 'live': False, 'positions': [{'title': 'SPL', 'candidates': cands}, {'title': 'Patrol Leader', 'patrol': pl_patrol, 'candidates': [pl['id']]}]}, s=S['leader'])
+check('leader can set up an election', st == 200, r); eid = r['election']['id']; spl, plp = [p['id'] for p in r['election']['positions']]
+st, _ = call(f'elect/{eid}/vote', {'votes': {spl: cands[0]}}, s=S['scout']); check("can't vote before voting opens", st in (404, 409), st)
+st, d = call('elect', s=S['scout']); check('scouts do not see draft elections', all(e['id'] != eid for e in d['elections']), st)
+call(f'elect/{eid}/open', {}, s=S['leader'])
+st, _ = call(f'elect/{eid}/vote', {'votes': {spl: cands[0]}, 'for': mate['id']}, s=S['scout']); check("a scout can't vote for someone else", st == 403, st)
+st, _ = call(f'elect/{eid}/vote', {'votes': {spl: cands[0]}}, s=S['adult']); check('adults do not vote', st == 403, st)
+st, _ = call(f'elect/{eid}/vote', {'votes': {spl: 'm-not-real'}}, s=S['scout']); check("can't vote for someone not on the ballot", st == 400, st)
+st, _ = call(f'elect/{eid}/vote', {'votes': {plp: pl['id']}}, s=S['outsider']); check('only the patrol votes for its patrol leader', st == 403, st)
+st, _ = call(f'elect/{eid}/vote', {'votes': {spl: cands[0]}}, s=S['scout']); check('scout can vote', st == 200, st)
+st, _ = call(f'elect/{eid}/vote', {'votes': {spl: cands[1]}}, s=S['scout']); check('scouts vote only once', st == 409, st)
+st, _ = call(f'elect/{eid}/vote', {'votes': {spl: cands[1]}, 'for': scout['id']}, s=S['leader']); check("a leader can't add a second vote for a scout who voted", st == 409, st)
+st, _ = call(f'elect/{eid}/vote', {'votes': {spl: cands[1], plp: pl['id']}, 'for': mate['id']}, s=S['leader']); check("leader can take a vote on their phone for a scout", st == 200, st)
+st, _ = call(f'elect/{eid}/vote', {'votes': {spl: cands[1]}}, s=S['mate']); check('that scout cannot vote again on their own phone', st == 409, st)
+st, d = call(f'elect/{eid}', s=S['outsider']); check('results stay hidden while voting when live results are off', all(c['votes'] is None for p in d['election']['positions'] for c in p['candidates']), d['election']['positions'][0]['candidates'])
+check('scouts never get the voter list', 'voters' not in d['election'] or d['election']['voters'] is None, list(d['election'].keys()))
+st, d = call(f'elect/{eid}', s=S['leader'])
+check('leaders see who voted, never how', all(set(v.keys()) <= {'id', 'name', 'first', 'patrol', 'voted'} for v in d['election']['voters']) and 'votes' not in json.dumps(d['election']['voters']), d['election']['voters'][:1])
+check('vote counts are right', sum(c['votes'] for c in d['election']['positions'][0]['candidates']) == 2, d['election']['positions'][0])
+st, _ = call(f'elect/{eid}/close', {}, s=S['scout']); check('only leaders close voting', st == 403, st)
+call(f'elect/{eid}/close', {}, s=S['leader'])
+st, d = call(f'elect/{eid}', s=S['outsider']); check('results show to everyone once closed', d['election']['positions'][0]['candidates'][0]['votes'] is not None, st)
+st, _ = call(f'elect/{eid}/vote', {'votes': {spl: cands[0]}}, s=S['outsider']); check("can't vote after voting closes", st == 409, st)
+st, _ = call(f'elect/{eid}', method='DELETE', s=S['leader']); check('leader can delete an election', st == 200, st)
+bad = [r for r in results if not r[0]]
+print(f'\nWITH ELECTIONS {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
 for tok in S.values(): call('auth/signout', {}, s=tok)

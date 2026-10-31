@@ -14,6 +14,8 @@ export default function Home() {
   const [me] = useMe();
   const acct = useAccount();
   const inbox = useInbox(!!acct);
+  const elect = useApi(acct ? 'elect' : null);
+  const openElection = elect.data?.elections?.find(e => e.status === 'open' && (e.canVote || e.isLeader));
   const [family] = useLocal('family', null);
   const [mine, setMine] = useLocal('my-photos', []);
   const outings = useCol('outings');
@@ -61,6 +63,16 @@ export default function Home() {
         <Empty icon="tent" title="No outings on the calendar yet">Leaders add outings from the Outings tab.</Empty>
       )}
 
+      {openElection && (
+        <a className="el-home" href={`#/vote/${openElection.id}`}>
+          <span aria-hidden="true">🗳️</span><span className="grow"><b>{openElection.canVote ? 'Vote now' : 'Voting is open'}</b><span>{openElection.title} · {openElection.turnout.voted} of {openElection.turnout.of} have voted</span></span><Icon name="chevronR" size={20} />
+        </a>
+      )}
+      {acct?.member?.role === 'scout' && /patrol leader|\bspl\b|troop guide/i.test((acct.member.positions || []).join(', ')) && (
+        <a className="ins-home" href={/senior|\bspl\b|troop guide/i.test((acct.member.positions || []).join(', ')) ? '#/inspect' : `#/inspect/new?patrol=${encodeURIComponent(acct.member.patrol || '')}`}>
+          <span aria-hidden="true">🧐</span><span className="grow"><b>Uniform inspection</b><span>Check your patrol in about a minute</span></span><Icon name="chevronR" size={20} />
+        </a>
+      )}
       {acct?.member?.role === 'scout' && (
         <Section title="Your next step" action={<a className="link-btn" href={`#/advancement/${acct.member.id}`}>Advancement</a>}>
           <NextSteps id={acct.member.id} limit={2} compact />

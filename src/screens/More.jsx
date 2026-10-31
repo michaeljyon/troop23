@@ -15,6 +15,8 @@ export default function More() {
   const links = [
     ['advancement', 'trophy', 'Advancement', acct?.member?.leader ? 'The whole troop\'s trail to Eagle' : 'Ranks and merit badges'],
     ['counselors', 'people', 'Merit badge counselors', 'Who counsels which badge'],
+    ['vote', 'users', 'Troop elections', 'Vote for SPL, patrol leaders and more'],
+    ['inspect', 'shield', 'Uniform inspection', 'Patrol inspections and the Patrol Cup'],
     ['games', 'star', 'Games', 'Quizzes, puzzles and live troop games'],
     ['hikes', 'map', 'Hikes', 'Track distance and climbing with your group'],
     ['gear', 'box', 'Gear locker', 'Tents, stoves and the merit badge library'],

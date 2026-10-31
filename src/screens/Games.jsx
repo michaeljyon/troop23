@@ -4,6 +4,8 @@ import { PageHead, Section, Empty, Sheet, Seg } from '../components/ui.jsx';
 import { api, useAccount, useApi } from '../lib/api.js';
 import { go } from '../lib/router.js';
 import { readLocal, writeLocal } from '../lib/store.js';
+import { Confetti } from '../components/Confetti.jsx';
+export { Confetti };
 import { QUESTIONS, byId, RANKS, TOPICS, LEVELS, BADGES, isRight } from '../../troop/quiz.js';
 
 // Basecamp Games: quizzes and puzzles by rank and topic, a Daily Challenge,
@@ -33,10 +35,6 @@ function beep(kind) {
 function SoundToggle() {
   const [on, setOn] = useState(() => readLocal('game-sound', true) !== false);
   return <button type="button" className="icon-btn sm" onClick={() => { writeLocal('game-sound', !on); setOn(!on); }} aria-label={on ? 'Turn sound off' : 'Turn sound on'}>{on ? '🔊' : '🔇'}</button>;
-}
-export function Confetti() {
-  const bits = useMemo(() => Array.from({ length: 36 }, (_, i) => ({ left: Math.random() * 100, delay: Math.random() * 0.6, dur: 1.6 + Math.random() * 1.4, color: ['#E8833A', '#2E9E5B', '#1D5FBF', '#E9B949', '#D64545'][i % 5], rot: Math.random() * 360 })), []);
-  return <div className="confetti" aria-hidden="true">{bits.map((b, i) => <i key={i} style={{ left: `${b.left}%`, animationDelay: `${b.delay}s`, animationDuration: `${b.dur}s`, background: b.color, transform: `rotate(${b.rot}deg)` }} />)}</div>;
 }
 
 // pick questions for a game

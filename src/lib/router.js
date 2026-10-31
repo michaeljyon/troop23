@@ -18,27 +18,30 @@ function parse(hash = location.hash) {
 // a "page" is a screen plus the item it shows (an outing, a hike, a scout…)
 // (a few screens open a sub-page with a query value, like a photo album)
 const SUBPAGE = { gallery: 'album' };
-const pageKey = r => `${r.name}/${r.args[0] || ''}${SUBPAGE[r.name] && r.query[SUBPAGE[r.name]] ? `/${r.query[SUBPAGE[r.name]]}` : ''}`;
+const pageKey = r => `${r.name}/${r.args.join('/')}${SUBPAGE[r.name] && r.query[SUBPAGE[r.name]] ? `/${r.query[SUBPAGE[r.name]]}` : ''}`;
 
 // friendly names for the Back button and the parent of each page
 const NAMES = {
   home: 'Home', outings: 'Outings', outing: 'Outing', gallery: 'Photos', kitchen: 'Kitchen', gear: 'Gear locker', packing: 'Packing list',
   messages: 'Chat', thread: 'Chat', more: 'More', leaders: 'Leader tools', advancement: 'Advancement', counselors: 'Counselors',
   hikes: 'Hikes', track: 'Recording', permission: 'Photo permission', snap: 'Snap', slideshow: 'Slideshow',
-  games: 'Games', play: 'Game', live: 'Campfire Clash',
+  games: 'Games', play: 'Game', live: 'Campfire Clash', inspect: 'Inspections', vote: 'Elections',
 };
 export function pageName(r) {
   if (r.name === 'advancement' && r.args[0]) return 'Scout';
   if (r.name === 'hikes' && r.args[0]) return 'Hike';
+  if (r.name === 'inspect' && r.args[0]) return 'Inspection';
+  if (r.name === 'vote' && r.args[0]) return r.args[1] ? 'TV screen' : 'Election';
   if (r.name === 'thread') return 'Conversation';
   if (r.name === 'gallery' && r.query.album) return 'Album';
   return NAMES[r.name] || 'Back';
 }
 export function parentOf(r) {
   if (r.name === 'gallery' && r.query.album) return 'gallery';
-  if (r.args[0] && ['advancement', 'hikes'].includes(r.name)) return r.name;
+  if (r.name === 'vote' && r.args[1]) return `vote/${r.args[0]}`;
+  if (r.args[0] && ['advancement', 'hikes', 'inspect', 'vote'].includes(r.name)) return r.name;
   return { outing: 'outings', thread: 'messages', track: 'hikes', counselors: 'advancement', slideshow: 'gallery', snap: 'home', kitchen: 'more', gear: 'more', gallery: 'more',
-    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home', games: 'more', play: 'games', live: 'games' }[r.name] || 'home';
+    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home', games: 'more', play: 'games', live: 'games', inspect: 'more', vote: 'more' }[r.name] || 'home';
 }
 
 // pages visited this session, one entry per page (kept in step with history)

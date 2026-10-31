@@ -11,10 +11,12 @@
 // folder store in `npm run dev`.
 
 import troop from '../../troop/troop.js';
-import { resolveSession, memberRoutes, leaderPeople, redeem } from './people.mjs';
+import { resolveSession, memberRoutes, leaderPeople, redeem, loadPeople } from './people.mjs';
 import { pushRoutes, notify } from './push.mjs';
 import { calendarFeed, calendarLink } from './calendar.mjs';
 import { hikeRoutes } from './hikes.mjs';
+import { inspectRoutes } from './inspect.mjs';
+import { electRoutes } from './elect.mjs';
 import { quizRoutes } from './quiz.mjs';
 
 const MAX_PHOTO_BYTES = 4.2 * 1024 * 1024;
@@ -554,6 +556,8 @@ async function route(req, opts) {
     if (head === 'demo' && req.method === 'GET') return json({ demo: !!opts.demo });
     const mr = await memberRoutes(store, head, rest, req, body, now, { session, isLeader, colItems, patrols: (await settings(store)).patrols, later, notify: (...a) => notify(store, ...a) });
     if (mr) return mr;
+    if (head === 'elect') return electRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people || await loadPeople(store), isLeader });
+    if (head === 'inspect') return inspectRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people, isLeader });
     if (head === 'quiz') return quizRoutes(store, rest, req, body, now, { me: session?.member });
     if (head === 'hikes') return hikeRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people, isLeader, colItems, useMap: opts.useMap });
     if (head === 'mbcatalog' && req.method === 'GET') {
