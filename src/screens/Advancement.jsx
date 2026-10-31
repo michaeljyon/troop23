@@ -23,7 +23,7 @@ function ScoutList() {
   const [q, setQ] = useState('');
   const [patrol, setPatrol] = useState('');
   const [view, setView] = useState('scouts');
-  useEffect(() => { api('adv').then(d => { setData(d); if (!leader && d.scouts.length === 1) go(`advancement/${d.scouts[0].id}`); }).catch(setError); }, [leader]);
+  useEffect(() => { api('adv').then(d => { setData(d); if (!leader && d.scouts.length === 1) go(`advancement/${d.scouts[0].id}`, { replace: true }); }).catch(setError); }, [leader]);
   if (!acct && !leader) return <div className="content"><PageHead backTo="more" title="Advancement" /><Empty icon="trophy" title="Sign in with your personal code">Scouts see their own advancement, and parents see their scouts'. Ask a leader for your code.</Empty></div>;
   const list = (data?.scouts || []).filter(s => (!q || s.name.toLowerCase().includes(q.toLowerCase())) && (!patrol || s.patrol === patrol));
   const byRank = r => RANKS.indexOf(r);

@@ -108,7 +108,7 @@ function OutingFields({ outing, onSaved }) {
   }
   async function remove() {
     if (!confirm(`Delete “${outing.title}”? Sign-ups and meal plans stay in the records.`)) return;
-    await deleteDoc('outings', outing.id); onSaved(null); go('outings');
+    await deleteDoc('outings', outing.id); onSaved(null); go('outings', { replace: true });
   }
 
   return (

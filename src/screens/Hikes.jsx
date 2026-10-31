@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../components/Icon.jsx';
-import { PageHead, Section, Empty, Sheet, Seg, Pill } from '../components/ui.jsx';
-import { api, useAccount, useApi, useCol, useLeaderMode } from '../lib/api.js';
+import { PageHead, Section, Empty, Sheet, Seg, Pill, BackButton } from '../components/ui.jsx';
+import { api, useAccount, useApi, useCol, useLeaderMode, photoUrl } from '../lib/api.js';
 import { go } from '../lib/router.js';
 import { readLocal, writeLocal } from '../lib/store.js';
 import { today } from '../lib/dates.js';
 import { dist, liveStats, fmtMiles, fmtFeet, fmtTime, fmtDur, fmtPace } from '../lib/geo.js';
-import MapBox, { RouteThumb, ElevationChart } from '../components/HikeMap.jsx';   // Leaflet itself loads only when a map shows
+import MapBox, { ElevationChart, MapThumb, Sparkline, HikesOverview } from '../components/HikeMap.jsx';   // Leaflet itself loads only when a map shows
 import { LocationCheck, LocationGuide, useGeoPermission } from '../components/LocationHelp.jsx';
 const niceDate = d => (d ? new Date(`${d}T12:00`).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: d.slice(0, 4) === today().slice(0, 4) ? undefined : 'numeric' }) : '');
 
@@ -29,6 +29,7 @@ function HikeList({ route }) {
   const [tab, setTab] = useState(route.query.tab || 'troop');
   const [logOpen, setLogOpen] = useState(false);
   const list = useApi(tab === 'mine' ? 'hikes?mine=1' : 'hikes');
+  const changeTab = t => { setTab(t); go(`hikes${t === 'troop' ? '' : `?tab=${t}`}`); };
   const hikes = list.data?.hikes || [];
   const rec = readLocal('hike-rec', null);
   const [perm] = useGeoPermission();
@@ -41,13 +42,16 @@ function HikeList({ route }) {
       </PageHead>
       {rec && rec.phase && rec.phase !== 'setup' && <a className="alert-card warm" href="#/track"><span className="alert-ico"><Icon name="map" size={22} /></span><span className="grow"><b>A hike is still recording</b><span>{rec.title || 'Hike'} · tap to go back to it</span></span><Icon name="chevronR" /></a>}
       {acct && askLoc && <LocationCheck compact />}
-      <Seg value={tab} onChange={setTab} label="Show" options={[['troop', 'Troop'], ['mine', 'My hikes'], ['board', 'Leaderboard']]} />
-      {tab === 'board' ? <Board /> : (
+      <Seg value={tab} onChange={changeTab} label="Show" options={[['troop', 'Troop'], ['mine', 'Mine'], ['map', 'Map'], ['board', 'Stats']]} />
+      {tab === 'board' ? <Board /> : tab === 'map' ? (
+        <div className="mt"><HikesOverview hikes={hikes} onOpen={id => go(`hikes/${id}`)} />
+          <p className="small muted mt">Every recorded hike, one color each. Hikes logged by hand have no map.</p></div>
+      ) : (
         <>
           {acct && <div className="btn-row tight"><button className="btn small secondary" onClick={() => setLogOpen(true)}><Icon name="edit" size={15} />Log a hike by hand</button></div>}
           {list.loading && !list.data ? <p className="muted mt">Loading…</p> : hikes.length === 0 ? (
             <Empty icon="map" title={tab === 'mine' ? 'No hikes yet' : 'No hikes recorded yet'}>Tap Record at the trailhead. Basecamp tracks your distance, time and climbing, and credits everyone in your group.</Empty>
-          ) : <ul className="hike-feed">{hikes.map(h => <HikeCard key={h.id} h={h} />)}</ul>}
+          ) : <ul className="hike-feed2">{hikes.map(h => <HikeCard key={h.id} h={h} />)}</ul>}
         </>
       )}
       <LogSheet open={logOpen} onClose={() => setLogOpen(false)} onSaved={h => { setLogOpen(false); go(`hikes/${h.id}`); }} />
@@ -56,15 +60,23 @@ function HikeList({ route }) {
 }
 
 function HikeCard({ h }) {
+  const initials = (h.byName || '?').split(' ').map(x => x[0]).slice(0, 2).join('');
   return (
-    <li><a className="hike-card" href={`#/hikes/${h.id}`}>
-      <RouteThumb pts={h.preview} />
-      <span className="grow">
-        <span className="hike-title">{h.title}</span>
-        <span className="hike-meta">{niceDate(h.date)} · {h.groupNames.slice(0, 3).map(n => n.split(' ')[0]).join(', ')}{h.groupNames.length > 3 ? ` +${h.groupNames.length - 3}` : ''}{h.kudos.length > 0 && ` · 👏 ${h.kudos.length}`}</span>
-        <span className="hike-nums"><b>{fmtMiles(h.distance)}</b> mi<i /><b>{fmtFeet(h.gain)}</b> ft up<i /><b>{fmtDur(h.moving)}</b></span>
-      </span>
-      <Icon name="chevronR" size={18} />
+    <li><a className="hike-card2" href={`#/hikes/${h.id}`}>
+      <div className="hc-head">
+        <span className="hc-av">{initials}</span>
+        <span className="grow"><b>{h.byName}</b><span>{niceDate(h.date)}{h.outingTitle ? ` · ${h.outingTitle}` : ''}</span></span>
+        {h.kudos.length > 0 && <span className="hc-kudos">👏 {h.kudos.length}</span>}
+      </div>
+      <h3 className="hc-title">{h.title}</h3>
+      <div className="hc-stats">
+        <span><i>Distance</i><b>{fmtMiles(h.distance)} mi</b></span>
+        <span><i>Climb</i><b>{fmtFeet(h.gain)} ft</b></span>
+        <span><i>Time</i><b>{fmtDur(h.moving)}</b></span>
+        {h.spark?.length > 1 && <span className="hc-spark"><i>Elevation</i><Sparkline values={h.spark} /></span>}
+      </div>
+      {h.preview?.length > 1 ? <MapThumb pts={h.preview} /> : <div className="hc-manual"><Icon name="edit" size={16} />Logged by hand · no map</div>}
+      <div className="hc-foot"><Icon name="users" size={15} />{h.groupNames.slice(0, 4).map(n => n.split(' ')[0]).join(', ')}{h.groupNames.length > 4 ? ` +${h.groupNames.length - 4}` : ''}</div>
     </a></li>
   );
 }
@@ -73,6 +85,7 @@ function Board() {
   const [year, setYear] = useState(today().slice(0, 4));
   const s = useApi(`hikes/stats?year=${year}`);
   const d = s.data;
+  const all = useApi('hikes').data?.hikes || [];
   const years = [...new Set([today().slice(0, 4), ...(d?.years || [])])].sort().reverse();
   return (
     <>
@@ -87,6 +100,7 @@ function Board() {
               <div className="stat"><b>{fmtMiles(d.me.longest)}</b><span>longest (mi)</span></div>
             </div>
           )}
+          <MonthChart hikes={all} year={year} />
           <Section title="Top hikers">
             {d.members.length === 0 ? <Empty icon="map" title="No hikes this year yet" /> : (
               <ol className="board">{d.members.slice(0, 25).map((m, i) => <li key={m.id}><span className="board-n">{i + 1}</span><span className="grow"><b>{m.name}</b><span className="small muted">{m.patrol || (m.role === 'scout' ? 'Scout' : 'Adult')} · {m.count} hike{m.count > 1 ? 's' : ''} · {fmtFeet(m.gain)} ft</span></span><b className="board-v">{fmtMiles(m.distance)} mi</b></li>)}</ol>
@@ -100,6 +114,79 @@ function Board() {
         </>
       )}
     </>
+  );
+}
+
+// troop miles by month (or by year for "All time")
+function MonthChart({ hikes, year }) {
+  const byYear = !year;
+  const keys = byYear ? [...new Set(hikes.map(h => String(h.date).slice(0, 4)))].sort() : Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+  const vals = keys.map(k => hikes.filter(h => String(h.date).startsWith(k)).reduce((a, h) => a + (h.distance || 0), 0) / 1609.344);
+  const max = Math.max(...vals, 1);
+  if (!vals.some(v => v > 0)) return null;
+  const nowKey = today().slice(0, 7);
+  return (
+    <Section title={byYear ? 'Troop miles by year' : `Troop miles in ${year}`}>
+      <div className="mchart" role="img" aria-label={`Miles hiked: ${keys.map((k, i) => `${k} ${vals[i].toFixed(1)}`).join(', ')}`}>
+        {keys.map((k, i) => (
+          <div key={k} className={`mc-col ${k === nowKey ? 'now' : ''}`}>
+            <span className="mc-v">{vals[i] ? vals[i].toFixed(vals[i] < 10 ? 1 : 0) : ''}</span>
+            <i style={{ height: `${Math.max(vals[i] ? 4 : 0, (vals[i] / max) * 100)}%` }} />
+            <span className="mc-k">{byYear ? k : new Date(`${k}-15T12:00`).toLocaleDateString([], { month: 'narrow' })}</span>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// split a recorded track into miles: time and climb for each
+function splitsOf(points, offset = 0) {
+  if (points.length < 3 || points.every(p => !p[3])) return [];
+  const out = []; let cum = offset, mileStart = { cum: offset, t: points[0][3], ele: points[0][2] }, gain = 0, lastEle = points[0][2];
+  let next = Math.ceil((offset + 1) / 1609.344) * 1609.344;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i];
+    if ((a[4] || 0) !== (b[4] || 0)) { mileStart.t += b[3] - a[3]; continue; }   // pause: don't count the gap
+    cum += dist(a, b);
+    if (b[2] != null && lastEle != null && b[2] > lastEle) gain += b[2] - lastEle;
+    if (b[2] != null) lastEle = b[2];
+    if (cum >= next || i === points.length - 1) {
+      const len = cum - mileStart.cum;
+      if (len > 250) out.push({ n: out.length + 1, len, sec: b[3] - mileStart.t, gain, ele: b[2] != null && mileStart.ele != null ? b[2] - mileStart.ele : null, partial: cum < next });
+      mileStart = { cum, t: b[3], ele: b[2] }; gain = 0; next += 1609.344;
+    }
+  }
+  return out;
+}
+function Splits({ points, offset }) {
+  const sp = splitsOf(points, offset);
+  if (sp.length < 2) return null;
+  const paces = sp.map(x => x.sec / (x.len / 1609.344));
+  const slow = Math.max(...paces), fast = Math.min(...paces);
+  return (
+    <Section title="Mile by mile">
+      <ul className="splits">{sp.map((x, i) => (
+        <li key={x.n}>
+          <span className="sp-n">{x.partial ? `${(x.len / 1609.344).toFixed(1)}` : x.n}</span>
+          <span className="sp-bar"><i style={{ width: `${40 + 60 * (slow - paces[i]) / Math.max(1, slow - fast)}%` }} className={paces[i] === fast ? 'best' : ''} /><b>{fmtPace(x.len, x.sec)} /mi</b></span>
+          <span className={`sp-ele ${x.ele > 0 ? 'up' : x.ele < 0 ? 'down' : ''}`}>{x.ele == null ? '' : `${x.ele > 0 ? '▲' : x.ele < 0 ? '▼' : ''} ${Math.abs(Math.round(x.ele * 3.28084))} ft`}</span>
+        </li>
+      ))}</ul>
+      <p className="tiny muted">The longer the bar, the faster that mile. Arrows show the climb or drop across each mile.</p>
+    </Section>
+  );
+}
+
+// photos shared from the same outing
+function HikePhotos({ outingId }) {
+  const photos = useApi('photos').data?.photos || [];
+  const mine = photos.filter(p => p.album === outingId).slice(0, 9);
+  if (!outingId || !mine.length) return null;
+  return (
+    <Section title="Photos from this outing" action={<a className="link-btn" href={`#/gallery?album=${outingId}`}>See all</a>}>
+      <ul className="strip">{mine.map(p => <li key={p.id}><a href={`#/gallery?album=${outingId}&photo=${p.id}`}><img src={photoUrl(p.id, true)} alt={p.caption || 'Hike photo'} loading="lazy" /></a></li>)}</ul>
+    </Section>
   );
 }
 
@@ -119,7 +206,7 @@ function HikeDetail({ id }) {
   const h = d.hike;
   const mine = acct && h.kudos.includes(acct.member.id);
   async function kudos() { const r = await api(`hikes/${h.id}/kudos`, { method: 'POST', body: {} }); setD({ ...d, hike: { ...h, kudos: r.kudos } }); }
-  async function remove() { if (!confirm('Delete this hike for everyone in the group?')) return; await api(`hikes/${h.id}`, { method: 'DELETE' }); go('hikes'); }
+  async function remove() { if (!confirm('Delete this hike for everyone in the group?')) return; await api(`hikes/${h.id}`, { method: 'DELETE' }); go('hikes', { replace: true }); }
   const hasMap = d.points.length > 1;
   const title = (
     <div className="ho-top">
@@ -146,7 +233,9 @@ function HikeDetail({ id }) {
       <ElevationChart profile={d.profile} onFocus={hasMap ? setFocus : undefined} />
       {h.eleSource === 'map' && <p className="tiny muted">Elevation: Copernicus DEM (GLO-90) via Open-Meteo.</p>}
       {h.eleSource === 'gps' && <p className="tiny muted">Elevation from the phone's GPS, which can be off by several feet.</p>}
+      {hasMap && <Splits points={d.points} offset={d.offset} />}
       {h.notes && <p className="hike-notes">{h.notes}</p>}
+      <HikePhotos outingId={h.outingId} />
       <Section title={`Group · ${h.groupNames.length}`}>
         <div className="chip-wrap">{h.groupNames.map((n, i) => <span key={h.group[i]} className="chip sm">{n}</span>)}</div>
       </Section>
@@ -336,12 +425,12 @@ export function Track({ route }) {
   const pause = () => update(x => ({ ...x, phase: 'paused' }));
   const resume = () => update(x => ({ ...x, phase: 'rec', seg: x.seg + 1 }));
   const finish = () => update(x => ({ ...x, phase: 'done' }));
-  const discard = () => { if (confirm('Throw away this hike? This can\'t be undone.')) { writeLocal('hike-rec', null); go('hikes'); } };
+  const discard = () => { if (confirm('Throw away this hike? This can\'t be undone.')) { writeLocal('hike-rec', null); go('hikes', { replace: true }); } };
   async function upload() {
     setBusy(true); setMsg('');
     try {
       const r = await api('hikes', { method: 'POST', body: { points: s.pts, title: s.title, outingId: s.outingId, group: s.group, hideEnds: s.hideEnds, notes: s.notes, startAt: s.startAt } });
-      writeLocal('hike-rec', null); go(`hikes/${r.hike.id}`);
+      writeLocal('hike-rec', null); go(`hikes/${r.hike.id}`, { replace: true });
     } catch (e) { setMsg(e.offline ? 'No signal right now. Your hike is saved on this phone — try again when you have service.' : e.message); } finally { setBusy(false); }
   }
   const signal = !fix ? { t: 'Finding GPS…', c: 'weak' } : fix.acc <= 15 ? { t: `GPS strong · ±${Math.round(fix.acc * 3.28)} ft`, c: 'good' } : fix.acc <= 40 ? { t: `GPS OK · ±${Math.round(fix.acc * 3.28)} ft`, c: 'ok' } : { t: `GPS weak · ±${Math.round(fix.acc * 3.28)} ft`, c: 'weak' };
@@ -352,7 +441,7 @@ export function Track({ route }) {
   return (
     <div className="track">
       <header className="track-top">
-        <button className="icon-btn on-dark" onClick={() => go('hikes')} aria-label="Back to hikes"><Icon name="chevronL" /></button>
+        <BackButton to="hikes" className="icon-btn on-dark" dark />
         <b className="grow">{s.phase === 'setup' ? 'Record a hike' : s.title || 'Hike'}</b>
         <span className={`gps-pill ${signal.c}`}>{signal.t}</span>
       </header>

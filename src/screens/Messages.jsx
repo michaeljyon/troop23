@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../components/Icon.jsx';
-import { PageHead, Empty, Sheet, Pill } from '../components/ui.jsx';
+import { PageHead, Empty, Sheet, Pill, BackButton } from '../components/ui.jsx';
 import { api, useAccount, sessionToken } from '../lib/api.js';
 import { RichText, applyFormat } from '../lib/richtext.jsx';
 import { SafeHtml } from '../lib/safehtml.jsx';
@@ -259,7 +259,7 @@ export function Thread({ route }) {
   return (
     <div className="chat-full">
       <header className="chat-top">
-        <button className="icon-btn" onClick={() => go('messages')} aria-label="Back to Chat"><Icon name="chevronL" size={24} /></button>
+        <BackButton to="messages" className="icon-btn" dark />
         <span className="chat-top-title"><b>{t ? <>{t.kind === 'dm' ? '' : `${t.emoji} `}{t.title}</> : '…'}</b>
           {t && <span>{t.adultsOnly ? 'Adults only' : `Two-deep: ${guardians.map(g => g.name.split(' ')[0]).join(' & ')} included`}</span>}</span>
         <button className="link-btn chat-people" onClick={() => setShowPeople(true)} aria-label={`${people.length} people in this conversation`}><Icon name="users" size={18} />{people.length}</button>

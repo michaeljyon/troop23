@@ -1,12 +1,17 @@
 import { useEffect, useRef } from 'react';
 import Icon from './Icon.jsx';
-import { back } from '../lib/router.js';
+import { back, useBackTarget } from '../lib/router.js';
 import { troop } from '../lib/config.js';
+
+export function BackButton({ to, className = 'back-btn', dark }) {
+  const t = useBackTarget(to);
+  return <button className={className} onClick={() => back(to)} aria-label={`Back to ${t.name}`}><Icon name="chevronL" size={dark ? 24 : 20} />{!dark && <span>{t.name}</span>}</button>;
+}
 
 export function PageHead({ title, sub, backTo, eyebrow, children }) {
   return (
     <header className="page-head">
-      {backTo !== undefined && <button className="back-btn" onClick={() => back(backTo)}><Icon name="chevronL" size={20} /> Back</button>}
+      {backTo !== undefined && <BackButton to={backTo || undefined} />}
       {eyebrow && <p className="eyebrow">{eyebrow}</p>}
       {title && <h1>{title}</h1>}
       {sub && <p className="page-sub">{sub}</p>}

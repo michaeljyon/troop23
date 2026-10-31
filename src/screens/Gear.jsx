@@ -27,7 +27,7 @@ export default function Gear({ route }) {
 
   return (
     <div className="content">
-      <PageHead title="Gear locker" sub="Everything the troop owns. Check it out before a trip, check it back in after.">
+      <PageHead backTo="more" title="Gear locker" sub="Everything the troop owns. Check it out before a trip, check it back in after.">
         <button className="btn small head-btn" onClick={() => setAdding(true)}><Icon name="plus" size={16} />Add</button>
       </PageHead>
       <div className="stat-row three">

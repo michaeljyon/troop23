@@ -44,8 +44,8 @@ with sync_playwright() as pw:
     p.goto(BASE + '/#/hikes'); p.click('button:has-text("Log a hike by hand")'); p.fill('.sheet input[placeholder="e.g. Leon Sinks loop"]', 'QA Tram Road ride-along')
     p.fill('.sheet input[placeholder="5.2"]', '10.4'); p.fill('.sheet input[placeholder="300"]', '220'); p.fill('.sheet input[aria-label="Hours"]', '3'); p.fill('.sheet input[aria-label="Minutes"]', '40')
     p.click('.sheet-foot button:has-text("Save hike")'); p.wait_for_selector('.ho-top'); print('manual', p.locator('.ho-main b').all_inner_texts()[:2])
-    p.goto(BASE + '/#/hikes'); p.wait_for_selector('.hike-card'); shot(p, 'h08-feed', True)
-    p.click('.seg button:has-text("Leaderboard")'); p.wait_for_selector('.board'); shot(p, 'h09-board', True)
+    p.goto(BASE + '/#/hikes'); p.wait_for_selector('.hike-card2'); shot(p, 'h08-feed', True)
+    p.click('.seg button:has-text("Stats")'); p.wait_for_selector('.board'); shot(p, 'h09-board', True)
     p.goto(BASE + f"/#/advancement/{brandon['id']}"); p.wait_for_selector('.rank-check'); shot(p, 'h10-adv-next-steps', True)
     print('steps:', p.locator('.step .grow > b').all_inner_texts())
     # leader planning

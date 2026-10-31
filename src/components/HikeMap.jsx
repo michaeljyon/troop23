@@ -255,3 +255,126 @@ export function ElevationChart({ profile = [], onFocus }) {
     </figure>
   );
 }
+
+// ------------------------------------------------------------------ static previews
+// A real map snippet for lists, built from a few map tiles plus the route on
+// top (no map library, so a long list stays fast).
+const TILE = 256;
+const px = (lat, lng, z) => {
+  const s = TILE * 2 ** z, r = Math.min(Math.max(lat, -85), 85) * Math.PI / 180;
+  return [(lng + 180) / 360 * s, (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * s];
+};
+const tileUrl = (base, z, x, y) => (base.url.replace('{s}', 'abc'[(x + y) % 3]).replace('{z}', z).replace('{x}', x).replace('{y}', y));
+export function MapThumb({ pts = [], width = 360, height = 160, base: baseKey }) {
+  const key = baseKey || pref('hike-base', 'topo');
+  const base = BASES[key] || BASES.topo;
+  if (pts.length < 2) return <div className="map-thumb empty" style={{ aspectRatio: `${width} / ${height}` }}><span>🥾</span></div>;
+  const lats = pts.map(p => p[0]), lngs = pts.map(p => p[1]);
+  const pad = 22;
+  let z = Math.min(base.native, 17);
+  for (; z > 3; z--) {
+    const [x0, y0] = px(Math.max(...lats), Math.min(...lngs), z), [x1, y1] = px(Math.min(...lats), Math.max(...lngs), z);
+    if (x1 - x0 <= width - pad * 2 && y1 - y0 <= height - pad * 2) break;
+  }
+  const [ax, ay] = px(Math.max(...lats), Math.min(...lngs), z), [bx, by] = px(Math.min(...lats), Math.max(...lngs), z);
+  const cx = (ax + bx) / 2, cy = (ay + by) / 2, left = cx - width / 2, top = cy - height / 2;
+  const tiles = [];
+  for (let tx = Math.floor(left / TILE); tx <= Math.floor((left + width) / TILE); tx++)
+    for (let ty = Math.floor(top / TILE); ty <= Math.floor((top + height) / TILE); ty++) tiles.push([tx, ty]);
+  const P = pts.map(p => { const [x, y] = px(p[0], p[1], z); return [x - left, y - top]; });
+  const d = P.map((p, i) => `${i && (pts[i][2] || 0) === (pts[i - 1][2] || 0) ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('');
+  return (
+    <div className="map-thumb" style={{ aspectRatio: `${width} / ${height}` }}>
+      <div className="mt-tiles">
+        {tiles.map(([tx, ty]) => <img key={`${tx}-${ty}`} alt="" loading="lazy" decoding="async" referrerPolicy="strict-origin-when-cross-origin" src={tileUrl(base, z, tx, ty)} onError={e => { e.currentTarget.style.visibility = 'hidden'; }}
+          style={{ left: `${((tx * TILE - left) / width) * 100}%`, top: `${((ty * TILE - top) / height) * 100}%`, width: `${(TILE / width) * 100}%`, height: `${(TILE / height) * 100}%` }} />)}
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+        <path d={d} fill="none" stroke="#0b1a12" strokeOpacity=".35" strokeWidth="7" strokeLinejoin="round" strokeLinecap="round" />
+        <path d={d} fill="none" stroke="#fff" strokeWidth="5.5" strokeLinejoin="round" strokeLinecap="round" />
+        <path d={d} fill="none" stroke="#E8833A" strokeWidth="3.2" strokeLinejoin="round" strokeLinecap="round" />
+        <circle cx={P[0][0]} cy={P[0][1]} r="5" fill="#1F7A47" stroke="#fff" strokeWidth="2" />
+        <circle cx={P[P.length - 1][0]} cy={P[P.length - 1][1]} r="5" fill="#12301F" stroke="#fff" strokeWidth="2" />
+      </svg>
+      <span className="mt-credit">{key === 'street' ? '© OpenStreetMap' : key === 'topo' ? '© OpenStreetMap · OpenTopoMap' : 'USGS'}</span>
+    </div>
+  );
+}
+
+// tiny elevation profile for cards
+export function Sparkline({ values = [], width = 120, height = 34 }) {
+  if (values.length < 2) return null;
+  const lo = Math.min(...values), hi = Math.max(...values), span = Math.max(hi - lo, 6);
+  const P = values.map((v, i) => [(i / (values.length - 1)) * width, height - 3 - ((v - lo) / span) * (height - 6)]);
+  const line = P.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('');
+  return (
+    <svg className="spark" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
+      <path d={`${line}L${width},${height}L0,${height}Z`} fill="rgba(232,131,58,.18)" /><path d={line} fill="none" stroke="#E8833A" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Every hike on one map; tap a trail to open it.
+const ROUTE_COLORS = ['#E8833A', '#1D5FBF', '#2E9E5B', '#B3261E', '#6A3FB5', '#D9480F', '#0E7C86', '#9C6B00'];
+export function HikesOverview({ hikes = [], height = 440, onOpen }) {
+  const box = useRef(null);
+  const st = useRef({});
+  const [ready, setReady] = useState(false);
+  const [sel, setSel] = useState(null);
+  const withRoute = hikes.filter(h => (h.preview || []).length > 1);
+  useEffect(() => {
+    let gone = false;
+    Promise.all([import('leaflet'), import('leaflet/dist/leaflet.css')]).then(([mod]) => {
+      if (gone || !box.current) return;
+      const L = mod.default || mod;
+      const map = L.map(box.current, { zoomControl: true, preferCanvas: false });
+      map.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
+      const b = BASES[pref('hike-base', 'topo')] || BASES.topo;
+      L.tileLayer(b.url, { maxNativeZoom: b.native, maxZoom: 19, attribution: b.attribution, referrerPolicy: 'strict-origin-when-cross-origin' }).addTo(map);
+      st.current = { L, map }; setReady(true);
+    });
+    return () => { gone = true; st.current.map?.remove(); st.current = {}; };
+  }, []);
+  useEffect(() => {
+    const { L, map } = st.current; if (!ready || !map) return;
+    st.current.layer?.remove();
+    const layers = [];
+    withRoute.forEach((h, i) => {
+      const color = ROUTE_COLORS[i % ROUTE_COLORS.length];
+      const ll = h.preview.map(p => [p[0], p[1]]);
+      const halo = L.polyline(ll, { color: '#fff', weight: 8, opacity: 0.9 });
+      const line = L.polyline(ll, { color, weight: 4.5, opacity: 0.95 });
+      const pin = L.circleMarker(ll[0], { radius: 7, color: '#fff', weight: 2.5, fillColor: color, fillOpacity: 1 });
+      [halo, line, pin].forEach(x => x.on('click', () => setSel(h.id)));
+      layers.push(halo, line, pin);
+      st.current.bounds = { ...(st.current.bounds || {}), [h.id]: L.latLngBounds(ll) };
+    });
+    st.current.layer = L.layerGroup(layers).addTo(map);
+    const all = withRoute.flatMap(h => h.preview.map(p => [p[0], p[1]]));
+    if (all.length) map.fitBounds(L.latLngBounds(all), { padding: [30, 30] }); else map.setView([30.4383, -84.2807], 9);
+  }, [ready, hikes]); // eslint-disable-line react-hooks/exhaustive-deps
+  const h = withRoute.find(x => x.id === sel);
+  function focus(id) { setSel(id); const b = st.current.bounds?.[id]; if (b) st.current.map.flyToBounds(b, { padding: [40, 40], paddingBottomRight: [40, 110], duration: 0.8 }); box.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  return (
+    <>
+    <div className="hike-map-wrap overview">
+      <div ref={box} className="hike-map" style={{ height }} />
+      {h && (
+        <button type="button" className="ov-card" onClick={() => onOpen?.(h.id)}>
+          <span className="ov-dot" style={{ background: ROUTE_COLORS[withRoute.indexOf(h) % ROUTE_COLORS.length] }} />
+          <span className="grow"><b>{h.title}</b><span>{h.date} · {miles(h.distance).toFixed(1)} mi · {Math.round(feet(h.gain))} ft up</span></span>
+          <Icon name="chevronR" size={18} />
+        </button>
+      )}
+      {!h && withRoute.length > 0 && <p className="ov-hint">Tap a trail, or pick one below</p>}
+    </div>
+    <ul className="ov-list">{withRoute.map((x, i) => (
+      <li key={x.id}><button type="button" className={sel === x.id ? 'on' : ''} onClick={() => focus(x.id)}>
+        <span className="ov-dot" style={{ background: ROUTE_COLORS[i % ROUTE_COLORS.length] }} />
+        <span className="grow"><b>{x.title}</b><span>{x.date} · {miles(x.distance).toFixed(1)} mi · {Math.round(feet(x.gain))} ft up</span></span>
+        <Icon name="search" size={16} />
+      </button></li>
+    ))}</ul>
+    </>
+  );
+}

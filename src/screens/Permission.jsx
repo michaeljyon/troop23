@@ -45,7 +45,7 @@ export default function Permission() {
 
   return (
     <div className="content">
-      <PageHead eyebrow="For parents & guardians" title="Photo permission" sub={`You decide who can see photos of your scout. Leaders check every photo against your choice before families see it.`} />
+      <PageHead backTo="more" eyebrow="For parents & guardians" title="Photo permission" sub={`You decide who can see photos of your scout. Leaders check every photo against your choice before families see it.`} />
       {msg && <p className={`form-msg ${msg.bad ? '' : 'good'}`} role={msg.bad ? 'alert' : 'status'}>{msg.text}</p>}
 
       {!editing && family ? (

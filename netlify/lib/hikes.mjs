@@ -154,7 +154,7 @@ export function trimEnds(pts, m = PRIVACY_M) {
 const shape = h => ({
   id: h.id, title: h.title, by: h.by, byName: h.byName, group: h.group, groupNames: h.groupNames, patrol: h.patrol, outingId: h.outingId, outingTitle: h.outingTitle,
   date: h.date, startAt: h.startAt, distance: h.distance, gain: h.gain, loss: h.loss, maxEle: h.maxEle, minEle: h.minEle, moving: h.moving, elapsed: h.elapsed,
-  manual: !!h.manual, eleSource: h.eleSource, hideEnds: !!h.hideEnds, notes: h.notes || '', preview: h.preview || [], kudos: h.kudos || [], created: h.created, updated: h.updated,
+  manual: !!h.manual, eleSource: h.eleSource, hideEnds: !!h.hideEnds, notes: h.notes || '', preview: h.preview || [], spark: h.spark || [], kudos: h.kudos || [], created: h.created, updated: h.updated,
 });
 
 export async function allHikes(store, colItems) { return (await colItems(store, 'hikes')).filter(Boolean); }
@@ -232,7 +232,8 @@ export async function hikeRoutes(store, rest, req, body, now, ctx) {
       await store.setJSON(`hikepts/${hid}`, { pts: stored, profile: a.profile, offset });
       const local = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(startAt);   // date in Florida
       h = { id: hid, manual: false, distance: a.distance, gain: a.gain, loss: a.loss, moving: a.moving, elapsed: a.elapsed, maxEle: a.maxEle, minEle: a.minEle,
-        eleSource: a.eleSource, hideEnds, date: DAY.test(body.date || '') ? body.date : local, startAt, preview: thin(shown, 60).map(p => [p[0], p[1], p[4] || 0]) };
+        eleSource: a.eleSource, hideEnds, date: DAY.test(body.date || '') ? body.date : local, startAt, preview: thin(shown, 120).map(p => [p[0], p[1], p[4] || 0]),
+        spark: thin(a.profile.filter(p => p[1] != null), 48).map(p => Math.round(p[1])) };
     }
     Object.assign(h, {
       title: clean(body.title, 80) || (outing ? outing.title : 'Hike'), notes: clean(body.notes, 600), by: me.id, byName: me.name,

@@ -96,7 +96,7 @@ export default function Gallery({ route }) {
           {album.outing && <p className="small"><a className="link-btn small" href={`#/outing/${album.id}`}><Icon name="tent" size={14} />Outing details</a></p>}
         </>
       ) : (
-        <PageHead title="Photo gallery" sub={`${all.length} photo${all.length === 1 ? '' : 's'} from ${new Set(all.map(p => p.album)).size} events`}>
+        <PageHead backTo="more" title="Photo gallery" sub={`${all.length} photo${all.length === 1 ? '' : 's'} from ${new Set(all.map(p => p.album)).size} events`}>
           {all.length > 0 && <button className="btn small head-btn" onClick={() => setBuilder(true)}><Icon name="play" size={16} />Slideshow</button>}
         </PageHead>
       )}
