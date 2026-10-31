@@ -186,7 +186,7 @@ async function liveRoutes(store, code, act, req, body, now, me) {
     const players = (await Promise.all(blobs.map(b => store.get(b.key, { type: 'json' })))).filter(Boolean);
     const inRoom = players.some(p => p.id === me.id);
     const board = players.map(p => ({ id: p.id, name: p.name, patrol: p.patrol, score: room.scores[p.id] || 0 })).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-    const teams = room.teams ? Object.values(board.reduce((acc, p) => { const k = p.patrol || 'No patrol'; const t = acc[k] ||= { patrol: k, score: 0, players: 0 }; t.score += p.score; t.players++; return acc; }, {})).map(t => ({ ...t, avg: Math.round(t.score / t.players) })).sort((a, b) => b.avg - a.avg) : null;
+    const teams = room.teams ? Object.values(board.filter(p => p.patrol).reduce((acc, p) => { const k = p.patrol; const t = acc[k] ||= { patrol: k, score: 0, players: 0 }; t.score += p.score; t.players++; return acc; }, {})).map(t => ({ ...t, avg: Math.round(t.score / t.players) })).sort((a, b) => b.avg - a.avg) : null;
     const out = { code: c, status: room.status, host: room.host, hostName: room.hostName, isHost, inRoom, topic: room.topic, rank: room.rank, teams: room.teams, count: room.qids.length, qi: room.qi, secs: room.secs, players: board, teamBoard: teams, now };
     if (room.status === 'question' || room.status === 'reveal') {
       const q = byId[room.qids[room.qi]];

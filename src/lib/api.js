@@ -23,7 +23,7 @@ export async function api(path, { method = 'GET', body, leader } = {}) {
   const data = type.includes('json') ? await res.json() : null;
   if (!res.ok) {
     if (res.status === 401 && data?.error?.startsWith('Enter the troop code')) { setTroopCode(''); writeLocal('session', ''); }
-    const e = new Error(data?.error || (res.status === 404 && !data ? 'The pack server isn\'t running on this deploy.' : `Request failed (${res.status})`));
+    const e = new Error(data?.error || (res.status === 404 && !data ? 'The Basecamp server isn\'t running on this deploy.' : `Request failed (${res.status})`));
     e.status = res.status; throw e;
   }
   return data;

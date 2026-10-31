@@ -454,7 +454,7 @@ export function Live({ route }) {
           <div className="final">
             <Confetti />
             <p className="g-k">Final results</p>
-            {st.teamBoard?.length > 0 && <div className="team-win">🏆 {st.teamBoard[0].patrol} wins!<span>{st.teamBoard.map(t => `${t.patrol} ${t.avg}`).join(' · ')}</span></div>}
+            {st.teamBoard?.length > 1 && <div className="team-win"><span className="tw-k">Winning patrol</span>🏆 {st.teamBoard[0].patrol}<span>{st.teamBoard.map(t => `${t.patrol} ${t.avg}`).join(' · ')}</span></div>}
             <div className="podium">{[1, 0, 2].map(k => st.players[k] && <div key={k} className={`pod p${k + 1}`}><b>{st.players[k].name.split(' ')[0]}</b><span>{st.players[k].score.toLocaleString()}</span><i>{k + 1}</i></div>)}</div>
             <ol className="board mt">{st.players.map((p, i) => <li key={p.id} className={p.id === acct.member.id ? 'me' : ''}><span className="board-n">{i + 1}</span><span className="grow"><b>{p.name}</b>{p.patrol && <span className="small muted">{p.patrol}</span>}</span><b className="board-v">{p.score.toLocaleString()}</b></li>)}</ol>
             <p className="small muted center">Everyone who scored earned XP. The winner gets the Campfire Champ badge.</p>

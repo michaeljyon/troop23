@@ -28,7 +28,7 @@ with sync_playwright() as pw:
     rc.set_content("""<div style="font:26px Georgia;padding:50px;background:#fffdf5;width:800px;line-height:1.45">
       <h1 style="font-size:44px;margin:0 0 6px">Campfire Chili Mac</h1><p style="margin:0 0 18px">Serves 6</p><h2 style="font-size:30px;margin:0">Ingredients</h2>
       <p style="margin:6px 0 18px">2 lbs ground beef<br>1 1/2 cups elbow macaroni<br>1 can (15 oz) kidney beans<br>2 cans diced tomatoes<br>1 packet chili seasoning<br>2 cups shredded cheese</p>
-      <h2 style="font-size:30px;margin:0">Directions</h2><p style="margin:6px 0">1. Brown the beef in a dutch oven and drain.<br>2. Add tomatoes, beans, seasoning and 3 cups water.<br>3. Stir in macaroni and simmer 12 minutes.<br>4. Top with cheese and serve.</p></div>""")
+      <h2 style="font-size:30px;margin:0">Directions</h2><p style="margin:6px 0">1. Brown the beef in a Dutch oven and drain.<br>2. Add tomatoes, beans, seasoning and 3 cups water.<br>3. Stir in macaroni and simmer 12 minutes.<br>4. Top with cheese and serve.</p></div>""")
     rc.screenshot(path=f'{SP}/recipe-card.png'); rc.close()
 
     # ---- Mike (leader + parent) signs in by invite link

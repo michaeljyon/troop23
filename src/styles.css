@@ -1538,7 +1538,9 @@ input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-off
 .final .board { color: var(--ink); text-align: left; }
 .live .form-msg { background: rgba(214,69,69,.25); color: #fff; padding: 8px 12px; border-radius: 10px; }
 @media (min-width: 900px) { .lq-text { font-size: 34px; } .lq-choice { min-height: 120px; font-size: 21px; } .big-code span { width: 92px; height: 112px; font-size: 76px; } }
-.lq-choice .grow { overflow-wrap: anywhere; hyphens: auto; }
+.lq-choice .grow { overflow-wrap: break-word; }
+@media (max-width: 560px) { .lq-choices { grid-template-columns: minmax(0,1fr); } .lq-choice { min-height: 64px; } }
 .lq-count { flex: none; }
 .lq-choice.miss { opacity: .7; outline: 4px dashed rgba(255,255,255,.7); outline-offset: 2px; }
 .rq-ans { font-size: 15px; }
+.team-win .tw-k { font: 700 12.5px var(--head); letter-spacing: .14em; text-transform: uppercase; color: #F6C08F; order: -1; }

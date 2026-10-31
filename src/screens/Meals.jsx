@@ -288,7 +288,7 @@ function MealFields({ meal, recipes, people, onSave, onRemove }) {
           <ul>{scaled(m.ingredients, m.serves, people || m.serves).map((i, k) => <li key={k}><span>{i.name}</span><b>{fmtQty(i)}</b></li>)}</ul>
         </div>
       )}
-      <label className="field"><span>Notes <i className="opt">optional</i></span><input value={m.notes} onChange={e => setM({ ...m, notes: e.target.value })} placeholder="Allergies, who brings the dutch oven…" /></label>
+      <label className="field"><span>Notes <i className="opt">optional</i></span><input value={m.notes} onChange={e => setM({ ...m, notes: e.target.value })} placeholder="Allergies, who brings the Dutch oven…" /></label>
       <div className="btn-row">
         <button className="btn" disabled={!m.slot.trim()} onClick={() => onSave({ ...m, ingredients: m.ingredients.filter(i => i.name.trim()) })}>Save meal</button>
         {!meal.isNew && <button className="link-btn danger" onClick={() => onRemove(meal)}><Icon name="trash" size={16} />Remove meal</button>}

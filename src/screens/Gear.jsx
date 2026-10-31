@@ -44,7 +44,7 @@ export default function Gear({ route }) {
       </div>
 
       {gear.loading && !gear.data ? <p className="muted">Loading…</p>
-        : gear.items.length === 0 ? <Empty icon="box" title="The gear locker is empty" action={<button className="btn small" onClick={() => setAdding(true)}>Add the first item</button>}>Add tents, stoves, lanterns, dutch ovens, patrol boxes — anything the troop owns.</Empty>
+        : gear.items.length === 0 ? <Empty icon="box" title="The gear locker is empty" action={<button className="btn small" onClick={() => setAdding(true)}>Add the first item</button>}>Add tents, stoves, lanterns, Dutch ovens, patrol boxes — anything the troop owns.</Empty>
         : items.length === 0 ? <Empty icon="search" title="Nothing matches" />
         : cats.map(({ c, list }) => (
           <Section key={c} title={c}>

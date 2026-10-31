@@ -98,7 +98,7 @@ pick = lambda *keys: next((t for t in names if any(k.lower() in t.lower() for k 
 plan_id = f"{O['camp']}__eagles"
 call(f'c/plans/{plan_id}', {'outingId': O['camp'], 'patrol': 'Eagles', 'grubmaster': 'Demo Scout', 'headcount': 4, 'budget': 60, 'meals': [
     meal('m1', 'Fri dinner', pick('foil', 'chili')), meal('m2', 'Sat breakfast', pick('pancake', 'burrito', 'breakfast')), meal('m3', 'Sat lunch', pick('quesadilla', 'grilled cheese', 'wrap')),
-    meal('m4', 'Sat dinner', pick('dutch oven chicken', 'jambalaya', 'chili mac')), meal('m5', 'Sat dessert', pick('cobbler', 'banana')), meal('m6', 'Sun breakfast', pick('biscuits', 'french toast'))]}, method='PUT', s=sess['Demo Scout'])
+    meal('m4', 'Sat dinner', pick('Dutch oven chicken', 'jambalaya', 'chili mac')), meal('m5', 'Sat dessert', pick('cobbler', 'banana')), meal('m6', 'Sun breakfast', pick('biscuits', 'french toast'))]}, method='PUT', s=sess['Demo Scout'])
 call(f'plans/{plan_id}/spend', {'amount': 42.17, 'note': 'Publix run', 'by': 'Demo Scout'}, s=sess['Demo Scout'])
 call(f'plans/{plan_id}/duties', {'roles': ['Cook', 'Assistant cook', 'Fire & water', 'Cleanup'], 'grid': {f'm{i}': {'Cook': n[0], 'Assistant cook': n[1], 'Fire & water': n[2], 'Cleanup': n[3]} for i, n in
     zip(range(1, 7), [('Demo', 'Mason', 'Liam', 'Mr. Reyes'), ('Mason', 'Liam', 'Demo', 'Mr. Reyes'), ('Liam', 'Demo', 'Mason', 'Mr. Reyes')] * 2)}}, s=sess['Demo Scout'])
