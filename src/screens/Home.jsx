@@ -7,6 +7,7 @@ import { useApi, useCol, photoUrl, useAccount } from '../lib/api.js';
 import { useInbox } from '../lib/inbox.js';
 import { InboxCard } from '../components/Inbox.jsx';
 import { NextSteps } from './Advancement.jsx';
+import { DutyToday } from './Duty.jsx';
 import { useLocal, useMe } from '../lib/store.js';
 import { troop, outingType } from '../lib/config.js';
 import { rangeLabel, whenLabel, monthDay, today } from '../lib/dates.js';
@@ -18,6 +19,9 @@ export default function Home() {
   const { features: F, opts } = useSettings();
   const isLeader = !!acct?.member?.leader;
   const elect = useApi(acct && F.vote ? 'elect' : null);
+  const hunts = useApi(acct && F.hunts ? 'hunt' : null);
+  const openHunt = hunts.data?.hunts?.find(h => h.status === 'open');
+  const pts = useApi(F.points ? 'points' : null);
   const openElection = F.vote && elect.data?.elections?.find(e => e.status === 'open' && (e.canVote || e.isLeader));
   const [family] = useLocal('family', null);
   const [mine, setMine] = useLocal('my-photos', []);
@@ -97,6 +101,21 @@ export default function Home() {
         </Section>
       )}
 
+      {F.duty && <DutyToday />}
+      {openHunt && (
+        <a className="alert-card warm" href={`#/hunts/${openHunt.id}`}>
+          <span className="alert-ico" aria-hidden="true" style={{ fontSize: 22 }}>📸</span>
+          <span className="grow"><b>Scavenger hunt: {openHunt.title}</b><span>{openHunt.count} things to find · snap them for your patrol</span></span>
+          <Icon name="chevronR" />
+        </a>
+      )}
+      {F.sky && upcoming[0] && upcoming[0].start <= today() && (upcoming[0].end || upcoming[0].start) > upcoming[0].start && (
+        <a className="alert-card" href={`#/sky?outing=${upcoming[0].id}`}>
+          <span className="alert-ico" aria-hidden="true" style={{ fontSize: 22 }}>🌌</span>
+          <span className="grow"><b>Tonight's sky at camp</b><span>Stars, planets and the Moon over {upcoming[0].location || upcoming[0].title}</span></span>
+          <Icon name="chevronR" />
+        </a>
+      )}
       {myGear.length > 0 && (
         <a className="alert-card" href="#/gear?filter=mine">
           <span className="alert-ico"><Icon name="box" size={22} /></span>
@@ -129,6 +148,9 @@ export default function Home() {
           F.campfire && ['campfire', 'flame', 'Campfire', 'Songs, skits & cheers'],
           F.ceremonies && ['ceremonies', 'flag', 'Ceremonies', 'Flag ceremony scripts'],
         ].filter(Boolean).map(([to, ic, b, sub]) => <a key={to} className="tile" href={`#/${to}`}><Icon name={ic} size={26} /><b>{b}</b><span>{sub}</span></a>)}
+        {F.points && pts.data?.board?.length > 0 && (
+          <a className="tile tile-games pts-home" href="#/points"><span className="tg-emoji" aria-hidden="true">🏆</span><span className="grow"><b>Patrol points</b><span>{pts.data.board.slice(0, 3).map((b, i) => `${['👑 ', '', ''][i]}${b.patrol} ${b.total}`).join(' · ')}</span></span><Icon name="chevronR" size={20} /></a>
+        )}
         {F.games && <a className="tile tile-games" href="#/games"><span className="tg-emoji" aria-hidden="true">🎯</span><span className="grow"><b>Games</b><span>Daily Challenge, puzzles{opts.gamesLive ? ' & Campfire Clash' : ''}</span></span><Icon name="chevronR" size={20} /></a>}
       </div>
 

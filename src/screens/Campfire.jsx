@@ -59,7 +59,7 @@ export function useBook() {
 const subOf = e => {
   const x = e.data;
   if (!e.builtin) return `${e.pending ? 'Suggested by' : 'Added by'} ${x.byName}`;
-  if (e.kind === 'song') return `${SONG_STYLES[x.style]}${x.words || e.troopWords ? ' · Words' : ''}`;
+  if (e.kind === 'song') return `${SONG_STYLES[x.style]}${x.words || e.troopWords ? ' · Words' : ''}${x.original ? ' · New' : ''}`;
   if (e.kind === 'skit') return `${x.cast} scouts · ${x.time}`;
   if (e.kind === 'cheer') return x.how;
   if (e.kind === 'minute') return x.theme;
@@ -232,6 +232,7 @@ function SongBody({ e, can, onAdd }) {
         </div>
       )}
       {x.source && <p className="small muted">{x.source}. Public domain.</p>}
+      {x.original && <p className="small muted">Written for Basecamp. Free for your troop to sing, change and share.</p>}
     </>
   );
 }

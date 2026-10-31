@@ -362,6 +362,12 @@ const FEATURE_LIST = [
   ['notes', 'file', 'Meeting notes', 'PLC notes for scouts and leaders; committee minutes for leaders only.', [['notesParentsPLC', 'Parents can read PLC notes', 'Committee minutes always stay leaders-only.']]],
   ['campfire', 'flame', 'Campfire book', 'Songs, skits, run-ons, cheers, Scoutmaster\'s Minutes, patrol games, Kim\'s Game and campfire plans with Emcee mode.', [['fireSuggest', 'Scouts and parents can suggest songs and skits', 'Suggestions wait for a leader to approve them. Leaders and the PLC always add directly.']]],
   ['ceremonies', 'flag', 'Ceremonies', 'Flag ceremony scripts with step-by-step Lead mode, flag etiquette, and your troop\'s own ceremonies.'],
+  ['knots', 'link', 'Knot trainer', 'Every rank knot and lashing with steps, practice mode, a buddy-checked timer with troop best times, and a quiz.'],
+  ['points', 'trophy', 'Patrol points', 'A running patrol competition. Leaders, the SPL and ASPL give points; TV screen for meetings.', [['pointsInspect', 'Uniform inspections add points', 'A patrol\'s inspection score divided by ten.'], ['pointsHunts', 'Scavenger hunts add points', 'Each approved photo adds that item\'s points.']]],
+  ['hunts', 'camera', 'Scavenger hunts', 'Leaders post a list; patrols send a photo of each find; leaders approve them.'],
+  ['duty', 'checklist', 'Campsite duty roster', 'A Duties tab on each outing that rotates troop jobs across patrols, and today\'s jobs on Home.', 'dutyjobs'],
+  ['sky', 'star', 'Night sky', 'Tonight\'s star chart, planets, Moon and sunset for home or the campsite, and point-your-phone mode.'],
+  ['coh', 'trophy', 'Court of Honor planner', 'For leaders: agenda, awards earned but not yet presented, printable program and an awards list for Scoutbook.'],
   ['kitchen', 'pot', 'Troop kitchen', 'Recipes, recipe scanning, budgets and the pantry. Outing meal plans stay on either way.'],
   ['gear', 'box', 'Gear locker', 'Troop gear check-out and check-in, and the Gear tab on outings.'],
   ['counselors', 'people', 'Merit badge counselors', 'The counselor list under Advancement.'],
@@ -386,6 +392,7 @@ function Features({ s, save, pass }) {
             <label key={ok} className="switch-row feat-opt"><span className="grow"><b>{ol}</b><span className="small muted">{od}</span></span>
               <input type="checkbox" role="switch" checked={!!o[ok]} onChange={e => save({ opts: { [ok]: e.target.checked } })} aria-label={ol} /></label>
           ))}
+          {f[k] !== false && more === 'dutyjobs' && <DutyJobs jobs={s?.dutyJobs || []} save={save} />}
           {f[k] !== false && more === 'checklist' && ins && (
             <div className="feat-opt">
               <span className="small muted">Optional uniform items to check:</span>
@@ -397,6 +404,20 @@ function Features({ s, save, pass }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+function DutyJobs({ jobs, save }) {
+  const [list, setList] = useState(jobs);
+  const [t, setT] = useState('');
+  useEffect(() => setList(jobs), [jobs.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const put = l => { setList(l); save({ dutyJobs: l }); };
+  return (
+    <div className="feat-opt">
+      <span className="small muted">Troop jobs each new duty roster starts with:</span>
+      <div className="el-chips">{list.map(j => <span key={j} className="chip sm">{j}<button className="chip-x" onClick={() => put(list.filter(x => x !== j))} aria-label={`Remove ${j}`}>×</button></span>)}</div>
+      <form className="row-input" onSubmit={e => { e.preventDefault(); const j = t.trim(); if (j && !list.includes(j)) { put([...list, j]); setT(''); } }}><input value={t} onChange={e => setT(e.target.value)} placeholder="Add a job" maxLength={40} aria-label="Add a duty job" /><button className="btn small secondary">Add</button></form>
     </div>
   );
 }

@@ -26,11 +26,15 @@ export default function More() {
       F.games && ['games', 'star', 'Games', 'Quizzes, puzzles and live troop games'],
       F.campfire && ['campfire', 'flame', 'Campfire book', 'Songs, skits, run-ons, cheers, patrol games and campfire plans'],
       F.ceremonies && ['ceremonies', 'flag', 'Ceremonies', 'Flag ceremonies and troop ceremonies, with scripts'],
+      F.knots && ['knots', 'link', 'Knot trainer', 'Every rank knot and lashing, a timer and a quiz'],
+      F.sky && ['sky', 'star', 'Night sky', 'Tonight\'s stars, planets and Moon; point your phone up'],
     ]],
     ['Patrols & PLC', [
       F.notes && (isScout || isLeader || parentNotes) && ['notes', 'file', 'Meeting notes', isLeader ? 'PLC notes and committee minutes' : 'What the Patrol Leaders\' Council planned and decided'],
       F.vote && ['vote', 'users', 'Troop elections', 'Vote for SPL, patrol leaders and more'],
       F.inspect && ['inspect', 'shield', 'Uniform inspection', 'Patrol inspections and the Patrol Cup'],
+      F.points && ['points', 'trophy', 'Patrol points', 'The patrol competition, with a TV screen'],
+      F.hunts && ['hunts', 'camera', 'Scavenger hunts', 'Find it, snap it, score for your patrol'],
     ]],
     ['Camp & gear', [
       F.gear && ['gear', 'box', 'Gear locker', 'Tents, stoves and the merit badge library'],
@@ -44,6 +48,7 @@ export default function More() {
     ]],
     ['Leaders', [
       isLeader && F.notes && ['notes?book=committee', 'file', 'Committee minutes', 'Leaders only'],
+      isLeader && F.coh && ['coh', 'trophy', 'Court of Honor planner', 'Agenda, awards earned and the printed program'],
       ['leaders', 'settings', 'Leader tools', leader ? 'Members, photos, settings, records' : 'Photo review, bulletin, settings'],
     ]],
   ].map(([t, l]) => [t, l.filter(Boolean)]).filter(([, l]) => l.length);

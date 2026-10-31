@@ -409,4 +409,51 @@ for i in [sk, pw, cid]:
 call(f'fire/plans/{pid}', method='DELETE', s=S['leader']); call('fire/meta', {'id': 'invisible-bench', 'fav': False}, s=S['leader'])
 bad = [r for r in results if not r[0]]
 print(f'\nWITH CAMPFIRE {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+
+# --- knots, patrol points, hunts, duty rosters, Court of Honor
+st, _ = call('knots'); check('knots need the troop code', st == 401, st)
+st, _ = call('knots/time', {'knot': 'bowline', 'ms': 20000, 'checked': True}, troop=True); check('guests cannot save knot times', st == 401, st)
+st, _ = call('knots/time', {'knot': 'bowline', 'ms': 20000}, s=S['mate']); check('knot times need a buddy check', st == 400, st)
+st, _ = call('knots/time', {'knot': 'bowline', 'ms': 200, 'checked': True}, s=S['mate']); check('impossible knot times are refused', st == 400, st)
+st, r = call('knots/time', {'knot': 'bowline', 'ms': 21000, 'checked': True}, s=S['mate']); check('scouts save checked knot times', st == 200 and r['best'], r)
+st, d = call('knots', s=S['outsider']); check('the knot board shows first name and last initial only', st == 200 and all(len(b['name'].split()[-1]) <= 2 for b in d['boards'].get('bowline', [])), d.get('boards'))
+st, _ = call('points', {'patrol': scout['patrol'], 'pts': 5, 'reason': 'x'}, s=S['mate']); check('scouts cannot give patrol points', st == 403, st)
+pt = next(p for p in call('points', leader=True)[1]['board'])['patrol']
+st, r = call('points', {'patrol': pt, 'pts': 500, 'reason': 'x'}, s=S['leader']); check('points are capped', st == 400, st)
+st, r = call('points', {'patrol': pt, 'pts': 7, 'reason': '<b>Spirit</b>'}, s=S['leader']); check('leaders give patrol points', st == 200, r); eid = r['entry']['id']
+st, d = call('points', s=S['parent']); check('everyone sees the patrol board', st == 200 and any(b['patrol'] == pt and b['total'] >= 7 for b in d['board']), st)
+st, _ = call(f'points/{eid}', method='DELETE', s=S['mate']); check('scouts cannot take points back', st == 403, st)
+call(f'points/{eid}', method='DELETE', s=S['leader'])
+st, _ = call('points/season', {'name': 'x'}, s=S['pl']); check('only leaders start a season', st == 403, st)
+st, _ = call('hunt', {'title': 'x', 'items': [{'text': 'a', 'pts': 1}]}, s=S['pl']); check('only leaders make hunts', st == 403, st)
+st, r = call('hunt', {'title': 'Sec hunt', 'items': [{'text': 'A pinecone', 'pts': 5}]}, s=S['leader']); hid = r['hunt']['id']; iid = r['hunt']['items'][0]['id']
+st, _ = call(f'hunt/{hid}', s=S['mate']); check('draft hunts are hidden from scouts', st == 404, st)
+call(f'hunt/{hid}', {'status': 'open'}, method='PUT', s=S['leader'])
+st, _ = call(f'hunt/{hid}/entries', {'itemId': iid, 'data': 'data:text/html;base64,' + base64.b64encode(b'<script>1</script>').decode()}, s=S['mate']); check('hunt photos must be images', st in (400, 403), st)
+mates = [m for m in active if m['role'] == 'scout' and m.get('patrol')]
+st, r = call(f'hunt/{hid}/entries', {'itemId': iid, 'data': png}, s=S['mate']); check('a scout sends a hunt photo for their patrol', st == 200 and r['entry']['status'] == 'pending', r); sid = r.get('entry', {}).get('id')
+mate_patrol = r.get('entry', {}).get('patrol')
+other = next((k for k in ['outsider', 'scout', 'other'] if k in S and [m for m in active if m.get('code') and m['role'] == 'scout']), None)
+st, d = call(f'hunt/{hid}', s=S['parent']); check("parents don't see other patrols' hunt photos", st == 200 and all(e['patrol'] != mate_patrol for e in d['entries']) or d.get('myPatrol') == mate_patrol, st)
+st, _ = call(f'hunt/{hid}/entries/{sid}/judge', {'status': 'ok'}, s=S['mate']); check('scouts cannot judge hunt photos', st == 403, st)
+st, _ = call(f'hunt/{hid}/entries/{sid}/judge', {'status': 'ok'}, s=S['leader']); check('leaders judge hunt photos', st == 200, st)
+st, d = call('points', s=S['leader']); check('approved hunt photos add patrol points', any(b['patrol'] == mate_patrol and b['by'].get('hunts', 0) >= 5 for b in d['board']), [b for b in d['board'] if b['patrol'] == mate_patrol])
+st, _ = call(f'hunt/{hid}/entries/{sid}/photo', raw=True); check('hunt photos need sign-in', st == 401, st)
+call(f'hunt/{hid}', method='DELETE', s=S['leader'])
+oid = next(o['id'] for o in call('c/outings', leader=True)[1]['items'] if o.get('end') and o['end'] > o['start'])
+st, d = call(f'duty/{oid}', s=S['parent']); check('anyone can see the duty roster', st == 200 and not d['canEdit'], st)
+st, _ = call(f'duty/{oid}', {'jobs': ['x'], 'grid': {}}, method='PUT', s=S['mate']); check('scouts not on the PLC cannot change the duty roster', st == 403, st)
+st, r = call(f'duty/{oid}', {**d['roster'], 'grid': {k: {j: 'Not a patrol' for j in v} for k, v in d['roster']['grid'].items()}}, method='PUT', s=S['pl']); check('the PLC saves the duty roster; unknown patrols are dropped', st == 200 and all(p == '' for v in r['roster']['grid'].values() for p in v.values()), r)
+call(f'duty/{oid}', method='DELETE', s=S['leader'])
+st, _ = call('coh', s=S['pl']); check('scouts cannot open the Court of Honor planner', st == 403, st)
+st, _ = call('coh/candidates', s=S['parent']); check("parents can't see the troop's awards list", st == 403, st)
+st, r = call('coh', {'title': 'Sec COH', 'awards': [{'memberId': scout['id'], 'kind': 'rank', 'item': 'Star'}]}, s=S['leader']); check('leaders plan a Court of Honor', st == 200 and r['coh']['awards'][0]['name'] == scout['name'], r); cid = r['coh']['id']
+check('the awards list downloads for leaders', raw_get(f"coh/{cid}/csv?s={S['leader']}") == 200)
+check('the awards list is leaders only', raw_get(f"coh/{cid}/csv?s={S['scout']}") in (401, 403))
+call(f'coh/{cid}', method='DELETE', s=S['leader'])
+call('leader/settings', {'features': {'points': False}}, s=S['leader'])
+st, _ = call('points', s=S['scout']); check('patrol points switched off on the server too', st == 403, st)
+call('leader/settings', {'features': {'points': True}}, s=S['leader'])
+bad = [r for r in results if not r[0]]
+print(f'\nWITH SCOUTING {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
 for tok in S.values(): call('auth/signout', {}, s=tok)

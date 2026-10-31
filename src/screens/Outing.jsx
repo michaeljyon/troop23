@@ -12,8 +12,9 @@ import { go } from '../lib/router.js';
 import { OutingForm } from './Outings.jsx';
 import { useCalendarLink, outingIcs } from '../lib/calendar.js';
 import { useFeatures } from '../lib/features.js';
+import { DutyRoster } from './Duty.jsx';
 
-const TABS = [['overview', 'Overview', 'info'], ['meals', 'Meals', 'pot'], ['gear', 'Gear', 'box'], ['pack', 'Packing', 'checklist'], ['photos', 'Photos', 'image']];
+const TABS = [['overview', 'Overview', 'info'], ['meals', 'Meals', 'pot'], ['duty', 'Duties', 'checklist'], ['gear', 'Gear', 'box'], ['pack', 'Packing', 'list'], ['photos', 'Photos', 'image']];
 
 export default function Outing({ route }) {
   const F = useFeatures();
@@ -49,12 +50,13 @@ export default function Outing({ route }) {
       </section>
 
       <div className="tabs scroll" role="tablist">
-        {TABS.filter(([k]) => k !== 'gear' || F.gear).map(([k, l, ic]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => go(`outing/${id}${k === 'overview' ? '' : `?tab=${k}`}`)}><Icon name={ic} size={17} />{l}</button>)}
+        {TABS.filter(([k]) => (k !== 'gear' || F.gear) && (k !== 'duty' || F.duty)).map(([k, l, ic]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => go(`outing/${id}${k === 'overview' ? '' : `?tab=${k}`}`)}><Icon name={ic} size={17} />{l}</button>)}
       </div>
 
       {tab === 'overview' && <Overview outing={outing} rsvps={rsvps} />}
       {tab === 'meals' && <Meals outing={outing} rsvps={rsvps.items} />}
       {tab === 'gear' && <OutingGear outing={outing} />}
+      {tab === 'duty' && <DutyRoster outing={outing} />}
       {tab === 'pack' && <PackingList storeKey={`pack-${outing.id}`} extras={outing.extras} title={outing.title} />}
       {tab === 'photos' && <OutingPhotos outing={outing} />}
 
@@ -64,6 +66,7 @@ export default function Outing({ route }) {
 }
 
 function Overview({ outing, rsvps }) {
+  const F = useFeatures();
   const patrols = usePatrols() || [];
   const yes = rsvps.items.filter(r => r.status === 'yes');
   const maybe = rsvps.items.filter(r => r.status === 'maybe');
@@ -84,6 +87,7 @@ function Overview({ outing, rsvps }) {
           {outing.cost && <div><span>Cost</span><b>{outing.cost}</b></div>}
         </div>
       )}
+      {F.sky && (outing.end && outing.end > outing.start) && <a className="card sky-link" href={`#/sky?outing=${outing.id}`}><span aria-hidden="true">🌌</span><span className="grow"><b>Night sky at camp</b><span className="small muted">Stars, planets, the Moon and sunset for {outing.location || 'the campsite'}</span></span><Icon name="chevronR" size={18} /></a>}
       {outing.details && <Section title="The plan"><div className="card prose">{outing.details.split('\n').map((l, i) => <p key={i}>{l}</p>)}</div></Section>}
 
       <Section title="Who's coming">

@@ -19,6 +19,7 @@ import { inspectRoutes } from './inspect.mjs';
 import { electRoutes } from './elect.mjs';
 import { notesRoutes } from './notes.mjs';
 import { fireRoutes } from './fire.mjs';
+import { knotRoutes, pointsRoutes, huntRoutes, dutyRoutes, cohRoutes } from './scouting.mjs';
 import { syncRoutes } from './sync.mjs';
 import { quizRoutes, levelOf } from './quiz.mjs';
 
@@ -252,13 +253,13 @@ async function planAction(store, id, parts, req, body, now) {
 
 // ---------------------------------------------------------------- settings
 // Parts of the app leaders can switch off for the whole troop, and options for each.
-export const FEATURES = ['games', 'hikes', 'inspect', 'vote', 'notes', 'campfire', 'ceremonies', 'kitchen', 'gear', 'counselors'];
-const OPTS = { hikeHideEnds: true, voteLiveDefault: true, notesParentsPLC: false, gamesLive: true, fireSuggest: true };
+export const FEATURES = ['games', 'hikes', 'inspect', 'vote', 'notes', 'campfire', 'ceremonies', 'knots', 'points', 'hunts', 'duty', 'sky', 'coh', 'kitchen', 'gear', 'counselors'];
+const OPTS = { hikeHideEnds: true, voteLiveDefault: true, notesParentsPLC: false, gamesLive: true, fireSuggest: true, pointsInspect: true, pointsHunts: true };
 async function settings(store) {
   const s = (await store.get('settings', { type: 'json' })) || {};
   const features = Object.fromEntries(FEATURES.map(f => [f, s.features?.[f] !== false]));
   const opts = Object.fromEntries(Object.entries(OPTS).map(([k, d]) => [k, typeof s.opts?.[k] === 'boolean' ? s.opts[k] : d]));
-  return { patrols: s.patrols?.length ? s.patrols : troop.patrols, albums: s.albums || [], aiHelper: s.aiHelper !== false, autoApprove: !!s.autoApprove, autoApproveBy: s.autoApproveBy || '', autoApproveAt: s.autoApproveAt || 0, features, opts, syncRoles: Array.isArray(s.syncRoles) ? s.syncRoles : ['scoutmaster', 'chair', 'advancement', 'webmaster'], packing: s.packing?.length ? s.packing : troop.packing };
+  return { patrols: s.patrols?.length ? s.patrols : troop.patrols, albums: s.albums || [], aiHelper: s.aiHelper !== false, autoApprove: !!s.autoApprove, autoApproveBy: s.autoApproveBy || '', autoApproveAt: s.autoApproveAt || 0, features, opts, syncRoles: Array.isArray(s.syncRoles) ? s.syncRoles : ['scoutmaster', 'chair', 'advancement', 'webmaster'], packing: s.packing?.length ? s.packing : troop.packing, dutyJobs: Array.isArray(s.dutyJobs) && s.dutyJobs.length ? s.dutyJobs : ['Color guard', 'Firewood & fire ring', 'Water', 'Campsite cleanup', 'Campfire program'] };
 }
 
 // ---------------------------------------------------------------- albums
@@ -539,6 +540,7 @@ async function leader(store, req, parts, body, now) {
     const next = { ...raw, patrols, albums: albumsIn };
     if (body.aiHelper !== undefined) next.aiHelper = !!body.aiHelper;
     if (Array.isArray(body.syncRoles)) next.syncRoles = body.syncRoles.filter(r => ['scoutmaster', 'chair', 'advancement', 'webmaster', 'any'].includes(r));
+    if (Array.isArray(body.dutyJobs)) next.dutyJobs = body.dutyJobs.map(j => clean(j, 40)).filter(Boolean).slice(0, 12);
     if (Array.isArray(body.packing)) next.packing = body.packing.slice(0, 12).map(g => ({ group: clean(g?.group, 40), items: (Array.isArray(g?.items) ? g.items : []).map(x => clean(x, 80)).filter(Boolean).slice(0, 40) })).filter(g => g.group && g.items.length);
     if (body.features && typeof body.features === 'object') next.features = { ...(raw.features || {}), ...Object.fromEntries(FEATURES.filter(f => typeof body.features[f] === 'boolean').map(f => [f, body.features[f]])) };
     if (body.opts && typeof body.opts === 'object') next.opts = { ...(raw.opts || {}), ...Object.fromEntries(Object.keys(OPTS).filter(k => typeof body.opts[k] === 'boolean').map(k => [k, body.opts[k]])) };
@@ -624,12 +626,23 @@ async function route(req, opts) {
     const ctx2 = {};
     if (head === 'sync') return syncRoutes(store, rest, req, body, now, { me: session?.member, isLeader, passcode: !!opts.leaderPasscode && same(leaderGiven, opts.leaderPasscode), settings: await settings(store) });
     if (head === 'fire') return fireRoutes(store, rest, req, body, now, { me: session?.member, isLeader, settings: await settings(store) });
-    const FEATURE_OF = { quiz: 'games', hikes: 'hikes', inspect: 'inspect', elect: 'vote', notes: 'notes' };
+    const FEATURE_OF = { quiz: 'games', hikes: 'hikes', inspect: 'inspect', elect: 'vote', notes: 'notes', knots: 'knots', points: 'points', hunt: 'hunts', duty: 'duty', coh: 'coh' };
     if (FEATURE_OF[head]) {
       const st = await settings(store);
       if (!st.features[FEATURE_OF[head]] && !(isLeader && req.method === 'GET')) return err('Leaders have turned this part of Basecamp off.', 403);
       ctx2.opts = st.opts;
       if (head === 'quiz' && rest[0] === 'live' && !st.opts.gamesLive && !isLeader) return err('Leaders have turned live games off.', 403);
+    }
+    if (['knots', 'points', 'hunt', 'duty', 'coh'].includes(head)) {
+      const st = await settings(store), me = session?.member;
+      if (head === 'knots') return knotRoutes(store, rest, req, body, now, { me, people: session?.people || await loadPeople(store) });
+      if (head === 'points') return pointsRoutes(store, rest, req, body, now, { me, isLeader, settings: st });
+      if (head === 'hunt') return huntRoutes(store, rest, req, body, now, { me, isLeader, settings: st, url });
+      if (head === 'duty') return dutyRoutes(store, rest, req, body, now, { me, isLeader, settings: st, colItems });
+      if (head === 'coh') {
+        const listAdv = async () => { const { blobs } = await store.list({ prefix: 'adv/' }); const out = {}; await Promise.all(blobs.map(async b => { out[b.key.slice(4)] = await store.get(b.key, { type: 'json' }); })); return out; };
+        return cohRoutes(store, rest, req, body, now, { me, isLeader, people: session?.people || await loadPeople(store), listAdv });
+      }
     }
     if (head === 'notes') return notesRoutes(store, rest, req, body, now, { me: session?.member, isLeader, opts: ctx2.opts });
     if (head === 'elect') return electRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people || await loadPeople(store), isLeader, opts: ctx2.opts });

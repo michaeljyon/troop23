@@ -273,4 +273,14 @@ lineup = [('note', '', 'Opening flag ceremony', 'Color guard', 'open'), ('song',
           ('skit', 'echo-canyon', 'Echo Canyon', 'Wolverines', 'peak'), ('runon', 'compass', 'Know Where North Is', 'Mason Reyes', 'peak'), ('skit', 'tent-o-matic', 'The Tent-o-Matic 3000', 'Foxes', 'peak'),
           ('song', 'home-range', 'Home on the Range', 'Everyone', 'calm'), ('minute', 'last-log', 'The Last Log', 'Scoutmaster', 'close'), ('song', 'scout-vespers', 'Scout Vespers', 'Everyone', 'close')]
 call('fire/plans', {'title': 'Fall campout campfire', 'date': sat.isoformat(), 'items': [{'ref': f'{k}:{i}' if i else '', 'kind': k, 'title': t, 'who': w, 'note': n} for k, i, t, w, n in lineup]}, s=sess['Demo Leader'])
+
+# ---------------------------------------------------------------- patrol points, knot times and the campout duty roster
+for e in call('points', s=sess['Demo Leader'])['recent']: dl(f"points/{e['id']}")
+call('points/season', {'name': f'{TODAY.year}-{TODAY.year + 1} season', 'start': D(-60)}, s=sess['Demo Leader'])
+for pt, n, why in [('Eagles', 10, 'Best campsite'), ('Foxes', 15, 'Service project'), ('Wolverines', 5, 'Patrol yell'), ('Foxes', 5, 'Patrol spirit'), ('Eagles', 5, 'Leave No Trace'), ('Wolverines', 10, 'Game winner')]:
+    call('points', {'patrol': pt, 'pts': n, 'reason': why}, s=sess['Demo Leader'])
+for who, times in [('Demo Scout', {'square': 6400, 'bowline': 14800, 'taut-line': 21300}), ('Mason Reyes', {'square': 5200, 'bowline': 11900, 'clove': 9800}), ('Ethan Brooks', {'square': 7900, 'two-half': 10400}), ('Owen Harris', {'bowline': 17600, 'sheet-bend': 12300})]:
+    for k, ms in times.items(): call('knots/time', {'knot': k, 'ms': ms, 'checked': True}, s=sess[who])
+r = call(f"duty/{O['camp']}", s=sess['Demo Leader'])['roster']; r.pop('draft', None)
+call(f"duty/{O['camp']}", r, method='PUT', s=sess['Demo Leader'])
 print('Demo ready. Leader code XXXX-XXXX, scout code XXXX-XXXS, guest troop code "demo".')
