@@ -984,7 +984,7 @@ input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-off
 }
 
 /* ---------- hikes */
-.hike-feed { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+.hike-feed { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .hike-card { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); color: var(--ink); text-decoration: none; }
 .hike-card .grow { display: flex; flex-direction: column; gap: 2px; }
 .route-thumb { flex: none; background: #EEF2EA; border-radius: 12px; }
@@ -1163,3 +1163,41 @@ input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-off
 .btn.ghost { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.35); color: #fff; }
 .lp-foot { margin: 8px 0 0; text-align: center; font-size: 12.5px; color: #BFD3C6; }
 .track-live .map-legend { display: none; }
+
+/* ---------- location help */
+.loc-card { display: flex; align-items: center; gap: 12px; padding: 14px; margin: 12px 0; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); border: 2px solid #C2D7E4; }
+.loc-card .grow { display: flex; flex-direction: column; gap: 2px; }
+.loc-card .grow > b { font-size: 16.5px; }
+.loc-card .grow > span { font-size: 14px; color: var(--ink-2); }
+.loc-card .btn { flex: none; }
+.loc-ico { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--info-bg); color: var(--info); flex: none; }
+.loc-card.on { border-color: #BFE3CB; } .loc-card.on .loc-ico { background: #2E9E5B; color: #fff; }
+.loc-card.blocked { border-color: #F2B8A6; background: #FFF6F2; } .loc-card.blocked .loc-ico { background: var(--bad); color: #fff; }
+.loc-card.compact { padding: 10px 12px; } .loc-card.compact .loc-ico { width: 36px; height: 36px; border-radius: 11px; }
+@media (max-width: 400px) { .loc-card:not(.compact) { flex-wrap: wrap; } .loc-card:not(.compact) .btn { width: 100%; min-height: 50px; font-size: 17px; } }
+.more-loc { margin-top: 12px; }
+.loc-why { margin: 0 0 10px; color: var(--ink-2); }
+.loc-for { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 99px; background: var(--mint); color: var(--primary); font-size: 13.5px; margin-bottom: 10px; }
+.loc-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: s; }
+.loc-steps li { display: flex; gap: 12px; padding: 12px; border-radius: 14px; background: var(--page); border: 1.5px solid var(--line); }
+.loc-steps li.quick { background: #FFF7EC; border-color: #F3C88F; }
+.loc-steps li > div { flex: 1; min-width: 0; }
+.loc-steps li b { font-size: 16px; }
+.loc-steps p { margin: 4px 0 0; font-size: 15px; line-height: 1.55; color: var(--ink-2); }
+.loc-n { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--primary); color: #fff; font-weight: 800; flex: none; }
+.loc-steps li.quick .loc-n { background: var(--accent); }
+.loc-quick { white-space: nowrap; display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 99px; background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; vertical-align: 2px; }
+.tap-path { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; }
+.tap-path > span { display: inline-flex; align-items: center; gap: 2px; }
+.tap-path b { display: inline-block; padding: 1px 8px; margin: 1px 0; border-radius: 7px; background: var(--surface); border: 1.5px solid var(--line-strong); color: var(--ink); font-size: 14px; font-weight: 700; }
+.glyph { display: inline-block; padding: 0 6px; border-radius: 6px; background: var(--surface); border: 1.5px solid var(--line-strong); }
+.loc-note { display: flex; gap: 6px; align-items: flex-start; margin: 12px 0 4px; }
+.loc-note svg { flex: none; margin-top: 3px; }
+.loc-other { margin: 8px 0; } .loc-other summary { cursor: pointer; font-weight: 700; color: var(--primary); padding: 6px 0; }
+.loc-done { display: grid; justify-items: center; text-align: center; gap: 6px; padding: 18px 6px 8px; }
+.loc-done h3 { margin: 6px 0 0; font: 800 26px var(--head); text-transform: uppercase; color: var(--primary-dark); }
+.loc-done .btn { width: 100%; margin-top: 10px; }
+.loc-done-ico { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; background: #2E9E5B; color: #fff; box-shadow: 0 0 0 8px #E2F3E8; animation: pop .3s ease; }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+.fix-btn { margin-left: 6px; padding: 3px 10px; border-radius: 99px; border: 0; background: #fff; color: var(--bad); font-weight: 800; cursor: pointer; }
+.track-body > .loc-card { margin: 0; }

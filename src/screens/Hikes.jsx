@@ -7,6 +7,7 @@ import { readLocal, writeLocal } from '../lib/store.js';
 import { today } from '../lib/dates.js';
 import { dist, liveStats, fmtMiles, fmtFeet, fmtTime, fmtDur, fmtPace } from '../lib/geo.js';
 import MapBox, { RouteThumb, ElevationChart } from '../components/HikeMap.jsx';   // Leaflet itself loads only when a map shows
+import { LocationCheck, LocationGuide, useGeoPermission } from '../components/LocationHelp.jsx';
 const niceDate = d => (d ? new Date(`${d}T12:00`).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: d.slice(0, 4) === today().slice(0, 4) ? undefined : 'numeric' }) : '');
 
 function SignInFirst({ title = 'Hikes' }) {
@@ -30,12 +31,16 @@ function HikeList({ route }) {
   const list = useApi(tab === 'mine' ? 'hikes?mine=1' : 'hikes');
   const hikes = list.data?.hikes || [];
   const rec = readLocal('hike-rec', null);
+  const [perm] = useGeoPermission();
+  const [askLoc, setAskLoc] = useState(false);   // once shown, keep the card (it turns green when fixed)
+  useEffect(() => { if (perm === 'prompt' || perm === 'denied') setAskLoc(true); }, [perm]);
   return (
     <div className="content">
       <PageHead backTo="more" title="Hikes" sub="Track hikes like Strava: distance, time and climbing for everyone in your group.">
         {acct && <a className="btn small head-btn" href="#/track"><Icon name="play" size={15} />Record a hike</a>}
       </PageHead>
       {rec && rec.phase && rec.phase !== 'setup' && <a className="alert-card warm" href="#/track"><span className="alert-ico"><Icon name="map" size={22} /></span><span className="grow"><b>A hike is still recording</b><span>{rec.title || 'Hike'} · tap to go back to it</span></span><Icon name="chevronR" /></a>}
+      {acct && askLoc && <LocationCheck compact />}
       <Seg value={tab} onChange={setTab} label="Show" options={[['troop', 'Troop'], ['mine', 'My hikes'], ['board', 'Leaderboard']]} />
       {tab === 'board' ? <Board /> : (
         <>
@@ -271,6 +276,9 @@ export function Track({ route }) {
   const [s, setS] = useState(() => readLocal('hike-rec', null) || blank());
   const [fix, setFix] = useState(null);          // latest GPS reading
   const [gpsErr, setGpsErr] = useState('');
+  const [gpsCode, setGpsCode] = useState(0);
+  const [watchKey, setWatchKey] = useState(0);
+  const [guide, setGuide] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
@@ -293,7 +301,7 @@ export function Track({ route }) {
   useEffect(() => {
     if (!('geolocation' in navigator)) { setGpsErr('This browser can\'t share location.'); return undefined; }
     const id = navigator.geolocation.watchPosition(p => {
-      setGpsErr('');
+      setGpsErr(''); setGpsCode(0);
       const c = p.coords, f = { lat: c.latitude, lng: c.longitude, acc: c.accuracy, alt: c.altitude, at: p.timestamp || Date.now() };
       setFix(f);
       const cur = sRef.current;
@@ -305,10 +313,10 @@ export function Track({ route }) {
         if (d < Math.max(4, f.acc * 0.4) && t - last[3] < 30) return;          // not moved enough yet
       }
       update(x => ({ ...x, pts: [...x.pts, [+f.lat.toFixed(6), +f.lng.toFixed(6), f.alt == null ? null : +f.alt.toFixed(1), t, x.seg]] }));
-    }, e => setGpsErr(e.code === 1 ? 'Location is blocked for Basecamp. Turn on location for this app in your phone\'s settings (on iPhone: Settings → Privacy → Location Services → Safari Websites or Basecamp → While Using), then come back.' : 'Looking for GPS… step outside or away from buildings.'),
+    }, e => { setGpsCode(e.code); setGpsErr(e.code === 1 ? 'Location is blocked for Basecamp.' : e.code === 2 ? 'Your phone\'s location is off.' : 'Looking for GPS… step outside or away from buildings.'); },
     { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
     return () => navigator.geolocation.clearWatch(id);
-  }, []);
+  }, [watchKey]);
 
   // keep the screen on while recording (tracking pauses when the screen locks)
   useEffect(() => {
@@ -358,9 +366,9 @@ export function Track({ route }) {
             <GroupPicker value={s.group} onChange={g => save({ ...s, group: g })} lock={acct.member.id} />
             <label className="check"><input type="checkbox" checked={s.hideEnds} onChange={e => save({ ...s, hideEnds: e.target.checked })} /><span>Hide the start and finish on the map <span className="small muted">(first and last 200 m, so a hike from home doesn't show your house)</span></span></label>
           </div>
-          {gpsErr && <p className="form-msg" role="alert">{gpsErr}</p>}
+          {(gpsCode === 1 || gpsCode === 2 || !fix) && <LocationCheck onReady={() => setWatchKey(k => k + 1)} />}
           <div className="tip-box"><Icon name="info" size={18} /><span>Keep Basecamp open while you hike. The screen stays on, and tracking pauses if the phone locks. One person can record for the whole group.</span></div>
-          <button className="btn accent big" disabled={!fix || fix.acc > 60} onClick={start}><Icon name="play" size={20} />{!fix ? 'Waiting for GPS…' : 'Start'}</button>
+          <button className="btn accent big" disabled={!fix || fix.acc > 60} onClick={start}><Icon name="play" size={20} />{gpsCode === 1 ? 'Turn on location first' : !fix ? 'Waiting for GPS…' : 'Start'}</button>
         </div>
       )}
 
@@ -369,7 +377,7 @@ export function Track({ route }) {
           <MapBox points={livePts} here={here} height="100%" live className="live-map" overlay={
             <div className={`live-panel ${s.phase}`}>
               {s.phase === 'paused' && <p className="paused-note"><Icon name="pause" size={15} /> Paused · distance isn't counted until you resume</p>}
-              {gpsErr && <p className="live-err" role="alert">{gpsErr}</p>}
+              {gpsErr && <p className="live-err" role="alert">{gpsErr} {(gpsCode === 1 || gpsCode === 2) && <button type="button" className="fix-btn" onClick={() => setGuide(true)}>Fix it</button>}</p>}
               <div className="lp-big"><b>{fmtMiles(stats.distance, 2)}</b><i>miles</i></div>
               <div className="lp-row">
                 <span><b>{fmtTime(elapsed)}</b><i>time</i></span>
@@ -387,6 +395,7 @@ export function Track({ route }) {
         </div>
       )}
 
+      <LocationGuide open={guide} problem={gpsCode === 2 ? 'off' : 'blocked'} onClose={() => setGuide(false)} onFixed={() => setWatchKey(k => k + 1)} />
       {s.phase === 'done' && (
         <div className="track-body">
           <div className="hike-stats">

@@ -5,6 +5,7 @@ import { setTroopCode, usePatrols, useLeaderMode, useAccount, signOut, redeemCod
 import { useMe } from '../lib/store.js';
 import { troop } from '../lib/config.js';
 import { NotificationsCard } from '../components/Notify.jsx';
+import { LocationCheck } from '../components/LocationHelp.jsx';
 
 export default function More() {
   const [me, setMe] = useMe();
@@ -38,6 +39,7 @@ export default function More() {
         <GuestCard me={me} onEdit={() => setEditing(true)} />
       )}
       {acct && <NotificationsCard />}
+      {acct && <div className="more-loc"><LocationCheck /></div>}
       <ul className="more-list">
         {links.map(([to, ic, l, sub]) => <li key={to}><a href={`#/${to}`}><span className="more-ico"><Icon name={ic} size={22} /></span><span className="grow"><b>{l}</b><span>{sub}</span></span><Icon name="chevronR" size={18} /></a></li>)}
       </ul>
