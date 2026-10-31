@@ -1848,3 +1848,4 @@ input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-off
 .note-tray:empty { display: none; }
 .notes .row2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 12px; }
 @media (min-width: 560px) { .notes .row2 { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); } }
+.el-add-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 10px; }

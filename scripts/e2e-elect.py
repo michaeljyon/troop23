@@ -20,7 +20,7 @@ with sync_playwright() as pw:
     L.click('.el-edit button.chip:has-text("Add candidates")'); L.wait_for_selector('.el-pick')
     for i in range(3): L.locator('.el-pick .pick-list input').nth(i).check()
     L.click('.el-pick .sheet-foot button')
-    L.click('.el-presets button:has-text("Chaplain Aide")'); L.click('.el-presets button:has-text("each patrol votes")')
+    L.click('.el-presets button:has-text("Chaplain")'); L.click('.el-presets button:has-text("+ Patrol Leader (")')
     for k in range(L.locator('.el-edit li').count()):
         if k == 0: continue
         L.locator('.el-edit li').nth(k).locator('button.chip').last.click(); L.wait_for_selector('.el-pick')

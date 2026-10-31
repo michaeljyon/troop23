@@ -72,7 +72,6 @@ export async function electRoutes(store, rest, req, body, now, ctx) {
       candidates: [...new Set((Array.isArray(p?.candidates) ? p.candidates : []).filter(c => scoutIds.has(c)))].slice(0, 12),
     })).filter(p => p.title);
     if (!positions.length) return err('Add at least one position.');
-    if (positions.some(p => p.candidates.length < 1)) return err(`Add at least one candidate for ${positions.find(p => p.candidates.length < 1).title}.`);
     if (prev && prev.status !== 'draft') {
       const voted = (await votesFor(store, id)).length;
       if (voted) return err('Voting has started, so the ballot can\'t change. Close this election and start a new one if something is wrong.', 409);
@@ -114,6 +113,8 @@ export async function electRoutes(store, rest, req, body, now, ctx) {
 
   if (['open', 'close', 'reopen', 'live'].includes(act) && req.method === 'POST') {
     if (!isLeader) return err('Only leaders can run the election.', 403);
+    const empty = e.positions.find(p => !p.candidates.length);
+    if ((act === 'open' || act === 'reopen') && empty) return err(`Add at least one candidate for ${empty.title}${empty.patrol ? ` (${empty.patrol})` : ''}, or take it off the ballot, before opening voting.`);
     if (act === 'open' || act === 'reopen') { e.status = 'open'; e.opened ||= now; e.closed = 0; }
     if (act === 'close') { e.status = 'closed'; e.closed = now; }
     if (act === 'live') e.live = !!body.live;

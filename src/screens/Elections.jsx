@@ -4,11 +4,17 @@ import { PageHead, Section, Empty, Sheet } from '../components/ui.jsx';
 import { api, useAccount, useApi } from '../lib/api.js';
 import { go } from '../lib/router.js';
 import { Confetti } from '../components/Confetti.jsx';
+import { troop } from '../lib/config.js';
 
 // Troop elections: leaders set the ballot, scouts tap one name per position,
 // and a TV screen shows turnout and live results (or saves them for a big reveal).
 
-const PRESETS = ['Senior Patrol Leader', 'Assistant Senior Patrol Leader', 'Troop Quartermaster', 'Scribe', 'Chaplain Aide', 'Historian', 'Librarian', 'Order of the Arrow Troop Rep', 'Outdoor Ethics Guide', 'Bugler', 'Webmaster', 'Den Chief', 'Troop Guide'];
+// Scouts BSA youth positions of responsibility, named the way the troop names them (TroopWebHost),
+// plus any other youth position the troop has added. Patrol positions get one race per patrol.
+const PATROL_POS = ['Patrol Leader', 'Assistant Patrol Leader', 'Patrol Quartermaster'];
+const TROOP_POS = ['Senior Patrol Leader', 'Assistant Senior Patrol Leader', 'Troop Guide', 'Quartermaster', 'Assistant Quartermaster', 'Scribe', 'Historian', 'Librarian', 'Instructor', "Chaplain's Aide", 'Den Chief', 'Junior Assistant Scoutmaster', 'Order of the Arrow Representative', 'Outdoor Ethics Guide', 'Bugler', 'Scout Webmaster'];
+const SKIP = /^(SPL - Elect|Quartermaster \(PLC\))$/i;
+const PRESETS = [...new Set([...TROOP_POS, ...((troop.positions?.youth) || []).filter(t => !SKIP.test(t) && !PATROL_POS.includes(t))])];
 const initials = n => n.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 const HUES = ['#1D5FBF', '#2E9E5B', '#C8362F', '#9B4DCA', '#E8833A', '#0F8B8D', '#B5470B', '#3B6E2A'];
 const hue = id => HUES[[...id].reduce((t, c) => t + c.charCodeAt(0), 0) % HUES.length];
@@ -301,13 +307,17 @@ function Editor({ open, e, scouts, onClose, onSaved }) {
   const has = (t, p = '') => positions.some(x => x.title === t && (x.patrol || '') === p);
   const add = (t, p = '') => !has(t, p) && setPositions(ps => [...ps, { id: '', title: t, patrol: p, candidates: [] }]);
   const name = id => scouts.find(s => s.id === id)?.name || '?';
+  const savedId = useRef('');
   async function save(andOpen) {
     setBusy(true); setMsg('');
     try {
       const body = { title, live, positions };
-      const r = e?.id ? await api(`elect/${e.id}`, { method: 'PUT', body }) : await api('elect', { method: 'POST', body });
-      let el = r.election;
-      if (andOpen) el = (await api(`elect/${el.id}/open`, { method: 'POST', body: {} })).election;
+      const sid = e?.id || savedId.current;
+      const r = sid ? await api(`elect/${sid}`, { method: 'PUT', body }) : await api('elect', { method: 'POST', body });
+      let el = r.election; savedId.current = el.id;
+      if (andOpen) {
+        try { el = (await api(`elect/${el.id}/open`, { method: 'POST', body: {} })).election; } catch (er) { setMsg(`Saved, but not opened yet: ${er.message}`); return; }
+      }
       onSaved(el);
     } catch (er) { setMsg(er.message); } finally { setBusy(false); }
   }
@@ -338,11 +348,20 @@ function Editor({ open, e, scouts, onClose, onSaved }) {
               <button type="button" className="icon-btn sm" onClick={() => setPositions(ps => ps.filter((_, k) => k !== i))} aria-label={`Remove ${p.title}`}><Icon name="x" size={16} /></button>
             </li>
           ))}</ul>
-          <p className="small muted">Add a position:</p>
+          <div className="el-add-head"><p className="field-label">Troop positions</p>{PRESETS.some(t => !has(t)) && <button type="button" className="link-btn small" onClick={() => PRESETS.forEach(t => add(t))}>Add all</button>}</div>
           <div className="el-presets">
             {PRESETS.filter(t => !has(t)).map(t => <button key={t} type="button" className="chip sm" onClick={() => add(t)}>+ {t}</button>)}
-            {patrols.length > 0 && patrols.some(p => !has('Patrol Leader', p)) && <button type="button" className="chip sm" onClick={() => patrols.forEach(p => add('Patrol Leader', p))}>+ Patrol Leader (each patrol votes for its own)</button>}
+            {PRESETS.every(t => has(t)) && <span className="small muted">All troop positions are on the ballot.</span>}
           </div>
+          {patrols.length > 0 && (
+            <>
+              <div className="el-add-head"><p className="field-label">Patrol positions <span className="small muted">· one race per patrol; only that patrol votes</span></p></div>
+              <div className="el-presets">
+                {PATROL_POS.filter(t => patrols.some(p => !has(t, p))).map(t => <button key={t} type="button" className="chip sm" onClick={() => patrols.forEach(p => add(t, p))}>+ {t} ({patrols.length} patrols)</button>)}
+                {PATROL_POS.every(t => patrols.every(p => has(t, p))) && <span className="small muted">All patrol positions are on the ballot.</span>}
+              </div>
+            </>
+          )}
           <form className="row-input" onSubmit={ev => { ev.preventDefault(); if (custom.trim()) { add(custom.trim()); setCustom(''); } }}><input value={custom} onChange={ev => setCustom(ev.target.value)} placeholder="Another position…" aria-label="Another position" /><button className="btn small secondary" disabled={!custom.trim()}>Add</button></form>
           <label className="switch-row"><span className="grow"><b>Show live results on the TV</b><span className="small muted">Turn off to show only turnout until you close voting.</span></span><input type="checkbox" role="switch" checked={live} onChange={ev => setLive(ev.target.checked)} /></label>
           {msg && <p className="form-msg">{msg}</p>}
