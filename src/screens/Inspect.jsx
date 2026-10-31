@@ -3,6 +3,7 @@ import Icon from '../components/Icon.jsx';
 import { PageHead, Section, Empty, Sheet } from '../components/ui.jsx';
 import { api, useAccount, useApi } from '../lib/api.js';
 import { go } from '../lib/router.js';
+import { scrollToTop } from '../lib/scroll.js';
 import { MARKS, UNIFORM, scoreOf, ratingOf } from '../../troop/uniform.js';
 import { Confetti } from '../components/Confetti.jsx';
 
@@ -251,7 +252,7 @@ function Run({ patrol }) {
       setMarks(all => ({ ...all, [s.id]: { ...(all[s.id] || {}), [it.id]: nx } }));
       setFlash({ id: it.id, text: `${it.emoji} ${it.label}: ${MARKS[nx].label}`, k: Date.now() }); buzz(nx === 'good' ? 10 : 25);
     };
-    const next = () => { if (i + 1 < here.length) setI(i + 1); else setStep('done'); window.scrollTo({ top: 0 }); };
+    const next = () => { if (i + 1 < here.length) setI(i + 1); else setStep('done'); scrollToTop(); };
     const issues = items.filter(it => ['fix', 'miss'].includes(m[it.id]));
     return (
       <div className="content inspect run">
@@ -348,7 +349,7 @@ function Detail({ id }) {
         <ul className="ins-sum">{insp.scouts.map(s => (
           <li key={s.id} className={`${s.absent ? 'abs' : ''} ${sel?.id === s.id ? 'sel' : ''}`}>
             {s.absent ? <div><span className="ins-abs">—</span><span className="grow"><b>{s.name}</b><span className="small muted">Absent</span></span></div>
-              : <button type="button" onClick={() => { setOpen(s.id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}><ScoreRing score={s.score} size={48} /><span className="grow"><b>{s.name}</b><span className="small muted">{(() => { const iss = Object.entries(s.marks).filter(([, v]) => v === 'fix' || v === 'miss').map(([k]) => UNIFORM.find(x => x.id === k)?.label).filter(Boolean); return iss.length ? `Fix: ${iss.join(', ')}` : 'All sharp ✨'; })()}</span></span><Icon name="chevronR" size={16} /></button>}
+              : <button type="button" onClick={() => { setOpen(s.id); scrollToTop({ behavior: 'smooth' }); }}><ScoreRing score={s.score} size={48} /><span className="grow"><b>{s.name}</b><span className="small muted">{(() => { const iss = Object.entries(s.marks).filter(([, v]) => v === 'fix' || v === 'miss').map(([k]) => UNIFORM.find(x => x.id === k)?.label).filter(Boolean); return iss.length ? `Fix: ${iss.join(', ')}` : 'All sharp ✨'; })()}</span></span><Icon name="chevronR" size={16} /></button>}
           </li>
         ))}</ul>
         {d.data.hidden > 0 && <p className="small muted">Patrol average {insp.avg}. Other scouts' results are just for them and their leaders.</p>}

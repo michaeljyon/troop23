@@ -5,6 +5,7 @@ import { PageHead, Section } from '../components/ui.jsx';
 import { troop, t, level } from '../lib/config.js';
 import { useLocal, useMe } from '../lib/store.js';
 import { api, usePatrols } from '../lib/api.js';
+import { scrollToTop } from '../lib/scroll.js';
 
 // Family photo permission: one form per family, one choice per scout.
 // Replaces the conference app's attendee photo release with a parent or
@@ -45,7 +46,7 @@ function PermissionForm() {
       setForm(toForm(d.record, me));
       setEditing(false);
       setMsg({ text: 'Saved! Thank you. Leaders will follow your choices.' });
-      window.scrollTo(0, 0);
+      scrollToTop();
     } catch (err) { setMsg({ bad: true, text: err.message }); }
     finally { setBusy(false); }
   }

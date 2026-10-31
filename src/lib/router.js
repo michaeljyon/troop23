@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { scrollToTop } from './scroll.js';
 
 // Tiny hash router: #/gallery?album=derby, #/outing/abc?tab=meals
 //
@@ -104,7 +105,7 @@ export function useRoute() {
       record(location.hash || '#/');
       setR(n);
       const k = pageKey(n);
-      if (k !== lastKey) window.scrollTo(0, 0);
+      if (k !== lastKey) scrollToTop();
       lastKey = k;
     };
     addEventListener('hashchange', on);

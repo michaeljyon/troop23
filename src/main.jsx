@@ -10,6 +10,8 @@ import '@fontsource/barlow/latin-700.css';
 import './styles.css';
 import App from './App.jsx';
 import { applyTheme } from './lib/config.js';
+import { markStandalone } from './lib/scroll.js';
 
 applyTheme();
+markStandalone();
 createRoot(document.getElementById('root')).render(<React.StrictMode><App /></React.StrictMode>);

@@ -2509,3 +2509,14 @@ button.kim-cell { cursor: pointer; padding: 0; }
 .svc-list .pill, .req-list .pill { align-self: flex-start; }
 .svc-list .grow > .pill { margin: 2px 0; }
 .eagle-steps .grow { min-width: 58%; }
+
+/* ---------- installed app (Add to Home Screen) on phones: an app shell, so the bottom menu stays put.
+   The page stays still and only the middle scrolls. iPhone lets fixed menus drift or bounce when the whole page
+   scrolls, most of all after the keyboard or a pop-up sheet. Only while the main layout is showing (not sign-in). */
+@media (max-width: 999px) {
+  html.standalone:has(.app), html.standalone:has(.app) body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  html.standalone:has(.app) #root { height: 100%; }
+  html.standalone .app { position: relative; height: 100%; min-height: 0; overflow: hidden; }
+  html.standalone .app-main { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
+  html.standalone .tabbar { position: absolute; }
+}
