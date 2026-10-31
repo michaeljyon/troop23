@@ -5,6 +5,7 @@ import { api, useAccount, useApi } from '../lib/api.js';
 import { go } from '../lib/router.js';
 import { Confetti } from '../components/Confetti.jsx';
 import { troop } from '../lib/config.js';
+import { useOpts } from '../lib/features.js';
 
 // Troop elections: leaders set the ballot, scouts tap one name per position,
 // and a TV screen shows turnout and live results (or saves them for a big reveal).
@@ -288,6 +289,7 @@ function Screen({ id }) {
 
 // ------------------------------------------------------------------ set up the ballot
 function Editor({ open, e, scouts, onClose, onSaved }) {
+  const opts = useOpts();
   const [title, setTitle] = useState('');
   const [positions, setPositions] = useState([]);
   const [live, setLive] = useState(true);
@@ -302,7 +304,7 @@ function Editor({ open, e, scouts, onClose, onSaved }) {
     const season = new Date().getMonth() < 6 ? 'Spring' : 'Fall';
     setTitle(e?.title || `${season} ${new Date().getFullYear()} troop elections`);
     setPositions(e?.positions?.map(p => ({ id: p.id, title: p.title, patrol: p.patrol, candidates: p.candidates.map(c => c.id) })) || [{ id: '', title: 'Senior Patrol Leader', patrol: '', candidates: [] }]);
-    setLive(e?.live ?? true); setMsg('');
+    setLive(e?.live ?? opts.voteLiveDefault); setMsg('');
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const has = (t, p = '') => positions.some(x => x.title === t && (x.patrol || '') === p);
   const add = (t, p = '') => !has(t, p) && setPositions(ps => [...ps, { id: '', title: t, patrol: p, candidates: [] }]);

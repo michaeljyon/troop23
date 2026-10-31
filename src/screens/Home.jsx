@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import Icon from '../components/Icon.jsx';
 import { Section, Empty, Pill } from '../components/ui.jsx';
 import Rsvp from '../components/Rsvp.jsx';
+import { useSettings } from '../lib/features.js';
 import { useApi, useCol, photoUrl, useAccount } from '../lib/api.js';
 import { useInbox } from '../lib/inbox.js';
 import { InboxCard } from '../components/Inbox.jsx';
@@ -14,8 +15,10 @@ export default function Home() {
   const [me] = useMe();
   const acct = useAccount();
   const inbox = useInbox(!!acct);
-  const elect = useApi(acct ? 'elect' : null);
-  const openElection = elect.data?.elections?.find(e => e.status === 'open' && (e.canVote || e.isLeader));
+  const { features: F, opts } = useSettings();
+  const isLeader = !!acct?.member?.leader;
+  const elect = useApi(acct && F.vote ? 'elect' : null);
+  const openElection = F.vote && elect.data?.elections?.find(e => e.status === 'open' && (e.canVote || e.isLeader));
   const [family] = useLocal('family', null);
   const [mine, setMine] = useLocal('my-photos', []);
   const outings = useCol('outings');
@@ -68,7 +71,7 @@ export default function Home() {
           <span aria-hidden="true">🗳️</span><span className="grow"><b>{openElection.canVote ? 'Vote now' : 'Voting is open'}</b><span>{openElection.title} · {openElection.turnout.voted} of {openElection.turnout.of} have voted</span></span><Icon name="chevronR" size={20} />
         </a>
       )}
-      {acct?.member?.role === 'scout' && /patrol leader|\bspl\b|troop guide/i.test((acct.member.positions || []).join(', ')) && (
+      {F.inspect && acct?.member?.role === 'scout' && /patrol leader|\bspl\b|troop guide/i.test((acct.member.positions || []).join(', ')) && (
         <a className="ins-home" href={/senior|\bspl\b|troop guide/i.test((acct.member.positions || []).join(', ')) ? '#/inspect' : `#/inspect/new?patrol=${encodeURIComponent(acct.member.patrol || '')}`}>
           <span aria-hidden="true">🧐</span><span className="grow"><b>Uniform inspection</b><span>Check your patrol in about a minute</span></span><Icon name="chevronR" size={20} />
         </a>
@@ -113,13 +116,18 @@ export default function Home() {
       </div>
       <div className="home-side">
       <div className="tiles">
-        <a className="tile" href="#/kitchen"><Icon name="pot" size={26} /><b>Kitchen</b><span>Recipes & pantry</span></a>
-        <a className="tile" href="#/gear"><Icon name="box" size={26} /><b>Gear locker</b><span>Check out & in</span></a>
-        <a className="tile" href="#/gallery"><Icon name="image" size={26} /><b>Photos</b><span>Troop gallery</span></a>
-        <a className="tile" href="#/packing"><Icon name="checklist" size={26} /><b>Packing list</b><span>Be ready to go</span></a>
-        <a className="tile" href="#/hikes"><Icon name="map" size={26} /><b>Hikes</b><span>Track miles & climbing</span></a>
-        <a className="tile" href="#/advancement"><Icon name="trophy" size={26} /><b>Advancement</b><span>Ranks & next steps</span></a>
-        <a className="tile tile-games" href="#/games"><span className="tg-emoji" aria-hidden="true">🎯</span><span className="grow"><b>Games</b><span>Daily Challenge, puzzles & Campfire Clash</span></span><Icon name="chevronR" size={20} /></a>
+        {[
+          F.kitchen && ['kitchen', 'pot', 'Kitchen', 'Recipes & pantry'],
+          F.gear && ['gear', 'box', 'Gear locker', 'Check out & in'],
+          ['gallery', 'image', 'Photos', 'Troop gallery'],
+          ['packing', 'checklist', 'Packing list', 'Be ready to go'],
+          F.hikes && ['hikes', 'map', 'Hikes', 'Track miles & climbing'],
+          ['advancement', 'trophy', 'Advancement', 'Ranks & next steps'],
+          F.notes && (acct?.member?.role === 'scout' || isLeader) && ['notes', 'file', 'Meeting notes', isLeader ? 'PLC & committee' : 'PLC plans & decisions'],
+          F.vote && ['vote', 'users', 'Elections', 'Troop & patrol leaders'],
+          F.inspect && ['inspect', 'shield', 'Inspection', 'Patrol Cup'],
+        ].filter(Boolean).map(([to, ic, b, sub]) => <a key={to} className="tile" href={`#/${to}`}><Icon name={ic} size={26} /><b>{b}</b><span>{sub}</span></a>)}
+        {F.games && <a className="tile tile-games" href="#/games"><span className="tg-emoji" aria-hidden="true">🎯</span><span className="grow"><b>Games</b><span>Daily Challenge, puzzles{opts.gamesLive ? ' & Campfire Clash' : ''}</span></span><Icon name="chevronR" size={20} /></a>}
       </div>
 
       {upcoming.length > 1 && (

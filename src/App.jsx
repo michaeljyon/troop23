@@ -1,5 +1,7 @@
 import Icon from './components/Icon.jsx';
-import { Mark } from './components/ui.jsx';
+import { Mark, Empty } from './components/ui.jsx';
+import { useSettings, ROUTE_FEATURE } from './lib/features.js';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { useRoute } from './lib/router.js';
 import { useLocal, useMe } from './lib/store.js';
 import { useEffect, lazy, Suspense } from 'react';
@@ -50,6 +52,8 @@ export default function App() {
   const inbox = useInbox(!!session && !!acct);
   const unread = new Set((inbox.threads || []).filter(t => t.unread || t.needsReply).map(t => t.id)).size;
   const Screen = SCREENS[route.name] || Home;
+  const { features } = useSettings();
+  const off = ROUTE_FEATURE[route.name] && features[ROUTE_FEATURE[route.name]] === false;
   const inside = !!session || (!!code && !!me.name.trim());
   useEffect(() => { if (session) refreshAccount(); }, [session]);
   useEffect(() => {   // tapping a notification while the app is open
@@ -77,7 +81,14 @@ export default function App() {
           <a className="icon-btn on-dark" href="#/snap" aria-label="Share a photo"><Icon name="camera" /></a>
         </div>
       </header>
-      <main className="app-main" id="main"><Suspense fallback={<div className="content"><p className="muted">Loading…</p></div>}><Screen route={route} /></Suspense></main>
+      <main className="app-main" id="main">
+        {off && !leader ? <div className="content"><Empty icon="lock" title="This part of Basecamp is turned off" action={<a className="btn" href="#/">Go home</a>}>Your leaders have switched it off for the troop. Ask a leader if you need it.</Empty></div> : (
+          <>
+            {off && <div className="off-note"><Icon name="info" size={16} />Switched off for the troop. Only leaders can see this. <a href="#/leaders?tab=settings">Settings</a></div>}
+            <ErrorBoundary resetKey={location.hash}><Suspense fallback={<div className="content"><p className="muted">Loading…</p></div>}><Screen route={route} /></Suspense></ErrorBoundary>
+          </>
+        )}
+      </main>
       {acct && <WelcomeBack inbox={inbox} route={route} />}
       {inside && (
         <nav className="tabbar" aria-label="Main">

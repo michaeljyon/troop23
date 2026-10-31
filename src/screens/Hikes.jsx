@@ -8,6 +8,7 @@ import { today } from '../lib/dates.js';
 import { dist, liveStats, fmtMiles, fmtFeet, fmtTime, fmtDur, fmtPace } from '../lib/geo.js';
 import MapBox, { ElevationChart, MapThumb, Sparkline, HikesOverview } from '../components/HikeMap.jsx';   // Leaflet itself loads only when a map shows
 import { LocationCheck, LocationGuide, useGeoPermission } from '../components/LocationHelp.jsx';
+import { useOpts } from '../lib/features.js';
 const niceDate = d => (d ? new Date(`${d}T12:00`).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: d.slice(0, 4) === today().slice(0, 4) ? undefined : 'numeric' }) : '');
 
 function SignInFirst({ title = 'Hikes' }) {
@@ -362,7 +363,9 @@ const blank = () => ({ phase: 'setup', title: '', outingId: '', group: [], hideE
 
 export function Track({ route }) {
   const acct = useAccount();
+  const hikeOpts = useOpts();
   const [s, setS] = useState(() => readLocal('hike-rec', null) || blank());
+  useEffect(() => { if (s.phase === 'setup' && !s.pts.length && !s.touchedEnds && s.hideEnds !== hikeOpts.hikeHideEnds) setS(x => ({ ...x, hideEnds: hikeOpts.hikeHideEnds })); }, [hikeOpts.hikeHideEnds]); // eslint-disable-line react-hooks/exhaustive-deps
   const [fix, setFix] = useState(null);          // latest GPS reading
   const [gpsErr, setGpsErr] = useState('');
   const [gpsCode, setGpsCode] = useState(0);
@@ -453,7 +456,7 @@ export function Track({ route }) {
             <label className="field"><span>Name</span><input value={s.title} onChange={e => save({ ...s, title: e.target.value })} placeholder="e.g. Leon Sinks loop" maxLength={80} /></label>
             <OutingPick value={s.outingId} onChange={v => save({ ...s, outingId: v, title: s.title || outings.items.find(o => o.id === v)?.title || '' })} />
             <GroupPicker value={s.group} onChange={g => save({ ...s, group: g })} lock={acct.member.id} />
-            <label className="check"><input type="checkbox" checked={s.hideEnds} onChange={e => save({ ...s, hideEnds: e.target.checked })} /><span>Hide the start and finish on the map <span className="small muted">(first and last 200 m, so a hike from home doesn't show your house)</span></span></label>
+            <label className="check"><input type="checkbox" checked={s.hideEnds} onChange={e => save({ ...s, hideEnds: e.target.checked, touchedEnds: true })} /><span>Hide the start and finish on the map <span className="small muted">(first and last 200 m, so a hike from home doesn't show your house)</span></span></label>
           </div>
           {(gpsCode === 1 || gpsCode === 2 || !fix) && <LocationCheck onReady={() => setWatchKey(k => k + 1)} />}
           <div className="tip-box"><Icon name="info" size={18} /><span>Keep Basecamp open while you hike. The screen stays on, and tracking pauses if the phone locks. One person can record for the whole group.</span></div>

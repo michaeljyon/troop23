@@ -11,11 +11,12 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 const BOOKS = { plc: 'PLC', committee: 'Committee' };
 const PLC_RX = /senior patrol|\bspl\b|\baspl\b|patrol leader|troop guide|scribe/i;
 
-export function notesAccess(me, isLeader) {
+export function notesAccess(me, isLeader, opts = {}) {
   const leader = !!(isLeader || me?.leader);
   const scout = me?.role === 'scout';
+  const parent = !!me && !scout && (me.scouts || []).length > 0;
   return {
-    plc: { read: leader || scout, write: leader || (scout && PLC_RX.test((me.positions || []).join(', '))) },
+    plc: { read: leader || scout || (parent && !!opts.notesParentsPLC), write: leader || (scout && PLC_RX.test((me.positions || []).join(', '))) },
     committee: { read: leader, write: leader },
   };
 }
@@ -23,7 +24,7 @@ export function notesAccess(me, isLeader) {
 export async function notesRoutes(store, rest, req, body, now, ctx) {
   const { me } = ctx;
   const leader = !!(ctx.isLeader || me?.leader);
-  const acc = notesAccess(me, ctx.isLeader);
+  const acc = notesAccess(me, ctx.isLeader, ctx.opts);
   const [book, id, sub, fid] = rest;
 
   if (!book && req.method === 'GET') return json({ access: acc });

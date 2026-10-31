@@ -341,4 +341,24 @@ st, _ = call(f'notes/committee/{cn}', {'title': 'changed', 'body': 'x'}, method=
 for b, nid in (('plc', pn), ('committee', cn)): call(f'notes/{b}/{nid}', method='DELETE', s=S['leader'])
 bad = [r for r in results if not r[0]]
 print(f'\nWITH NOTES {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+
+# --- exports and feature switches
+def raw_get(path):
+    try: r = urllib.request.urlopen(BASE + path); return r.status
+    except urllib.error.HTTPError as e: return e.code
+check('leaders download exports with their personal code', raw_get(f"leader/export/members?s={S['leader']}") == 200)
+check('scouts cannot download exports', raw_get(f"leader/export/members?s={S['scout']}") in (401, 403), raw_get(f"leader/export/members?s={S['scout']}"))
+check('exports need sign-in', raw_get('leader/export/members') in (401, 403))
+st, r = call('leader/export/members', s=S['leader']); check('roster export has no personal codes', isinstance(r, str) and 'code' not in r.split('\n')[0] and not re.search(r'[A-Z0-9]{4}-[A-Z0-9]{4}', r), r[:120] if isinstance(r, str) else r)
+st, _ = call('leader/settings', {'features': {'games': False}}, s=S['scout']); check('scouts cannot change settings', st in (401, 403), st)
+call('leader/settings', {'features': {'games': False}, 'opts': {'notesParentsPLC': True}}, s=S['leader'])
+st, d = call('settings', s=S['scout']); check('everyone can see which features are on', d['features']['games'] is False and d['opts']['notesParentsPLC'] is True, d.get('features'))
+st, _ = call('quiz/me', s=S['scout']); check('a switched-off feature is off on the server too', st == 403, st)
+st, _ = call('notes/plc', s=S['parent']); check('parents can read PLC notes when leaders allow it', st == 200, st)
+st, _ = call('notes/committee', s=S['parent']); check('committee minutes stay leaders-only even then', st == 403, st)
+call('leader/settings', {'features': {'games': True}, 'opts': {'notesParentsPLC': False}}, s=S['leader'])
+st, _ = call('quiz/me', s=S['scout']); check('switching it back on works', st == 200, st)
+st, _ = call('notes/plc', s=S['parent']); check('parents lose PLC notes again when switched off', st == 403, st)
+bad = [r for r in results if not r[0]]
+print(f'\nWITH SETTINGS {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
 for tok in S.values(): call('auth/signout', {}, s=tok)

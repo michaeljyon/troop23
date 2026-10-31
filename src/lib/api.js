@@ -22,7 +22,8 @@ export async function api(path, { method = 'GET', body, leader } = {}) {
   const type = res.headers.get('content-type') || '';
   const data = type.includes('json') ? await res.json() : null;
   if (!res.ok) {
-    if (res.status === 401 && data?.error?.startsWith('Enter the troop code')) { setTroopCode(''); writeLocal('session', ''); }
+    // only sign out if nothing changed while this request was out (a sign-in may have just finished)
+    if (res.status === 401 && data?.error?.startsWith('Enter the troop code') && (tok || code) && sessionToken() === tok && troopCode() === code) { setTroopCode(''); writeLocal('session', ''); }
     const e = new Error(data?.error || (res.status === 404 && !data ? 'The Basecamp server isn\'t running on this deploy.' : `Request failed (${res.status})`));
     e.status = res.status; throw e;
   }

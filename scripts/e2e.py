@@ -106,7 +106,7 @@ with sync_playwright() as p:
         btns = pg.locator('.review:not(:has(.flag.bad)) button:has-text("Approve")')
         if btns.count() == 0: break
         btns.first.click(); pg.wait_for_timeout(400)
-    pg.click('.tabs button:has-text("Settings")'); pg.wait_for_selector('.row-input'); shot(pg, '21-leader-settings')
+    pg.click('.tabs button:has-text("Settings")'); pg.wait_for_selector('.set-group'); pg.click('.set-group summary:has-text("Patrols")'); pg.wait_for_selector('.row-input'); shot(pg, '21-leader-settings')
     pg.click('.tabs button:has-text("Records")'); shot(pg, '22-leader-records')
     # home full + more + gallery
     pg.goto(BASE + '/#/'); pg.wait_for_selector('.next-card .next-title'); pg.wait_for_timeout(900); shot(pg, '23-home'); shot(pg, '24-home-full', True)

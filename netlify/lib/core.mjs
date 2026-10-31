@@ -18,7 +18,7 @@ import { hikeRoutes } from './hikes.mjs';
 import { inspectRoutes } from './inspect.mjs';
 import { electRoutes } from './elect.mjs';
 import { notesRoutes } from './notes.mjs';
-import { quizRoutes } from './quiz.mjs';
+import { quizRoutes, levelOf } from './quiz.mjs';
 
 const MAX_PHOTO_BYTES = 4.2 * 1024 * 1024;
 const MAX_THUMB_BYTES = 400 * 1024;
@@ -249,9 +249,14 @@ async function planAction(store, id, parts, req, body, now) {
 }
 
 // ---------------------------------------------------------------- settings
+// Parts of the app leaders can switch off for the whole troop, and options for each.
+export const FEATURES = ['games', 'hikes', 'inspect', 'vote', 'notes', 'kitchen', 'gear', 'counselors'];
+const OPTS = { hikeHideEnds: true, voteLiveDefault: true, notesParentsPLC: false, gamesLive: true };
 async function settings(store) {
   const s = (await store.get('settings', { type: 'json' })) || {};
-  return { patrols: s.patrols?.length ? s.patrols : troop.patrols, albums: s.albums || [], aiHelper: s.aiHelper !== false, autoApprove: !!s.autoApprove, autoApproveBy: s.autoApproveBy || '', autoApproveAt: s.autoApproveAt || 0 };
+  const features = Object.fromEntries(FEATURES.map(f => [f, s.features?.[f] !== false]));
+  const opts = Object.fromEntries(Object.entries(OPTS).map(([k, d]) => [k, typeof s.opts?.[k] === 'boolean' ? s.opts[k] : d]));
+  return { patrols: s.patrols?.length ? s.patrols : troop.patrols, albums: s.albums || [], aiHelper: s.aiHelper !== false, autoApprove: !!s.autoApprove, autoApproveBy: s.autoApproveBy || '', autoApproveAt: s.autoApproveAt || 0, features, opts, packing: s.packing?.length ? s.packing : troop.packing };
 }
 
 // ---------------------------------------------------------------- albums
@@ -377,7 +382,7 @@ async function photoFile(store, id, { leader = false, thumb = false } = {}) {
 // ---------------------------------------------------------------- CSV
 function toCSV(rows) {
   const cols = [...rows.reduce((s, r) => { Object.keys(r).forEach(k => s.add(k)); return s; }, new Set())];
-  const esc = v => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const esc = v => { let s = v == null ? '' : String(v); if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = `'${s}`; return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };   // no spreadsheet formulas
   return [cols.join(','), ...rows.map(r => cols.map(c => esc(r[c])).join(','))].join('\n');
 }
 const iso = t => (t ? new Date(t).toISOString() : '');
@@ -405,7 +410,29 @@ async function exportCSV(store, kind) {
       .sort((a, b) => a.date.localeCompare(b.date) || a.patrol.localeCompare(b.patrol) || a.name.localeCompare(b.name));
   } else if (kind === 'spending') {
     rows = (await colItems(store, 'plans')).flatMap(p => (p.spend || []).map(s => ({ outing: outings.get(p.outingId)?.title || p.outingId, patrol: p.patrol, amount: s.amount.toFixed(2), note: s.note, by: s.by, when: iso(s.at) })));
+  } else if (kind === 'members') {
+    rows = (await loadPeople(store)).members.filter(m => m.active !== false).sort((a, b) => (a.role === b.role ? a.name.localeCompare(b.name) : a.role === 'scout' ? -1 : 1))
+      .map(m => ({ name: m.name, role: m.role, patrol: m.patrol || '', positions: (m.positions || []).join('; '), leader: m.leader ? 'yes' : '', signed_in: m.lastSignIn ? iso(m.lastSignIn) : '' }));
+  } else if (kind === 'hikes') {
+    const MI = 1609.344, FT = 3.28084;
+    rows = (await colItems(store, 'hikes')).sort((a, b) => String(a.date).localeCompare(String(b.date))).map(h => ({ date: h.date, hike: h.title, recorded_by: h.byName, group: (h.groupNames || []).join('; '), outing: h.outingTitle || '', miles: ((h.distance || 0) / MI).toFixed(2), feet_up: Math.round((h.gain || 0) * FT), moving_minutes: Math.round((h.moving || 0) / 60), logged_by_hand: h.manual ? 'yes' : '' }));
+  } else if (kind === 'inspections') {
+    const list = await listJSON(store, 'inspect/i/');
+    rows = list.sort((a, b) => a.date.localeCompare(b.date)).flatMap(i => i.scouts.map(x => ({ date: i.date, patrol: i.patrol, inspected_by: i.by?.name || '', scout: x.name, absent: x.absent ? 'yes' : '', score: x.absent ? '' : x.score,
+      to_fix: Object.entries(x.marks || {}).filter(([, v]) => v === 'fix').map(([k]) => k).join('; '), missing: Object.entries(x.marks || {}).filter(([, v]) => v === 'miss').map(([k]) => k).join('; '), patrol_average: i.avg })));
+  } else if (kind === 'elections') {
+    const els = await listJSON(store, 'elect/e/');
+    const people = await loadPeople(store);
+    const name = id => people.members.find(m => m.id === id)?.name || 'Former member';
+    rows = [];
+    for (const e of els.sort((a, b) => a.created - b.created)) {
+      const ballots = await listJSON(store, `elect/v/${e.id}/`);
+      for (const p of e.positions) for (const c of p.candidates) rows.push({ election: e.title, status: e.status, position: p.title, patrol: p.patrol || '', candidate: name(c), votes: ballots.filter(b => b.votes?.[p.id] === c).length, ballots_cast: ballots.filter(b => b.votes?.[p.id]).length });
+    }
+  } else if (kind === 'games') {
+    rows = (await listJSON(store, 'quiz/stats/')).sort((a, b) => b.xp - a.xp).map(x => ({ name: x.name, patrol: x.patrol || '', xp: x.xp, level: levelOf(x.xp).name, games: x.games, right_answers: x.right, questions: x.total, badges: (x.badges || []).length, daily_streak_best: x.daily?.best || 0 }));
   } else return err('Unknown export.');
+  if (!rows.length) rows = [{ note: 'Nothing recorded yet.' }];
   return new Response(toCSV(rows), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${troop.id}-${kind}.csv"` } });
 }
 
@@ -478,6 +505,9 @@ async function leader(store, req, parts, body, now) {
     const raw = (await store.get('settings', { type: 'json' })) || {};
     const next = { ...raw, patrols, albums: albumsIn };
     if (body.aiHelper !== undefined) next.aiHelper = !!body.aiHelper;
+    if (Array.isArray(body.packing)) next.packing = body.packing.slice(0, 12).map(g => ({ group: clean(g?.group, 40), items: (Array.isArray(g?.items) ? g.items : []).map(x => clean(x, 80)).filter(Boolean).slice(0, 40) })).filter(g => g.group && g.items.length);
+    if (body.features && typeof body.features === 'object') next.features = { ...(raw.features || {}), ...Object.fromEntries(FEATURES.filter(f => typeof body.features[f] === 'boolean').map(f => [f, body.features[f]])) };
+    if (body.opts && typeof body.opts === 'object') next.opts = { ...(raw.opts || {}), ...Object.fromEntries(Object.keys(OPTS).filter(k => typeof body.opts[k] === 'boolean').map(k => [k, body.opts[k]])) };
     if (body.autoApprove !== undefined) { next.autoApprove = !!body.autoApprove; next.autoApproveBy = clean(body.by, 80); next.autoApproveAt = now; }
     await store.setJSON('settings', next);
     return json({ ok: true, settings: await settings(store) });
@@ -557,8 +587,16 @@ async function route(req, opts) {
     if (head === 'demo' && req.method === 'GET') return json({ demo: !!opts.demo });
     const mr = await memberRoutes(store, head, rest, req, body, now, { session, isLeader, colItems, patrols: (await settings(store)).patrols, later, notify: (...a) => notify(store, ...a) });
     if (mr) return mr;
-    if (head === 'notes') return notesRoutes(store, rest, req, body, now, { me: session?.member, isLeader });
-    if (head === 'elect') return electRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people || await loadPeople(store), isLeader });
+    const ctx2 = {};
+    const FEATURE_OF = { quiz: 'games', hikes: 'hikes', inspect: 'inspect', elect: 'vote', notes: 'notes' };
+    if (FEATURE_OF[head]) {
+      const st = await settings(store);
+      if (!st.features[FEATURE_OF[head]] && !(isLeader && req.method === 'GET')) return err('Leaders have turned this part of Basecamp off.', 403);
+      ctx2.opts = st.opts;
+      if (head === 'quiz' && rest[0] === 'live' && !st.opts.gamesLive && !isLeader) return err('Leaders have turned live games off.', 403);
+    }
+    if (head === 'notes') return notesRoutes(store, rest, req, body, now, { me: session?.member, isLeader, opts: ctx2.opts });
+    if (head === 'elect') return electRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people || await loadPeople(store), isLeader, opts: ctx2.opts });
     if (head === 'inspect') return inspectRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people, isLeader });
     if (head === 'quiz') return quizRoutes(store, rest, req, body, now, { me: session?.member });
     if (head === 'hikes') return hikeRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people, isLeader, colItems, useMap: opts.useMap });

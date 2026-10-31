@@ -6,28 +6,45 @@ import { useMe } from '../lib/store.js';
 import { troop } from '../lib/config.js';
 import { NotificationsCard } from '../components/Notify.jsx';
 import { LocationCheck } from '../components/LocationHelp.jsx';
+import { useSettings } from '../lib/features.js';
 
 export default function More() {
   const [me, setMe] = useMe();
   const leader = useLeaderMode();
   const [editing, setEditing] = useState(false);
   const acct = useAccount();
-  const links = [
-    ['advancement', 'trophy', 'Advancement', acct?.member?.leader ? 'The whole troop\'s trail to Eagle' : 'Ranks and merit badges'],
-    ['counselors', 'people', 'Merit badge counselors', 'Who counsels which badge'],
-    ...(acct?.member?.role === 'scout' || acct?.member?.leader || leader ? [['notes', 'file', 'Meeting notes', acct?.member?.leader || leader ? 'PLC notes and committee minutes' : 'What the PLC planned and decided']] : []),
-    ['vote', 'users', 'Troop elections', 'Vote for SPL, patrol leaders and more'],
-    ['inspect', 'shield', 'Uniform inspection', 'Patrol inspections and the Patrol Cup'],
-    ['games', 'star', 'Games', 'Quizzes, puzzles and live troop games'],
-    ['hikes', 'map', 'Hikes', 'Track distance and climbing with your group'],
-    ['gear', 'box', 'Gear locker', 'Tents, stoves and the merit badge library'],
-    ['kitchen', 'pot', 'Troop kitchen', 'Recipes and the pantry'],
-    ['gallery', 'image', 'Photo gallery', 'Every outing, every patrol'],
-    ['slideshow', 'play', 'Slideshow', 'For Courts of Honor and banquets'],
-    ['packing', 'checklist', 'Packing list', 'Standard overnight list'],
-    ['permission', 'shield', 'Photo permission', 'For parents and guardians'],
-    ['leaders', 'settings', 'Leader tools', leader ? 'Signed in' : 'Photo review, bulletin, settings'],
-  ];
+  const { features: F, opts } = useSettings();
+  const isLeader = !!(acct?.member?.leader || leader);
+  const isScout = acct?.member?.role === 'scout';
+  const parentNotes = !isScout && !isLeader && (acct?.scouts?.length > 0) && opts.notesParentsPLC;
+  // grouped so the list stays easy to scan; switched-off parts of the app don't show up
+  const groups = [
+    ['Scouting', [
+      ['advancement', 'trophy', 'Advancement', isLeader ? 'The whole troop\'s trail to Eagle' : 'Ranks and merit badges'],
+      F.counselors && ['counselors', 'people', 'Merit badge counselors', 'Who counsels which badge'],
+      F.hikes && ['hikes', 'map', 'Hikes', 'Track distance and climbing with your group'],
+      F.games && ['games', 'star', 'Games', 'Quizzes, puzzles and live troop games'],
+    ]],
+    ['Patrols & PLC', [
+      F.notes && (isScout || isLeader || parentNotes) && ['notes', 'file', 'Meeting notes', isLeader ? 'PLC notes and committee minutes' : 'What the Patrol Leaders\' Council planned and decided'],
+      F.vote && ['vote', 'users', 'Troop elections', 'Vote for SPL, patrol leaders and more'],
+      F.inspect && ['inspect', 'shield', 'Uniform inspection', 'Patrol inspections and the Patrol Cup'],
+    ]],
+    ['Camp & gear', [
+      F.gear && ['gear', 'box', 'Gear locker', 'Tents, stoves and the merit badge library'],
+      F.kitchen && ['kitchen', 'pot', 'Troop kitchen', 'Recipes and the pantry'],
+      ['packing', 'checklist', 'Packing list', 'Standard overnight list'],
+    ]],
+    ['Photos', [
+      ['gallery', 'image', 'Photo gallery', 'Every outing, every patrol'],
+      ['slideshow', 'play', 'Slideshow', 'For Courts of Honor and banquets'],
+      ['permission', 'shield', 'Photo permission', 'For parents and guardians'],
+    ]],
+    ['Leaders', [
+      isLeader && F.notes && ['notes?book=committee', 'file', 'Committee minutes', 'Leaders only'],
+      ['leaders', 'settings', 'Leader tools', leader ? 'Members, photos, settings, records' : 'Photo review, bulletin, settings'],
+    ]],
+  ].map(([t, l]) => [t, l.filter(Boolean)]).filter(([, l]) => l.length);
   return (
     <div className="content">
       <PageHead title="More" />
@@ -44,9 +61,14 @@ export default function More() {
       )}
       {acct && <NotificationsCard />}
       {acct && <div className="more-loc"><LocationCheck /></div>}
-      <ul className="more-list">
-        {links.map(([to, ic, l, sub]) => <li key={to}><a href={`#/${to}`}><span className="more-ico"><Icon name={ic} size={22} /></span><span className="grow"><b>{l}</b><span>{sub}</span></span><Icon name="chevronR" size={18} /></a></li>)}
-      </ul>
+      {groups.map(([title, links]) => (
+        <section key={title} className="more-group">
+          <h2 className="more-h">{title}</h2>
+          <ul className="more-list">
+            {links.map(([to, ic, l, sub]) => <li key={to}><a href={`#/${to}`}><span className="more-ico"><Icon name={ic} size={22} /></span><span className="grow"><b>{l}</b><span>{sub}</span></span><Icon name="chevronR" size={18} /></a></li>)}
+          </ul>
+        </section>
+      ))}
       <div className="card tip"><Icon name="share" size={20} /><span><b>Add Basecamp to your home screen.</b> iPhone: Share → Add to Home Screen. Android: menu ⋮ → Add to Home screen.</span></div>
       <p className="center"><button className="link-btn" onClick={async () => { if (confirm(acct ? 'Sign out on this phone? You\'ll need your personal code to sign back in.' : 'Sign out on this phone? You\'ll need the troop code to get back in.')) { if (acct) await signOut(); else setTroopCode(''); location.hash = '#/'; } }}><Icon name="logout" size={16} />Sign out</button></p>
       <p className="small muted center">{troop.appName} · {troop.place}</p>

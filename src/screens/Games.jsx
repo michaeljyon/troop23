@@ -5,6 +5,7 @@ import { api, useAccount, useApi } from '../lib/api.js';
 import { go } from '../lib/router.js';
 import { readLocal, writeLocal } from '../lib/store.js';
 import { Confetti } from '../components/Confetti.jsx';
+import { useOpts } from '../lib/features.js';
 export { Confetti };
 import { QUESTIONS, byId, RANKS, TOPICS, LEVELS, BADGES, isRight } from '../../troop/quiz.js';
 
@@ -49,6 +50,7 @@ function pickQuestions({ mode, topic, rank, n }) {
 
 // ================================================================== hub
 export default function Games({ route }) {
+  const opts = useOpts();
   const acct = useAccount();
   const rank = route.query.rank || '';
   const topic = route.query.topic || '';
@@ -82,7 +84,7 @@ export default function Games({ route }) {
           <b>{daily.data?.done ? `Done! ${daily.data.done.right}/${daily.data.done.of} today` : '5 questions. Same for everyone.'}</b>
           <span>{daily.data?.done ? 'See how the troop did →' : acct ? 'Keep your streak going 🔥' : 'Sign in to count it'}</span>
         </a>
-        <div className="g-live">
+        {opts.gamesLive && <div className="g-live">
           <span className="g-k">Campfire Clash · live</span>
           <b>Play together at a meeting</b>
           {acct ? (
@@ -94,7 +96,7 @@ export default function Games({ route }) {
               <button className="link-btn on-dark-link" onClick={() => setHosting(true)}><Icon name="play" size={15} />Host a game</button>
             </>
           ) : <span>Sign in with your personal code to play live.</span>}
-        </div>
+        </div>}
       </div>
 
       <Section title="Pick your rank">

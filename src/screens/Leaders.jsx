@@ -7,6 +7,9 @@ import { Members, Reports, Groups } from './LeaderMembers.jsx';
 import { Setup } from './LeaderSetup.jsx';
 import { troop, level, rid } from '../lib/config.js';
 import { useMe } from '../lib/store.js';
+import { go } from '../lib/router.js';
+import { refreshSettings, useFeatures } from '../lib/features.js';
+import { sessionToken } from '../lib/api.js';
 
 // Leader tools (#/leaders): photo review against family permission, the
 // permission roster, bulletin posts, patrols & albums, and records.
@@ -21,12 +24,14 @@ const FLAG = {
   public: { cls: 'good', icon: 'globe', title: 'Public OK', body: 'Every tagged scout has public permission.' },
 };
 
-export default function Leaders() {
+export default function Leaders({ route }) {
+  const F = useFeatures();
   const acct = useAccount();
   const [pass, setPass] = useState(leaderPass());
   const [ok, setOk] = useState(!!acct?.member?.leader);
   const [err, setErr] = useState('');
-  const [tab, setTab] = useState('members');
+  const tab = TABS.some(t => t[0] === route?.query?.tab) ? route.query.tab : 'members';
+  const setTab = id => go(`leaders${id === 'members' ? '' : `?tab=${id}`}`, { replace: true });
   useEffect(() => { if (acct?.member?.leader) setOk(true); }, [acct?.member?.leader]);
 
   async function login(p = pass) {
@@ -51,6 +56,13 @@ export default function Leaders() {
       <PageHead backTo="more" title="Leader tools">
         {!acct?.member?.leader && <button className="link-btn head-btn" onClick={() => { setLeaderPass(''); setOk(false); setPass(''); }}><Icon name="logout" size={16} /> Sign out</button>}
       </PageHead>
+      <nav className="lead-quick" aria-label="Shortcuts"><span>Jump to</span>
+        {F.notes && <a href="#/notes?book=committee"><Icon name="file" size={16} />Committee minutes</a>}
+        {F.notes && <a href="#/notes?book=plc"><Icon name="file" size={16} />PLC notes</a>}
+        {F.vote && <a href="#/vote"><Icon name="users" size={16} />Elections</a>}
+        {F.inspect && <a href="#/inspect"><Icon name="shield" size={16} />Inspections</a>}
+        <a href="#/advancement"><Icon name="trophy" size={16} />Troop planning</a>
+      </nav>
       <div className="tabs scroll" role="tablist">
         {TABS.map(([id, l, ic]) => <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''} onClick={() => setTab(id)}><Icon name={ic} size={17} />{l}</button>)}
       </div>
@@ -300,77 +312,177 @@ function Settings({ pass }) {
   if (!patrols) return <p className="muted">Loading…</p>;
   return (
     <>
-      <Section title="Chat writing helper">
+      <p className="small muted">Tap a section to open it. Changes save as soon as you flip a switch.</p>
+      <details className="set-group" open>
+        <summary><Icon name="grid" size={18} /><span className="grow"><b>Features</b><span>{Object.values(s.data?.features || {}).filter(Boolean).length} of {FEATURE_LIST.length} parts of Basecamp are on</span></span></summary>
+        <Features s={s.data} save={async b => { await save(b); s.load(); refreshSettings(); }} pass={pass} />
+      </details>
+      <details className="set-group">
+        <summary><Icon name="users" size={18} /><span className="grow"><b>Patrols</b><span>{patrols.join(', ')}</span></span></summary>
+        <PatrolsCard patrols={patrols} setPatrols={setPatrols} save={save} />
+      </details>
+      <details className="set-group">
+        <summary><Icon name="image" size={18} /><span className="grow"><b>Photo albums</b><span>{albums.length ? albums.map(a => a.title).join(', ') : 'Only the built-in albums'}</span></span></summary>
+        <AlbumsCard albums={albums} setAlbums={setAlbums} save={save} />
+      </details>
+      <details className="set-group">
+        <summary><Icon name="checklist" size={18} /><span className="grow"><b>Standard packing list</b><span>{(s.data?.packing || []).reduce((t, g) => t + g.items.length, 0)} items in {(s.data?.packing || []).length} groups</span></span></summary>
+        <PackingCard initial={s.data?.packing || troop.packing} save={async packing => { await save({ packing }); s.load(); }} />
+      </details>
+      <details className="set-group">
+        <summary><Icon name="sparkle" size={18} /><span className="grow"><b>Chat writing helper</b><span>{s.data?.aiHelper !== false ? 'On' : 'Off'}</span></span></summary>
         <div className="card">
           <label className="switch-row">
             <span className="grow"><b>AI writing helper in Chat</b><span className="small muted">Scouts and adults can tap ✨ to get a clearer, kinder version of their message and a reminder of anything they were asked but didn't answer. It only suggests; people still edit and press Send themselves. It reads the last few messages of that conversation to know what was asked. Runs on Cloudflare's free AI allowance (about 1,000 suggestions a day across the troop, up to 40 per person) and never uses Netlify credits. When the free allowance is used up, or before it's connected, people get built-in writing tips instead.</span></span>
             <input type="checkbox" role="switch" checked={s.data?.aiHelper !== false} onChange={async e => { await save({ aiHelper: e.target.checked }); s.load(); }} />
           </label>
         </div>
-      </Section>
-      <Section title="Patrols">
-        <div className="card">
-          <p className="small muted">Used for sign-ups, meal plans, gear and photos. Renaming a patrol doesn't move old records.</p>
-          {patrols.map((p, i) => (
-            <div className="row-input" key={i}>
-              <input value={p} onChange={e => setPatrols(patrols.map((x, j) => (j === i ? e.target.value : x)))} aria-label={`Patrol ${i + 1}`} />
-              <button className="icon-btn sm" onClick={() => setPatrols(patrols.filter((_, j) => j !== i))} aria-label={`Remove ${p}`}><Icon name="x" size={16} /></button>
-            </div>
-          ))}
-          <div className="btn-row">
-            <button className="btn secondary small" onClick={() => setPatrols([...patrols, ''])}><Icon name="plus" size={16} />Add patrol</button>
-            <button className="btn small" onClick={() => save({ patrols: patrols.map(p => p.trim()).filter(Boolean) })}>Save patrols</button>
-          </div>
-        </div>
-      </Section>
-      <Section title="Extra photo albums">
-        <div className="card">
-          <p className="small muted">Every outing is its own album automatically. Add albums for anything else.</p>
-          {albums.map((a, i) => (
-            <div className="row-input" key={a.id || i}>
-              <input className="emoji-in" value={a.emoji} onChange={e => setAlbums(albums.map((x, j) => (j === i ? { ...x, emoji: e.target.value } : x)))} aria-label="Emoji" />
-              <input value={a.title} onChange={e => setAlbums(albums.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} aria-label="Album name" />
-              <button className="icon-btn sm" onClick={() => setAlbums(albums.filter((_, j) => j !== i))} aria-label="Remove album"><Icon name="x" size={16} /></button>
-            </div>
-          ))}
-          <div className="btn-row">
-            <button className="btn secondary small" onClick={() => setAlbums([...albums, { id: '', emoji: '📷', title: '' }])}><Icon name="plus" size={16} />Add album</button>
-            <button className="btn small" onClick={() => save({ albums })}>Save albums</button>
-          </div>
-          <p className="small muted">Built in: {troop.albums.map(a => `${a.emoji} ${a.title}`).join(', ')}.</p>
-        </div>
-      </Section>
+      </details>
       {msg && <p className={`form-msg ${msg.bad ? '' : 'good'}`} role="status">{msg.text}</p>}
     </>
   );
 }
 
-function Records({ pass }) {
-  const [msg, setMsg] = useState('');
-  async function download(kind) {
-    setMsg('');
-    try {
-      const res = await fetch(`/api/leader/export/${kind}`, { headers: { 'x-leader-passcode': pass } });
-      if (!res.ok) throw new Error('Export failed.');
-      const u = URL.createObjectURL(await res.blob());
-      const l = document.createElement('a'); l.href = u; l.download = `${troop.id}-${kind}-${new Date().toISOString().slice(0, 10)}.csv`; l.click();
-      setTimeout(() => URL.revokeObjectURL(u), 4000);
-    } catch (e) { setMsg(e.message); }
-  }
-  const items = [
-    ['permissions', 'shield', 'Photo permission', 'Every scout\'s photo choice and who signed'],
-    ['signups', 'users', 'Outing sign-ups', 'Who\'s going to each outing, by patrol'],
-    ['gear', 'box', 'Gear inventory', 'Every item, condition and who has it now'],
-    ['gear-log', 'list', 'Gear history', 'Every check-out and check-in'],
-    ['spending', 'dollar', 'Food spending', 'Receipts by outing and patrol'],
-    ['photos', 'image', 'Photo log', 'Who shared what, and the permission check'],
-  ];
+const FEATURE_LIST = [
+  ['hikes', 'map', 'Hikes', 'GPS hike tracking, maps, mile splits and the hiking leaderboard.', [['hikeHideEnds', 'Hide the start and finish of new hikes on the map', 'Leaves the first and last 200 m off, so a hike from home doesn\'t show the house. Hikers can still change it.']]],
+  ['games', 'star', 'Games', 'Quizzes, puzzles, Speed Round, the Daily Challenge, XP and badges.', [['gamesLive', 'Campfire Clash live games', 'Host a live quiz on a TV with everyone answering on their phones.']]],
+  ['inspect', 'shield', 'Uniform inspection', 'Patrol leaders score uniforms on a tap-to-mark drawing; the Patrol Cup.', 'checklist'],
+  ['vote', 'users', 'Troop elections', 'Secret ballots, the TV results screen, and voting on a leader\'s phone.', [['voteLiveDefault', 'Show live results on the TV by default', 'You can still change this for each election.']]],
+  ['notes', 'file', 'Meeting notes', 'PLC notes for scouts and leaders; committee minutes for leaders only.', [['notesParentsPLC', 'Parents can read PLC notes', 'Committee minutes always stay leaders-only.']]],
+  ['kitchen', 'pot', 'Troop kitchen', 'Recipes, recipe scanning, budgets and the pantry. Outing meal plans stay on either way.'],
+  ['gear', 'box', 'Gear locker', 'Troop gear check-out and check-in, and the Gear tab on outings.'],
+  ['counselors', 'people', 'Merit badge counselors', 'The counselor list under Advancement.'],
+];
+
+function Features({ s, save, pass }) {
+  const f = s?.features || {}, o = s?.opts || {};
+  const [ins, setIns] = useState(null);
+  useEffect(() => { api('inspect/config', { leader: pass }).then(setIns).catch(() => setIns({ off: ['hat'], all: [] })); }, [pass]);
+  const setIn = async (id, on) => { const off = new Set(ins.off); if (on) off.delete(id); else off.add(id); const r = await api('inspect/config', { method: 'POST', body: { off: [...off] }, leader: pass }); setIns(x => ({ ...x, off: r.off })); };
   return (
-    <Section title="Download records">
-      <p className="small muted">Spreadsheets (CSV) open in Excel, Numbers or Google Sheets.</p>
-      <ul className="more-list">{items.map(([k, ic, l, sub]) => <li key={k}><button onClick={() => download(k)}><span className="more-ico"><Icon name={ic} size={22} /></span><span className="grow"><b>{l}</b><span>{sub}</span></span><Icon name="download" size={18} /></button></li>)}</ul>
-      {msg && <p className="form-msg" role="alert">{msg}</p>}
-    </Section>
+    <div className="card feat-list">
+      <p className="small muted">Turn off anything your troop doesn't use. It disappears from Home and More for everyone; leaders can still open it (with a note that it's off). Nothing is deleted.</p>
+      {FEATURE_LIST.map(([k, ic, label, desc, more]) => (
+        <div key={k} className={`feat ${f[k] === false ? 'off' : ''}`}>
+          <label className="switch-row">
+            <span className="feat-ico"><Icon name={ic} size={20} /></span>
+            <span className="grow"><b>{label}</b><span className="small muted">{desc}</span></span>
+            <input type="checkbox" role="switch" checked={f[k] !== false} onChange={e => save({ features: { [k]: e.target.checked } })} aria-label={label} />
+          </label>
+          {f[k] !== false && Array.isArray(more) && more.map(([ok, ol, od]) => (
+            <label key={ok} className="switch-row feat-opt"><span className="grow"><b>{ol}</b><span className="small muted">{od}</span></span>
+              <input type="checkbox" role="switch" checked={!!o[ok]} onChange={e => save({ opts: { [ok]: e.target.checked } })} aria-label={ol} /></label>
+          ))}
+          {f[k] !== false && more === 'checklist' && ins && (
+            <div className="feat-opt">
+              <span className="small muted">Optional uniform items to check:</span>
+              <div className="el-chips">{(ins.all || []).filter(i => i.optional).map(i => {
+                const on = !ins.off.includes(i.id);
+                return <button key={i.id} type="button" className={`chip sm ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => setIn(i.id, !on)}>{i.emoji} {i.label}{on ? ' ✓' : ''}</button>;
+              })}</div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PackingCard({ initial, save }) {
+  const [groups, setGroups] = useState(() => initial.map(g => ({ group: g.group, text: g.items.join('\n') })));
+  const [saved, setSaved] = useState(false);
+  const upd = (i, patch) => { setSaved(false); setGroups(gs => gs.map((g, j) => (j === i ? { ...g, ...patch } : g))); };
+  return (
+    <div className="card">
+      <p className="small muted">The everyday list every scout sees under Packing list and on each outing. One item per line. Outings can still add their own extras.</p>
+      {groups.map((g, i) => (
+        <div key={i} className="pack-edit">
+          <div className="row-input"><input value={g.group} onChange={e => upd(i, { group: e.target.value })} aria-label="Group name" /><button className="icon-btn sm" onClick={() => setGroups(gs => gs.filter((_, j) => j !== i))} aria-label={`Remove ${g.group}`}><Icon name="x" size={16} /></button></div>
+          <textarea rows={Math.min(10, Math.max(3, g.text.split('\n').length))} value={g.text} onChange={e => upd(i, { text: e.target.value })} aria-label={`${g.group} items`} />
+        </div>
+      ))}
+      <div className="btn-row">
+        <button className="btn secondary small" onClick={() => setGroups(gs => [...gs, { group: 'New group', text: '' }])}><Icon name="plus" size={16} />Add group</button>
+        <button className="btn small" onClick={async () => { await save(groups.map(g => ({ group: g.group.trim(), items: g.text.split('\n').map(x => x.trim()).filter(Boolean) })).filter(g => g.group && g.items.length)); setSaved(true); }}>{saved ? 'Saved ✓' : 'Save packing list'}</button>
+        <button className="link-btn small" onClick={() => { setGroups(troop.packing.map(g => ({ group: g.group, text: g.items.join('\n') }))); setSaved(false); }}>Start over from the default list</button>
+      </div>
+    </div>
+  );
+}
+
+function PatrolsCard({ patrols, setPatrols, save }) {
+  return (
+    <div className="card">
+      <p className="small muted">Used for sign-ups, meal plans, gear, photos, inspections and patrol elections. Renaming a patrol doesn't move old records.</p>
+      {patrols.map((p, i) => (
+        <div className="row-input" key={i}>
+          <input value={p} onChange={e => setPatrols(patrols.map((x, j) => (j === i ? e.target.value : x)))} aria-label={`Patrol ${i + 1}`} />
+          <button className="icon-btn sm" onClick={() => setPatrols(patrols.filter((_, j) => j !== i))} aria-label={`Remove ${p}`}><Icon name="x" size={16} /></button>
+        </div>
+      ))}
+      <div className="btn-row">
+        <button className="btn secondary small" onClick={() => setPatrols([...patrols, ''])}><Icon name="plus" size={16} />Add patrol</button>
+        <button className="btn small" onClick={() => save({ patrols: patrols.map(p => p.trim()).filter(Boolean) })}>Save patrols</button>
+      </div>
+    </div>
+  );
+}
+
+function AlbumsCard({ albums, setAlbums, save }) {
+  return (
+    <div className="card">
+      <p className="small muted">Every outing is its own album automatically. Add albums for anything else.</p>
+      {albums.map((a, i) => (
+        <div className="row-input" key={a.id || i}>
+          <input className="emoji-in" value={a.emoji} onChange={e => setAlbums(albums.map((x, j) => (j === i ? { ...x, emoji: e.target.value } : x)))} aria-label="Emoji" />
+          <input value={a.title} onChange={e => setAlbums(albums.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))} aria-label="Album name" />
+          <button className="icon-btn sm" onClick={() => setAlbums(albums.filter((_, j) => j !== i))} aria-label="Remove album"><Icon name="x" size={16} /></button>
+        </div>
+      ))}
+      <div className="btn-row">
+        <button className="btn secondary small" onClick={() => setAlbums([...albums, { id: '', emoji: '📷', title: '' }])}><Icon name="plus" size={16} />Add album</button>
+        <button className="btn small" onClick={() => save({ albums })}>Save albums</button>
+      </div>
+      <p className="small muted">Built in: {troop.albums.map(a => `${a.emoji} ${a.title}`).join(', ')}.</p>
+    </div>
+  );
+}
+
+function Records({ pass }) {
+  const auth = sessionToken() ? `s=${encodeURIComponent(sessionToken())}` : `lk=${encodeURIComponent(pass)}`;
+  const items = [
+    ['Members', [
+      ['members', 'users', 'Roster', 'Names, patrols, positions and who has signed in (no codes)'],
+      ['permissions', 'shield', 'Photo permission', 'Every scout\'s photo choice and who signed'],
+    ]],
+    ['Outings & gear', [
+      ['signups', 'calendar', 'Outing sign-ups', 'Who\'s going to each outing, by patrol'],
+      ['spending', 'dollar', 'Food spending', 'Receipts by outing and patrol'],
+      ['gear', 'box', 'Gear inventory', 'Every item, condition and who has it now'],
+      ['gear-log', 'list', 'Gear history', 'Every check-out and check-in'],
+      ['hikes', 'map', 'Hikes', 'Every hike: date, group, miles, feet climbed'],
+    ]],
+    ['Patrols & PLC', [
+      ['inspections', 'shield', 'Uniform inspections', 'Every scout\'s score and what to fix'],
+      ['elections', 'users', 'Election results', 'Vote counts for every position (never who voted for whom)'],
+      ['games', 'star', 'Games', 'XP, levels and badges for each scout'],
+    ]],
+    ['Photos', [
+      ['photos', 'image', 'Photo log', 'Who shared what, and the permission check'],
+    ]],
+  ];
+  const day = new Date().toISOString().slice(0, 10);
+  return (
+    <>
+      <p className="small muted">Spreadsheets (CSV) open in Excel, Numbers or Google Sheets. Tap one to download it.</p>
+      {items.map(([title, list]) => (
+        <Section key={title} title={title}>
+          <ul className="more-list">{list.map(([k, ic, l, sub]) => (
+            <li key={k}><a href={`/api/leader/export/${k}?${auth}`} download={`${troop.id}-${k}-${day}.csv`}><span className="more-ico"><Icon name={ic} size={22} /></span><span className="grow"><b>{l}</b><span>{sub}</span></span><Icon name="download" size={18} /></a></li>
+          ))}</ul>
+        </Section>
+      ))}
+    </>
   );
 }
 

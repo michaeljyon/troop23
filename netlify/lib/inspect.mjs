@@ -35,9 +35,17 @@ const avgOf = list => { const s = list.filter(x => !x.absent); return s.length ?
 
 export async function inspectRoutes(store, rest, req, body, now, ctx) {
   const { me, people, isLeader } = ctx;
+  const [what] = rest;
+  if (what === 'config' && (isLeader || me?.leader)) {   // leaders: which optional uniform items count
+    if (req.method === 'GET') { const c = await config(store); return json({ off: c.off, all: UNIFORM }); }
+    if (req.method === 'POST') {
+      const off = (Array.isArray(body.off) ? body.off : []).filter(id => UNIFORM.some(i => i.id === id && i.optional));
+      await store.setJSON('inspect/config', { off, by: me?.name || 'Leader', at: now });
+      return json({ ok: true, ...(await config(store)) });
+    }
+  }
   if (!me) return err('Sign in with your personal code to see uniform inspections.', 401);
   const scope = inspectorScope(me, isLeader);
-  const [what] = rest;
   const mine = new Set([me.id, ...(me.scouts || [])]);
   const seesScout = (insp, sid) => isLeader || me.leader || mine.has(sid) || canInspect(scope, insp.patrol);
   const roster = patrol => people.members.filter(m => m.active !== false && m.role === 'scout' && m.patrol === patrol).map(m => ({ id: m.id, name: m.name, first: m.first, positions: m.positions || [] })).sort((a, b) => a.name.localeCompare(b.name));

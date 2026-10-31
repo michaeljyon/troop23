@@ -1,12 +1,14 @@
 import Icon from '../components/Icon.jsx';
 import { PageHead, Section, Progress } from '../components/ui.jsx';
-import { useSynced } from '../lib/api.js';
+import { useSynced, useApi } from '../lib/api.js';
 import { troop } from '../lib/config.js';
 
 // Personal packing checklist, saved on this phone (one per outing).
 export function PackingList({ storeKey, extras = [], title }) {
   const [done, setDone] = useSynced(storeKey, {});
-  const groups = [...(extras.length ? [{ group: 'For this trip', items: extras, special: true }] : []), ...troop.packing];
+  const settings = useApi('settings');
+  const standard = settings.data?.packing?.length ? settings.data.packing : troop.packing;   // leaders can edit it in Settings
+  const groups = [...(extras.length ? [{ group: 'For this trip', items: extras, special: true }] : []), ...standard];
   const all = groups.flatMap(g => g.items.map(i => `${g.group}|${i}`));
   const n = all.filter(k => done[k]).length;
   return (

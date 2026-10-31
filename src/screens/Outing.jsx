@@ -11,10 +11,12 @@ import { rangeLabel, whenLabel, today } from '../lib/dates.js';
 import { go } from '../lib/router.js';
 import { OutingForm } from './Outings.jsx';
 import { useCalendarLink, outingIcs } from '../lib/calendar.js';
+import { useFeatures } from '../lib/features.js';
 
 const TABS = [['overview', 'Overview', 'info'], ['meals', 'Meals', 'pot'], ['gear', 'Gear', 'box'], ['pack', 'Packing', 'checklist'], ['photos', 'Photos', 'image']];
 
 export default function Outing({ route }) {
+  const F = useFeatures();
   const id = route.args[0];
   const tab = route.query.tab || 'overview';
   const o = useApi(`c/outings/${id}`);
@@ -47,7 +49,7 @@ export default function Outing({ route }) {
       </section>
 
       <div className="tabs scroll" role="tablist">
-        {TABS.map(([k, l, ic]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => go(`outing/${id}${k === 'overview' ? '' : `?tab=${k}`}`)}><Icon name={ic} size={17} />{l}</button>)}
+        {TABS.filter(([k]) => k !== 'gear' || F.gear).map(([k, l, ic]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => go(`outing/${id}${k === 'overview' ? '' : `?tab=${k}`}`)}><Icon name={ic} size={17} />{l}</button>)}
       </div>
 
       {tab === 'overview' && <Overview outing={outing} rsvps={rsvps} />}
