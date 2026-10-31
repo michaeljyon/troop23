@@ -1201,3 +1201,11 @@ input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-off
 @keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
 .fix-btn { margin-left: 6px; padding: 3px 10px; border-radius: 99px; border: 0; background: #fff; color: var(--bad); font-weight: 800; cursor: pointer; }
 .track-body > .loc-card { margin: 0; }
+.loc-which { display: grid; gap: 4px; margin: 0 0 12px; }
+.loc-which-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; border-radius: 14px; border: 2px solid var(--primary); background: var(--mint); color: var(--primary-dark); text-align: left; cursor: pointer; }
+.loc-which-btn b { flex: 1; min-width: 0; font-size: 15.5px; }
+.loc-which-btn .link-btn { flex: none; padding: 0; white-space: nowrap; }
+.loc-pick { padding: 10px; border-radius: 14px; background: var(--page); border: 1.5px solid var(--line); }
+.loc-copy { margin-top: 8px; }
+.loc-diag { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--page); border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin: 8px 0 4px; }
+.loc-foot { display: grid; gap: 8px; }
