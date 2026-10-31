@@ -221,16 +221,41 @@ if not call('inspect', s=sess['Demo Leader'])['recent']:
     insp('Demo Scout', 'Eagles', {'Liam Carter': {'neck': 'miss', 'shirt': 'fix'}}, D(-14))
     insp('Mason Reyes', 'Foxes', {'Ethan Brooks': {'socks': 'fix'}}, D(-14))
     insp('Owen Harris', 'Wolverines', {'Jack Lopez': {'patrol': 'miss', 'belt': 'miss'}}, D(-7))
-if not call('elect', s=sess['Demo Leader'])['elections']:
-    S_ = {m['name']: m['id'] for m in call('leader/members', leader=True)['members'] if m['role'] == 'scout'}
-    el = call('elect', {'title': 'Spring 2026 troop elections', 'live': True, 'positions': [
-        {'title': 'Senior Patrol Leader', 'candidates': [S_['Mason Reyes'], S_['Ethan Brooks']]},
-        {'title': 'Chaplain Aide', 'candidates': [S_['Liam Carter'], S_['Jack Lopez']]},
-        {'title': 'Troop Quartermaster', 'candidates': [S_['Ethan Brooks'], S_['Owen Harris']]}]}, s=sess['Demo Leader'])['election']
+# Two elections with every position on the ballot: last spring's (closed, with results that match
+# who holds each position now) and this fall's (open, live results on, a few votes in so the demo
+# scout can vote and the TV screen shows bars moving). Re-running replaces both.
+S_ = {m['name']: m['id'] for m in call('leader/members', leader=True)['members'] if m['role'] == 'scout'}
+TROOP_RACES = [
+    ('Senior Patrol Leader', ['Mason Reyes', 'Ethan Brooks']), ('Assistant Senior Patrol Leader', ['Owen Harris', 'Jack Lopez']),
+    ('Troop Guide', ['Jack Lopez', 'Liam Carter']), ('Quartermaster', ['Ethan Brooks', 'Noah Patel']),
+    ('Assistant Quartermaster', ['Noah Patel', 'Caleb Nguyen']), ('Scribe', ['Owen Harris', 'Ava Kim']),
+    ('Historian', ['Ava Kim', 'Liam Carter']), ('Librarian', ['Liam Carter', 'Caleb Nguyen']),
+    ('Instructor', ['Jack Lopez', 'Ava Kim']), ("Chaplain's Aide", ['Liam Carter', 'Noah Patel']),
+    ('Den Chief', ['Jack Lopez', 'Ethan Brooks']), ('Junior Assistant Scoutmaster', ['Ethan Brooks']),
+    ('Order of the Arrow Representative', ['Ethan Brooks', 'Owen Harris']), ('Outdoor Ethics Guide', ['Ava Kim', 'Caleb Nguyen']),
+    ('Bugler', ['Caleb Nguyen', 'Noah Patel']), ('Scout Webmaster', ['Noah Patel', 'Ava Kim']),
+]
+PATROL_RACES = {
+    'Eagles': {'Patrol Leader': ['Demo Scout', 'Liam Carter'], 'Assistant Patrol Leader': ['Liam Carter', 'Demo Scout'], 'Patrol Quartermaster': ['Liam Carter']},
+    'Foxes': {'Patrol Leader': ['Ethan Brooks', 'Noah Patel'], 'Assistant Patrol Leader': ['Noah Patel', 'Caleb Nguyen'], 'Patrol Quartermaster': ['Caleb Nguyen', 'Noah Patel']},
+    'Wolverines': {'Patrol Leader': ['Owen Harris', 'Jack Lopez'], 'Assistant Patrol Leader': ['Jack Lopez', 'Ava Kim'], 'Patrol Quartermaster': ['Ava Kim', 'Jack Lopez']},
+}
+patrol_of = {m['name']: m.get('patrol', '') for m in call('leader/members', leader=True)['members'] if m['role'] == 'scout'}
+def ballot(flip=False):
+    order = (lambda c: list(reversed(c))) if flip else (lambda c: c)
+    races = [{'title': t, 'candidates': [S_[n] for n in order(c)]} for t, c in TROOP_RACES]
+    for pt, rs in PATROL_RACES.items():
+        races += [{'title': t, 'patrol': pt, 'candidates': [S_[n] for n in order(c)]} for t, c in rs.items()]
+    return races
+def run_election(title, flip, voters, close):
+    el = call('elect', {'title': title, 'live': True, 'positions': ballot(flip)}, s=sess['Demo Leader'])['election']
     call(f"elect/{el['id']}/open", {}, s=sess['Demo Leader'])
-    pos = [p['id'] for p in el['positions']]
-    for i, name in enumerate(sorted(S_)):
-        pick = lambda p: p['candidates'][0 if (i % 3) else 1]['id']
-        call(f"elect/{el['id']}/vote", {'for': S_[name], 'votes': {p['id']: pick(p) for p in el['positions']}}, s=sess['Demo Leader'])
-    call(f"elect/{el['id']}/close", {}, s=sess['Demo Leader'])
+    for i, name in enumerate(voters):
+        votes = {p['id']: p['candidates'][1 if (i % 4 == 3 and not p['patrol'] and len(p['candidates']) > 1) else 0]['id'] for p in el['positions'] if not p['patrol'] or p['patrol'] == patrol_of[name]}
+        call(f"elect/{el['id']}/vote", {'for': S_[name], 'votes': votes}, s=sess['Demo Leader'])
+    if close: call(f"elect/{el['id']}/close", {}, s=sess['Demo Leader'])
+for e in call('elect', s=sess['Demo Leader'])['elections']:   # replace the demo's elections (and any test ones)
+    urllib.request.urlopen(urllib.request.Request(BASE + f"elect/{e['id']}", headers={'x-troop-code': 'demo', 'x-session': sess['Demo Leader']}, method='DELETE'))
+run_election('Spring 2026 troop elections', False, sorted(S_), True)
+run_election('Fall 2026 troop elections', True, ['Mason Reyes', 'Ethan Brooks', 'Owen Harris', 'Ava Kim', 'Noah Patel'], False)
 print('Demo ready. Leader code XXXX-XXXX, scout code XXXX-XXXS, guest troop code "demo".')
