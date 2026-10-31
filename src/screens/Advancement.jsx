@@ -212,6 +212,12 @@ function ScoutRecord({ id }) {
         </Section>
       )}
 
+      {d.camp?.length > 0 && (
+          <Section title="From summer camp">
+            <ul className="sync-diff">{d.camp.map((c, i) => <li key={i}><b>{c.note}</b>{c.badges.length > 0 && <span><Pill tone="good">Finished</Pill> {c.badges.join(', ')}</span>}{c.partial.length > 0 && <span><Pill tone="warn">Partial</Pill> {c.partial.join(', ')}</span>}</li>)}</ul>
+            <p className="small muted">From the camp's records. They become official once the Advancement Chair imports them into Scoutbook.</p>
+          </Section>
+      )}
       {(r?.badges || []).length > 0 && (
         <Section title={`Merit badges earned · ${r.badges.length}`} action={r.badges.length > 12 && <button className="link-btn small" onClick={() => setAll(!all)}>{all ? 'Show fewer' : 'Show all'}</button>}>
           <ul className="badge-list">{(all ? r.badges : r.badges.slice(0, 12)).map(b => <li key={b.name + b.earned}><span>{b.eagle && <span className="eagle-star" aria-label="Eagle-required">★</span>}{b.name}</span><span className="muted small">{fmt(b.earned, true)}</span></li>)}</ul>

@@ -1879,3 +1879,42 @@ input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-off
 @media (hover: hover) and (pointer: fine) { .lead-quick { flex-wrap: wrap; overflow: visible; } }
 .pack-edit { padding: 8px 0; border-bottom: 1px solid var(--line); }
 .pack-edit textarea { width: 100%; border: 1.5px solid var(--line-strong); border-radius: 10px; padding: 8px 10px; font: 15px/1.45 var(--body); background: var(--surface); resize: vertical; margin-top: 6px; }
+
+/* ================================================================ Sync center */
+.sync-intro b { font: 800 19px var(--head); text-transform: uppercase; letter-spacing: .02em; color: var(--primary-dark); }
+.sync-how summary { cursor: pointer; font-weight: 700; color: var(--primary); margin-top: 6px; }
+.sync-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14.5px; }
+.sync-table th, .sync-table td { text-align: left; padding: 6px 4px; border-top: 1px solid var(--line); vertical-align: top; }
+.sync-table th { width: 38%; color: var(--ink-2); }
+.sync-status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
+@media (min-width: 760px) { .sync-status { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.ss { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); border-left: 5px solid var(--line-strong); min-width: 0; }
+.ss b { font-size: 14.5px; } .ss-when { font-weight: 700; font-size: 14px; }
+.ss.f-good { border-left-color: #2E9E5B; } .ss.f-good .ss-when { color: #1E7A45; }
+.ss.f-warn { border-left-color: #E9B949; } .ss.f-warn .ss-when { color: #8A6400; }
+.ss.f-old { border-left-color: #D64545; } .ss.f-old .ss-when { color: #B23A3A; }
+.sync-steps { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.sync-steps li { display: flex; gap: 10px; padding: 12px; border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); }
+.sync-steps .grow { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.sync-n { width: 26px; height: 26px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--primary); color: #fff; font-weight: 800; font-size: 14px; }
+.sync-drop { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; padding: 22px 16px; border: 2.5px dashed var(--line-strong); border-radius: 16px; background: var(--surface); cursor: pointer; color: var(--ink-2); }
+.sync-drop.over { border-color: var(--accent); background: #FFF6EC; }
+.sync-files ul { list-style: none; margin: 0 0 8px; padding: 0; }
+.sync-files li { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.sync-files li .grow { display: flex; flex-direction: column; min-width: 0; }
+.sync-files li .small { overflow: hidden; text-overflow: ellipsis; }
+.sync-files li.k-unknown, .sync-files li.k-blocked { opacity: .55; }
+.sync-act { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.sync-act .small { margin: 8px 0; }
+.sync-result { margin-top: 10px; }
+.sync-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.sync-sum span { display: flex; flex-direction: column; padding: 8px; border-radius: 10px; background: var(--page); font-size: 13.5px; font-weight: 700; }
+.sync-sum b { font: 800 26px var(--head); }
+.sync-sum i { font-style: normal; font-weight: 500; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+@media (max-width: 420px) { .sync-sum { grid-template-columns: 1fr; } }
+.sync-diff { list-style: none; margin: 0; padding: 0; }
+.sync-diff li { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.sync-log { list-style: none; margin: 0; padding: 0; }
+.sync-log li { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+.sync-log li > span:first-child { width: 52px; flex: none; }
+.sync-pos { margin-top: 10px; }

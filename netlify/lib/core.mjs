@@ -18,6 +18,7 @@ import { hikeRoutes } from './hikes.mjs';
 import { inspectRoutes } from './inspect.mjs';
 import { electRoutes } from './elect.mjs';
 import { notesRoutes } from './notes.mjs';
+import { syncRoutes } from './sync.mjs';
 import { quizRoutes, levelOf } from './quiz.mjs';
 
 const MAX_PHOTO_BYTES = 4.2 * 1024 * 1024;
@@ -256,7 +257,7 @@ async function settings(store) {
   const s = (await store.get('settings', { type: 'json' })) || {};
   const features = Object.fromEntries(FEATURES.map(f => [f, s.features?.[f] !== false]));
   const opts = Object.fromEntries(Object.entries(OPTS).map(([k, d]) => [k, typeof s.opts?.[k] === 'boolean' ? s.opts[k] : d]));
-  return { patrols: s.patrols?.length ? s.patrols : troop.patrols, albums: s.albums || [], aiHelper: s.aiHelper !== false, autoApprove: !!s.autoApprove, autoApproveBy: s.autoApproveBy || '', autoApproveAt: s.autoApproveAt || 0, features, opts, packing: s.packing?.length ? s.packing : troop.packing };
+  return { patrols: s.patrols?.length ? s.patrols : troop.patrols, albums: s.albums || [], aiHelper: s.aiHelper !== false, autoApprove: !!s.autoApprove, autoApproveBy: s.autoApproveBy || '', autoApproveAt: s.autoApproveAt || 0, features, opts, syncRoles: Array.isArray(s.syncRoles) ? s.syncRoles : ['scoutmaster', 'chair', 'advancement', 'webmaster'], packing: s.packing?.length ? s.packing : troop.packing };
 }
 
 // ---------------------------------------------------------------- albums
@@ -431,6 +432,37 @@ async function exportCSV(store, kind) {
     }
   } else if (kind === 'games') {
     rows = (await listJSON(store, 'quiz/stats/')).sort((a, b) => b.xp - a.xp).map(x => ({ name: x.name, patrol: x.patrol || '', xp: x.xp, level: levelOf(x.xp).name, games: x.games, right_answers: x.right, questions: x.total, badges: (x.badges || []).length, daily_streak_best: x.daily?.best || 0 }));
+  } else if (kind === 'activity') {
+    // what Basecamp knows each scout did: outings they went to and hikes they recorded, for entering in Scoutbook or TroopWebHost
+    const MI = 1609.344;
+    const people = await loadPeople(store);
+    const scouts = new Map(people.members.filter(m => m.role === 'scout').map(m => [m.id, m]));
+    const today = new Date().toISOString().slice(0, 10);
+    rows = [];
+    for (const r of await colItems(store, 'rsvps')) {
+      const o = outings.get(r.outingId), m = scouts.get(r.memberId);
+      if (!o || !m || !(r.status === 'yes' || r.attended) || o.start > today || o.cancelled) continue;
+      const nights = ['campout', 'camp'].includes(o.type) ? Math.max(0, Math.round((new Date(o.end || o.start) - new Date(o.start)) / 86400000)) : 0;
+      rows.push({ date: o.start, scout: m.name, patrol: m.patrol || '', activity: o.title, kind: o.type, camping_nights: nights || '', hiking_miles: '', service: o.type === 'service' ? 'yes (enter hours)' : '', from: 'Outing sign-up' });
+    }
+    for (const h of await colItems(store, 'hikes')) for (const id of h.group || []) {
+      const m = scouts.get(id); if (!m) continue;
+      rows.push({ date: h.date, scout: m.name, patrol: m.patrol || '', activity: h.title, kind: 'hike', camping_nights: '', hiking_miles: ((h.distance || 0) / MI).toFixed(1), service: '', from: h.manual ? 'Hike logged by hand' : 'Hike recorded on GPS' });
+    }
+    rows.sort((a, b) => a.date.localeCompare(b.date) || a.scout.localeCompare(b.scout));
+  } else if (kind === 'winners') {
+    const people = await loadPeople(store);
+    const name = id => people.members.find(m => m.id === id)?.name || 'Former member';
+    const els = (await listJSON(store, 'elect/e/')).filter(e => e.status === 'closed').sort((a, b) => b.closed - a.closed);
+    rows = [];
+    for (const e of els.slice(0, 4)) {
+      const ballots = await listJSON(store, `elect/v/${e.id}/`);
+      for (const p of e.positions) {
+        const counts = p.candidates.map(c => [c, ballots.filter(b => b.votes?.[p.id] === c).length]).sort((a, b) => b[1] - a[1]);
+        const tie = counts.length > 1 && counts[0][1] === counts[1][1];
+        rows.push({ election: e.title, closed: iso(e.closed).slice(0, 10), position: p.title, patrol: p.patrol || '', elected: counts[0]?.[1] ? (tie ? `Tie: ${counts.filter(c => c[1] === counts[0][1]).map(c => name(c[0])).join(' / ')}` : name(counts[0][0])) : 'No votes', votes: counts[0]?.[1] || 0 });
+      }
+    }
   } else return err('Unknown export.');
   if (!rows.length) rows = [{ note: 'Nothing recorded yet.' }];
   return new Response(toCSV(rows), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="${troop.id}-${kind}.csv"` } });
@@ -505,6 +537,7 @@ async function leader(store, req, parts, body, now) {
     const raw = (await store.get('settings', { type: 'json' })) || {};
     const next = { ...raw, patrols, albums: albumsIn };
     if (body.aiHelper !== undefined) next.aiHelper = !!body.aiHelper;
+    if (Array.isArray(body.syncRoles)) next.syncRoles = body.syncRoles.filter(r => ['scoutmaster', 'chair', 'advancement', 'webmaster', 'any'].includes(r));
     if (Array.isArray(body.packing)) next.packing = body.packing.slice(0, 12).map(g => ({ group: clean(g?.group, 40), items: (Array.isArray(g?.items) ? g.items : []).map(x => clean(x, 80)).filter(Boolean).slice(0, 40) })).filter(g => g.group && g.items.length);
     if (body.features && typeof body.features === 'object') next.features = { ...(raw.features || {}), ...Object.fromEntries(FEATURES.filter(f => typeof body.features[f] === 'boolean').map(f => [f, body.features[f]])) };
     if (body.opts && typeof body.opts === 'object') next.opts = { ...(raw.opts || {}), ...Object.fromEntries(Object.keys(OPTS).filter(k => typeof body.opts[k] === 'boolean').map(k => [k, body.opts[k]])) };
@@ -588,6 +621,7 @@ async function route(req, opts) {
     const mr = await memberRoutes(store, head, rest, req, body, now, { session, isLeader, colItems, patrols: (await settings(store)).patrols, later, notify: (...a) => notify(store, ...a) });
     if (mr) return mr;
     const ctx2 = {};
+    if (head === 'sync') return syncRoutes(store, rest, req, body, now, { me: session?.member, isLeader, passcode: !!opts.leaderPasscode && same(leaderGiven, opts.leaderPasscode), settings: await settings(store) });
     const FEATURE_OF = { quiz: 'games', hikes: 'hikes', inspect: 'inspect', elect: 'vote', notes: 'notes' };
     if (FEATURE_OF[head]) {
       const st = await settings(store);

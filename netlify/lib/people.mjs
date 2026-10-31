@@ -19,7 +19,7 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
 const err = (message, status = 400) => json({ error: message }, status);
 const rid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const clean = (s, n = 200) => String(s ?? '').replace(/[\u0000-\u0009\u000b-\u001f]/g, ' ').trim().slice(0, n);
-const keyOf = (first, last) => `${String(last || '').trim().toLowerCase()}|${String(first || '').trim().toLowerCase()}`;
+export const keyOf = (first, last) => `${String(last || '').trim().toLowerCase()}|${String(first || '').trim().toLowerCase()}`;
 const ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const newCode = () => { const b = crypto.getRandomValues(new Uint8Array(8)); const s = [...b].map(x => ALPHA[x % ALPHA.length]).join(''); return `${s.slice(0, 4)}-${s.slice(4)}`; };
 const newToken = () => [...crypto.getRandomValues(new Uint8Array(24))].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -281,7 +281,8 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
       const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(now);
       return json(adviseScout({ scout: summary(m), record, counselors, outings, hikeTotal: hikeTotals(hikes).get(id) || null, today }));
     }
-    return json({ scout: summary(m), record });
+    const camp = ((await store.get('sync/camp', { type: 'json' })) || []).flatMap(c => c.scouts.filter(x => x.id === id).map(x => ({ note: c.note, at: c.at, badges: x.badges, partial: x.partial }))).slice(0, 4);
+    return json({ scout: summary(m), record, camp });
   }
   return null;
 }
@@ -410,7 +411,7 @@ export async function leaderPeople(store, what, id, sub, req, body, now, ctx) {
 }
 
 // --------------------------------------------------------------- import (from scripts/import-troopwebhost-all.py)
-async function importData(store, body, now) {
+export async function importData(store, body, now) {
   const p = await loadPeople(store);
   const byKey = new Map(p.members.map(m => [keyOf(m.first, m.last), m]));
   const out = { added: 0, updated: 0 };

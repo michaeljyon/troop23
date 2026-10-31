@@ -72,6 +72,24 @@ Signing in with the leader passcode turns on leader mode for that browser tab. L
   - **Patrols**, **Photo albums**, **Standard packing list** (the everyday list every scout sees; one item per line, groups you can add or remove), and the **Chat writing helper**.
 - **Records.** CSV downloads, grouped: roster (no codes) and photo permission; outing sign-ups, food spending, gear inventory, gear history and hikes; uniform inspections, election results (vote counts only, never who voted for whom) and games; and the photo log. They download straight to the phone or computer, whether you signed in with your personal code or the leader passcode.
 
+## Sync center (Leader tools → Sync)
+
+Scoutbook Plus, TroopWebHost and Black Pug (Scouting Event) don't offer connections for other apps (no API), so records move between them as the CSV files each one already exports. The Sync center makes that a routine instead of a chore:
+
+- **Who can use it:** leaders whose position is Scoutmaster, Committee Chair, Advancement Chair (Committee Advancement Chair / Advancement Coordinator) or Webmaster, plus anyone with the leader passcode. Change the list in Settings → Sync center.
+- **Status board:** when each source was last brought in and by whom (green under a month, amber under three months, red after that).
+- **A checklist for each role** with the exact menu path in the other system:
+  - *Advancement Chair:* TroopWebHost → Export to Scoutbook Plus for new awards; Scoutbook Plus → Reports → Quick Export → Advancement, dropped here to compare with TroopWebHost (and uploaded in TroopWebHost); Black Pug's "Scoutbook Export" after summer camp.
+  - *Committee Chair:* Scoutbook Plus roster report → TroopWebHost, and dropped here to see who's missing or not registered; after elections, one tap updates positions in Basecamp, plus a results download to enter in Scoutbook and TroopWebHost; switching off people who have left.
+  - *Webmaster:* the monthly TroopWebHost export bundle (Active Roster, Events, Event Participation, Rank Advancement History, Merit Badge History, Merit Badges In Progress, Rank Requirements Earned, Inventory Items, Checked Out Items, E-Mail Groups, Event Locations, User Permissions, Leadership Positions), the calendar link, and the activity log.
+  - *Scoutmaster:* the status board, the differences list, and Troop planning.
+- **Bring files in:** drop any mix of files; Basecamp recognizes each one by its columns. TroopWebHost files update people, patrols, positions, advancement, attendance, gear, chat groups, outings, counselors and places (outings a leader edited in Basecamp, counselors and places are left alone) and list anyone no longer on the roster so a leader can switch them off. A Scoutbook advancement file is compared with TroopWebHost: only in Scoutbook, only in TroopWebHost, and done-but-not-awarded, scout by scout. A Black Pug file saves camp results, which scouts and parents also see on the scout's Advancement page. A Scoutbook roster report is checked against Basecamp.
+- **Privacy:** files are read on the leader's device. Only names, patrols, positions and advancement are sent; BSA member IDs, contact details, birthdays, medical and money never leave the device, and files with passwords are refused.
+- **Send records out:** activity log (outings attended and hikes recorded in Basecamp, with camping nights and hiking miles), election results, and the Basecamp roster.
+- **Sync history:** every import, compare and change, with who did it.
+
+The command-line importers in `scripts/` still work, but the Sync center does the same job from a phone or computer.
+
 ## Settings
 
 Edit `troop/troop.js` for names, colors, outing types, gear categories, duty roles, the packing list, starter recipes, sharing rules and photo-permission wording. Have the Scoutmaster and chartered organization review the permission wording before rollout.

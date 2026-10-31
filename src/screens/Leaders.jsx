@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
+const SyncCenter = lazy(() => import('./Sync.jsx'));
 import Icon from '../components/Icon.jsx';
 import { PageHead, Section, Empty, Sheet } from '../components/ui.jsx';
 import TagPicker from '../components/TagPicker.jsx';
@@ -15,7 +16,7 @@ import { sessionToken } from '../lib/api.js';
 // permission roster, bulletin posts, patrols & albums, and records.
 // Signing in here also turns on leader mode across the app (add/edit
 // outings, delete gear and recipes).
-const TABS = [['members', 'Members', 'users'], ['groups', 'Groups', 'message'], ['reports', 'Chat reports', 'alert'], ['review', 'Photos', 'image'], ['roster', 'Permission', 'shield'], ['bulletin', 'Bulletin', 'megaphone'], ['setup', 'Troop setup', 'trophy'], ['settings', 'Settings', 'settings'], ['data', 'Records', 'download']];
+const TABS = [['members', 'Members', 'users'], ['groups', 'Groups', 'message'], ['reports', 'Chat reports', 'alert'], ['review', 'Photos', 'image'], ['roster', 'Permission', 'shield'], ['bulletin', 'Bulletin', 'megaphone'], ['setup', 'Troop setup', 'trophy'], ['settings', 'Settings', 'settings'], ['sync', 'Sync', 'refresh'], ['data', 'Records', 'download']];
 
 const FLAG = {
   blocked: { cls: 'bad', icon: 'eyeOff', title: 'Has a "No photos" scout', body: 'Hide or delete this photo.' },
@@ -61,6 +62,7 @@ export default function Leaders({ route }) {
         {F.notes && <a href="#/notes?book=plc"><Icon name="file" size={16} />PLC notes</a>}
         {F.vote && <a href="#/vote"><Icon name="users" size={16} />Elections</a>}
         {F.inspect && <a href="#/inspect"><Icon name="shield" size={16} />Inspections</a>}
+        <a href="#/leaders?tab=sync"><Icon name="refresh" size={16} />Sync</a>
         <a href="#/advancement"><Icon name="trophy" size={16} />Troop planning</a>
       </nav>
       <div className="tabs scroll" role="tablist">
@@ -74,6 +76,7 @@ export default function Leaders({ route }) {
       {tab === 'bulletin' && <Bulletin />}
       {tab === 'setup' && <Setup pass={pass} goTab={setTab} />}
       {tab === 'settings' && <Settings pass={pass} />}
+      {tab === 'sync' && <Suspense fallback={<p className="muted">Loading…</p>}><SyncCenter pass={pass} /></Suspense>}
       {tab === 'data' && <Records pass={pass} />}
     </div>
   );
@@ -326,6 +329,13 @@ function Settings({ pass }) {
         <AlbumsCard albums={albums} setAlbums={setAlbums} save={save} />
       </details>
       <details className="set-group">
+        <summary><Icon name="refresh" size={18} /><span className="grow"><b>Sync center</b><span>Who can bring in Scoutbook, TroopWebHost and Black Pug files: {(s.data?.syncRoles || []).map(r => SYNC_ROLES[r]).join(', ') || 'nobody (passcode only)'}</span></span></summary>
+        <div className="card">
+          <p className="small muted">These leaders see Leader tools → Sync and can bring files in. Anyone with the leader passcode can too. Roles come from each person's positions (Members → position).</p>
+          <div className="el-chips">{Object.entries(SYNC_ROLES).map(([k, l]) => { const on = (s.data?.syncRoles || []).includes(k); return <button key={k} type="button" className={`chip sm ${on ? 'on' : ''}`} aria-pressed={on} onClick={async () => { const cur = new Set(s.data?.syncRoles || []); if (on) cur.delete(k); else cur.add(k); await save({ syncRoles: [...cur] }); s.load(); }}>{l}{on ? ' ✓' : ''}</button>; })}</div>
+        </div>
+      </details>
+      <details className="set-group">
         <summary><Icon name="checklist" size={18} /><span className="grow"><b>Standard packing list</b><span>{(s.data?.packing || []).reduce((t, g) => t + g.items.length, 0)} items in {(s.data?.packing || []).length} groups</span></span></summary>
         <PackingCard initial={s.data?.packing || troop.packing} save={async packing => { await save({ packing }); s.load(); }} />
       </details>
@@ -343,6 +353,7 @@ function Settings({ pass }) {
   );
 }
 
+const SYNC_ROLES = { scoutmaster: 'Scoutmaster', chair: 'Committee Chair', advancement: 'Advancement Chair', webmaster: 'Webmaster', any: 'Any leader' };
 const FEATURE_LIST = [
   ['hikes', 'map', 'Hikes', 'GPS hike tracking, maps, mile splits and the hiking leaderboard.', [['hikeHideEnds', 'Hide the start and finish of new hikes on the map', 'Leaves the first and last 200 m off, so a hike from home doesn\'t show the house. Hikers can still change it.']]],
   ['games', 'star', 'Games', 'Quizzes, puzzles, Speed Round, the Daily Challenge, XP and badges.', [['gamesLive', 'Campfire Clash live games', 'Host a live quiz on a TV with everyone answering on their phones.']]],

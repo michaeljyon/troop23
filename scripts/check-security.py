@@ -361,4 +361,20 @@ st, _ = call('quiz/me', s=S['scout']); check('switching it back on works', st ==
 st, _ = call('notes/plc', s=S['parent']); check('parents lose PLC notes again when switched off', st == 403, st)
 bad = [r for r in results if not r[0]]
 print(f'\nWITH SETTINGS {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+
+# --- sync center
+st, _ = call('sync', s=S['scout']); check('scouts cannot open the Sync center', st == 401, st)
+st, _ = call('sync', s=S['parent']); check('parents cannot open the Sync center', st == 401, st)
+lp = ', '.join(leader.get('positions', []))
+if not re.search(r'^scoutmaster$|committee chair|advancement|^webmaster$', lp, re.I):
+    st, _ = call('sync/roster', {'rows': []}, s=S['leader']); check('leaders without a sync role cannot run syncs', st == 403, st)
+st, d = call('sync', leader=True); check('leader passcode can open the Sync center', st == 200 and d['can'], st)
+st, r = call('sync/roster', {'rows': [{'first': scout['first'], 'last': scout['name'].split(' ')[-1], 'patrol': scout.get('patrol', ''), 'bsaId': '123456789', 'email': 'x@y.z', 'dob': '2012-01-01'}]}, leader=True)
+check('roster check works', st == 200, r)
+st, d = call('sync', leader=True); blob = json.dumps(d)
+check('no BSA IDs, emails or birthdays are kept from sync files', '123456789' not in blob and 'x@y.z' not in blob and '2012-01-01' not in blob)
+st, _ = call('sync/twh', {'members': [{'first': 'Hack', 'last': 'Er'}]}, s=S['scout']); check('scouts cannot push TroopWebHost data', st == 401, st)
+check('activity export is leaders only', raw_get(f"leader/export/activity?s={S['scout']}") in (401, 403))
+bad = [r for r in results if not r[0]]
+print(f'\nWITH SYNC {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
 for tok in S.values(): call('auth/signout', {}, s=tok)
