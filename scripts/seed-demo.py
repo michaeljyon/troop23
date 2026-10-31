@@ -258,4 +258,19 @@ for e in call('elect', s=sess['Demo Leader'])['elections']:   # replace the demo
     urllib.request.urlopen(urllib.request.Request(BASE + f"elect/{e['id']}", headers={'x-troop-code': 'demo', 'x-session': sess['Demo Leader']}, method='DELETE'))
 run_election('Spring 2026 troop elections', False, sorted(S_), True)
 run_election('Fall 2026 troop elections', True, ['Mason Reyes', 'Ethan Brooks', 'Owen Harris', 'Ava Kim', 'Noah Patel'], False)
+
+# ---------------------------------------------------------------- campfire book: favorites, a troop skit and a campfire plan
+for fid in ['purple-stew', 'boom-chicka', 'invisible-bench', 'echo-canyon', 'rainstorm', 'scout-vespers', 'last-log']:
+    call('fire/meta', {'id': fid, 'fav': True}, s=sess['Demo Leader'])
+def dl(path): urllib.request.urlopen(urllib.request.Request(BASE + path, headers={'x-troop-code': 'demo', 'x-session': sess['Demo Leader']}, method='DELETE'))
+fire = call('fire', s=sess['Demo Leader'])
+for i in fire['items']: dl(f"fire/items/{i['id']}")
+for pl in fire['plans']: dl(f"fire/plans/{pl['id']}")
+call('fire/items', {'kind': 'skit', 'title': 'The Patrol Cook-Off', 'cast': '4-5', 'time': '3 min', 'text': "Judge: Welcome to the Great Patrol Cook-Off!\n* Each cook proudly presents a pot.\nCook 1: Eagle Patrol chili, simmered for six hours.\nCook 2: Fox Patrol pancakes, flipped by moonlight.\nCook 3: Wolverine Patrol mystery stew.\nJudge: (tastes, eyes go wide) What's in it?\nCook 3: We were hoping you could tell us.\n* Everyone groans; the judge awards the trophy anyway.", 'how': 'Use your own patrol names.'}, s=sess['Demo Leader'])
+sat = TODAY + dt.timedelta(days=(5 - TODAY.weekday()) % 7 or 7)
+lineup = [('note', '', 'Opening flag ceremony', 'Color guard', 'open'), ('song', 'boom-chicka', 'Boom Chicka Boom', 'Everyone', 'open'), ('cheer', 'rainstorm', 'Rainstorm', '', 'open'),
+          ('skit', 'invisible-bench', 'The Invisible Bench', 'Eagles', 'peak'), ('runon', 'umbrella', 'Forecast', 'Demo Scout', 'peak'), ('song', 'purple-stew', 'Purple Stew', 'Foxes', 'peak'),
+          ('skit', 'echo-canyon', 'Echo Canyon', 'Wolverines', 'peak'), ('runon', 'compass', 'Know Where North Is', 'Mason Reyes', 'peak'), ('skit', 'tent-o-matic', 'The Tent-o-Matic 3000', 'Foxes', 'peak'),
+          ('song', 'home-range', 'Home on the Range', 'Everyone', 'calm'), ('minute', 'last-log', 'The Last Log', 'Scoutmaster', 'close'), ('song', 'scout-vespers', 'Scout Vespers', 'Everyone', 'close')]
+call('fire/plans', {'title': 'Fall campout campfire', 'date': sat.isoformat(), 'items': [{'ref': f'{k}:{i}' if i else '', 'kind': k, 'title': t, 'who': w, 'note': n} for k, i, t, w, n in lineup]}, s=sess['Demo Leader'])
 print('Demo ready. Leader code XXXX-XXXX, scout code XXXX-XXXS, guest troop code "demo".')

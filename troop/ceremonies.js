@@ -1,0 +1,153 @@
+// Flag and troop ceremonies, written for Basecamp. Each step is { who, say, do }.
+// The Pledge of Allegiance is from 4 U.S.C. § 4; flag rules follow the U.S. Flag Code (4 U.S.C. §§ 5–10).
+
+export const PLEDGE = 'I pledge allegiance to the Flag of the United States of America, and to the Republic for which it stands, one Nation under God, indivisible, with liberty and justice for all.';
+
+export const CEREMONIES = [
+  { id: 'open-indoor', group: 'flag', emoji: '🇺🇸', title: 'Opening flag ceremony (indoors)', when: 'Troop meetings, Courts of Honor, banquets',
+    roles: ['Caller (usually the SPL)', 'Color guard: 2 flag bearers (U.S. flag and troop flag), plus 2 guards if you have them'],
+    need: ['U.S. flag and troop flag on poles', 'Two flag stands at the front of the room'],
+    steps: [
+      { who: 'Caller', say: 'Troop, attention.', do: 'Everyone stands tall, hands at their sides, quiet.' },
+      { who: 'Caller', say: 'Color guard, advance.', do: 'The color guard walks to the front. The U.S. flag is on the marching right (or leads, if single file). Stop and face the audience.' },
+      { who: 'Caller', say: 'Scout salute.', do: 'Scouts in uniform give the Scout salute. Everyone else puts the right hand over the heart, hats off. Flag bearers hold the flags and don\'t salute.' },
+      { who: 'Caller', say: 'Please join me in the Pledge of Allegiance.', do: 'Everyone says the Pledge together.', words: 'PLEDGE' },
+      { who: 'Caller', say: 'Two.', do: 'Everyone ends the salute.' },
+      { who: 'Caller', say: 'Color guard, post the colors.', do: 'Put the U.S. flag in its stand first, on the speaker\'s right (the audience\'s left). Then the troop flag goes in the other stand.' },
+      { who: 'Caller', say: 'Color guard, honor your colors.', do: 'The color guard steps back, gives the Scout salute, and holds it for a moment.' },
+      { who: 'Caller', say: 'Color guard, dismissed.', do: 'The color guard returns to their seats.' },
+      { who: 'Caller', say: 'Please join me in the Scout Oath… and the Scout Law.', do: 'Optional. Everyone gives the Scout sign and says them together.' },
+      { who: 'Caller', say: 'Please be seated.', do: '' },
+    ],
+    tips: ['Practice once before the meeting, especially who stands where.', 'If a flag tips over, pick it up right away and carry on calmly.'] },
+
+  { id: 'close-indoor', group: 'flag', emoji: '🏁', title: 'Closing flag ceremony (indoors)', when: 'End of meetings and Courts of Honor',
+    roles: ['Caller', 'Color guard: 2 flag bearers, plus 2 guards if you have them'],
+    need: ['The posted flags'],
+    steps: [
+      { who: 'Caller', say: 'Troop, attention.', do: 'Everyone stands.' },
+      { who: 'Caller', say: 'Color guard, advance.', do: 'The color guard walks to the flag stands and faces the flags.' },
+      { who: 'Caller', say: 'Scout salute.', do: 'Everyone salutes (right hand over the heart if not in uniform).' },
+      { who: 'Caller', say: 'Color guard, retire the colors.', do: 'Take the troop flag out of its stand first, then the U.S. flag. Turn and carry them out of the room, U.S. flag on the marching right.' },
+      { who: 'Caller', say: 'Two.', do: 'When the flags have left the room, everyone ends the salute.' },
+      { who: 'Caller', say: 'Color guard, dismissed.', do: '' },
+      { who: 'Caller', say: 'Troop, dismissed.', do: 'Or "Troop, at ease" if announcements follow.' },
+    ] },
+
+  { id: 'morning-colors', group: 'flag', emoji: '🌅', title: 'Morning colors (raising the flag)', when: 'Each morning at camp',
+    roles: ['Caller', 'Color guard of 2–3: one carries the folded flag, one attaches it, one hoists'],
+    need: ['Flagpole with a halyard (rope) and two snaps or clips', 'The U.S. flag folded into a triangle'],
+    steps: [
+      { who: 'Caller', say: 'Troop, attention.', do: 'Everyone forms up facing the flagpole.' },
+      { who: 'Caller', say: 'Color guard, advance.', do: 'The color guard marches to the pole. The folded flag is carried with the stars on top.' },
+      { who: 'Color guard', say: '', do: 'Clip the corner by the stars to the top snap first, then the bottom snap. Unfold as you go. Don\'t let the flag touch the ground.' },
+      { who: 'Caller', say: 'Scout salute.', do: 'Everyone salutes.' },
+      { who: 'Color guard', say: '', do: 'Hoist the flag briskly all the way to the top. The person holding the flag lets it go when it\'s clear.' },
+      { who: 'Caller', say: 'Please join me in the Pledge of Allegiance.', do: '', words: 'PLEDGE' },
+      { who: 'Caller', say: 'Two.', do: 'Everyone ends the salute.' },
+      { who: 'Color guard', say: '', do: 'Tie off the halyard firmly on the cleat, step back, salute the flag, and return to the group.' },
+      { who: 'Caller', say: 'Color guard, dismissed. Troop, dismissed.', do: '' },
+    ],
+    tips: ['Under the Flag Code the flag flies from sunrise to sunset unless it\'s lit at night.'] },
+
+  { id: 'evening-colors', group: 'flag', emoji: '🌇', title: 'Evening colors (lowering the flag)', when: 'Each evening at camp, before dinner or at sunset',
+    roles: ['Caller', 'Color guard of 2–3'],
+    need: ['Nothing extra'],
+    steps: [
+      { who: 'Caller', say: 'Troop, attention.', do: 'Everyone forms up facing the flagpole.' },
+      { who: 'Caller', say: 'Color guard, advance.', do: 'The color guard goes to the pole and unties the halyard.' },
+      { who: 'Caller', say: 'Scout salute.', do: 'Everyone salutes.' },
+      { who: 'Color guard', say: '', do: 'Lower the flag slowly and with ceremony. One person gathers it into their arms as it comes down so it never touches the ground.' },
+      { who: 'Caller', say: 'Two.', do: 'Once the flag is unclipped, everyone ends the salute.' },
+      { who: 'Color guard', say: '', do: 'Fold the flag into a triangle (see "Folding the flag") and carry it away with the stars facing up.' },
+      { who: 'Caller', say: 'Color guard, dismissed. Troop, dismissed.', do: '' },
+    ],
+    tips: ['If a song is part of evening colors, "America the Beautiful" (in the songbook) works well.'] },
+
+  { id: 'half-staff', group: 'flag', emoji: '🕯️', title: 'Flying the flag at half-staff', when: 'When the President or the Governor orders it, and on Memorial Day until noon',
+    roles: ['Color guard of 2'],
+    need: ['Nothing extra'],
+    steps: [
+      { who: 'Color guard', say: '', do: 'Attach the flag as usual and hoist it briskly all the way to the top.' },
+      { who: 'Color guard', say: '', do: 'Pause for a moment at the top, then slowly lower it to the halfway point and tie off.' },
+      { who: 'Everyone', say: '', do: 'Salute during the raising, just like morning colors.' },
+      { who: 'Color guard', say: '', do: 'At the end of the day, raise the flag back to the top before lowering it for the night.' },
+    ],
+    tips: ['On Memorial Day, fly it at half-staff until noon, then raise it to the top for the rest of the day.'] },
+
+  { id: 'fold', group: 'flag', emoji: '🔺', title: 'Folding the flag', when: 'After evening colors or retiring the colors',
+    roles: ['2 scouts (4 for a large flag)'],
+    need: ['A clean, dry place to hold the flag'], fold: true,
+    steps: [
+      { who: 'Both', say: '', do: 'Hold the flag flat and level at waist height, one person at each end. Keep it off the ground.' },
+      { who: 'Both', say: '', do: 'Fold it in half the long way, bringing the striped bottom half up over the blue field.' },
+      { who: 'Both', say: '', do: 'Fold it the long way again, so the blue field is on the outside.' },
+      { who: 'Person at the striped end', say: '', do: 'Fold the corner of the striped end up to the top edge to make a triangle.' },
+      { who: 'Person at the striped end', say: '', do: 'Keep folding the triangle over on itself, like a paper football, working toward the blue field.' },
+      { who: 'Both', say: '', do: 'When only blue is left, tuck the end into the folds. You should have a neat triangle with only stars showing.' },
+    ],
+    tips: ['It usually takes about thirteen folds.', 'Some ceremonies read a meaning for each fold. Those words aren\'t part of the U.S. Flag Code; if your troop uses a reading, add it as a troop ceremony.'] },
+
+  { id: 'retire', group: 'flag', emoji: '🔥', title: 'Retiring a worn flag', when: 'A campfire, Flag Day (June 14), or a Court of Honor held outdoors',
+    roles: ['Narrator', 'Color guard of 2–6', 'An adult to tend the fire'],
+    need: ['A well-established fire, large enough to burn the flag completely', 'The worn flag, folded into a triangle', 'Water bucket, shovel and leather gloves'],
+    steps: [
+      { who: 'Narrator', say: 'Troop, attention.', do: 'Everyone stands around the fire.' },
+      { who: 'Narrator', say: 'Tonight we gather to retire a flag that has served with honor. It has flown through sun, wind and rain until it can no longer serve as a fitting emblem of our nation. The Flag Code asks that a flag like this be destroyed in a dignified way, preferably by burning. We do this not in disrespect, but with honor and thanks.', do: '' },
+      { who: 'Color guard', say: '', do: 'Bring the folded flag forward. Some troops unfold it and hold it open for everyone to see one last time.' },
+      { who: 'Narrator', say: 'Scout salute.', do: 'Everyone salutes.' },
+      { who: 'Color guard', say: '', do: 'Gently place the flag on the fire.' },
+      { who: 'Narrator', say: 'Two.', do: 'Everyone ends the salute and stands in silence, or sings a quiet song such as "America the Beautiful."' },
+      { who: 'Narrator', say: 'This flag has been retired with honor. When we raise our flag tomorrow, let it remind us of everyone who has served under it.', do: '' },
+      { who: 'Narrator', say: 'Troop, dismissed. Please leave in silence.', do: 'The adult and a few scouts stay until the flag has completely burned. When the ashes are cold, bury them.' },
+    ],
+    tips: ['Burn only cotton or wool flags. Nylon and polyester flags give off harmful fumes; take them to a flag drop-off or recycling program instead (many veterans\' posts collect them).', 'Some troops cut the flag before the ceremony, keeping the blue field whole and cutting the stripes apart, so it is no longer a flag. Decide ahead of time.', 'Adults handle the fire. Nobody leans over it.'] },
+
+  { id: 'law-candles', group: 'troop', emoji: '🕯️', title: 'Scout Law candle ceremony', when: 'Courts of Honor, crossovers, new scout welcomes',
+    roles: ['Narrator', '12 readers, one for each point of the Scout Law (or 6 readers with two each)'],
+    need: ['12 small candles and one tall candle (LED candles indoors)', 'A lighter or long match, used only by an adult if the candles are real'],
+    steps: [
+      { who: 'Narrator', say: 'The Scout Law has twelve points. Each candle stands for one of them. As each is lit, think about how you lived that point this year.', do: 'The tall candle is already lit.' },
+      { who: 'Reader 1', say: 'A Scout is trustworthy. People can count on a Scout to tell the truth and keep promises.', do: 'Light the first candle from the tall candle.' },
+      { who: 'Reader 2', say: 'A Scout is loyal. A Scout stands by family, friends, troop and country.', do: 'Light the next candle.' },
+      { who: 'Reader 3', say: 'A Scout is helpful. A Scout helps others without being asked and without expecting a reward.', do: 'Light the next candle.' },
+      { who: 'Reader 4', say: 'A Scout is friendly. A Scout is a friend to everyone and welcomes people who are different.', do: 'Light the next candle.' },
+      { who: 'Reader 5', say: 'A Scout is courteous. A Scout is polite to everyone, whatever their age or position.', do: 'Light the next candle.' },
+      { who: 'Reader 6', say: 'A Scout is kind. A Scout treats people and animals gently.', do: 'Light the next candle.' },
+      { who: 'Reader 7', say: 'A Scout is obedient. A Scout follows the rules of family, school and troop, and works to change unfair rules the right way.', do: 'Light the next candle.' },
+      { who: 'Reader 8', say: 'A Scout is cheerful. A Scout looks for the bright side and does every job with a good attitude.', do: 'Light the next candle.' },
+      { who: 'Reader 9', say: 'A Scout is thrifty. A Scout works to pay their own way, saves, and takes care of things.', do: 'Light the next candle.' },
+      { who: 'Reader 10', say: 'A Scout is brave. A Scout stands up for what is right, even when afraid.', do: 'Light the next candle.' },
+      { who: 'Reader 11', say: 'A Scout is clean. A Scout keeps body, mind, words and surroundings clean.', do: 'Light the next candle.' },
+      { who: 'Reader 12', say: 'A Scout is reverent. A Scout is faithful in their own beliefs and respects the beliefs of others.', do: 'Light the last candle.' },
+      { who: 'Narrator', say: 'One candle gives a little light. Twelve together light up the room. Please stand and join me in the Scout Law.', do: 'Everyone gives the Scout sign and says the Scout Law.' },
+    ],
+    tips: ['Let newer scouts read; it\'s a great first speaking part.', 'With real candles, keep water nearby and an adult at the table.'] },
+];
+
+// quick reference pages (no lead mode)
+export const FLAG_FACTS = [
+  ['When to fly it', 'From sunrise to sunset. At night only if it\'s lit.'],
+  ['Up and down', 'Raise it briskly. Lower it slowly and with ceremony.'],
+  ['The ground', 'Never let the flag touch the ground or anything beneath it.'],
+  ['On a stage', 'The U.S. flag goes on the speaker\'s right, which is the audience\'s left. Other flags go on the other side.'],
+  ['With other flags', 'In a parade or a line of flags, the U.S. flag is on the marching right or out in front of the center.'],
+  ['First and last', 'On a row of flagpoles, the U.S. flag goes up first and comes down last.'],
+  ['Saluting', 'During the Pledge, the national anthem, raising and lowering the flag, and when it passes by. Scouts in uniform give the Scout salute; everyone else puts the right hand over the heart, hats off.'],
+  ['Half-staff', 'Raise to the top first, then lower to the middle. Raise to the top again before lowering for the night.'],
+  ['Not a decoration', 'Don\'t use the flag as clothing, bedding or decoration. Use red, white and blue bunting instead.'],
+  ['When it\'s worn', 'Retire it in a dignified way, preferably by burning (see "Retiring a worn flag").'],
+];
+
+export const COMMANDS = [
+  ['Troop, attention.', 'Stand straight, quiet, hands at your sides.'],
+  ['Color guard, advance.', 'The color guard comes forward with the flags.'],
+  ['Scout salute.', 'Scouts in uniform salute; others put the right hand over the heart.'],
+  ['Two.', 'End the salute.'],
+  ['Color guard, post the colors.', 'Put the flags in their stands (U.S. flag first).'],
+  ['Color guard, honor your colors.', 'The color guard salutes the posted flags.'],
+  ['Color guard, retire the colors.', 'Take the flags out of the stands and carry them out.'],
+  ['Color guard, dismissed.', 'The color guard goes back to their places.'],
+  ['Troop, at ease.', 'Relax, stay in place, stay quiet.'],
+  ['Troop, dismissed.', 'The ceremony is over.'],
+];

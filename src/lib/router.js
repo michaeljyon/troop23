@@ -25,7 +25,7 @@ const NAMES = {
   home: 'Home', outings: 'Outings', outing: 'Outing', gallery: 'Photos', kitchen: 'Kitchen', gear: 'Gear locker', packing: 'Packing list',
   messages: 'Chat', thread: 'Chat', more: 'More', leaders: 'Leader tools', advancement: 'Advancement', counselors: 'Counselors',
   hikes: 'Hikes', track: 'Recording', permission: 'Photo permission', snap: 'Snap', slideshow: 'Slideshow',
-  games: 'Games', play: 'Game', live: 'Campfire Clash', inspect: 'Inspections', vote: 'Elections', notes: 'Meeting notes',
+  games: 'Games', play: 'Game', live: 'Campfire Clash', inspect: 'Inspections', vote: 'Elections', notes: 'Meeting notes', campfire: 'Campfire', ceremonies: 'Ceremonies',
 };
 export function pageName(r) {
   if (r.name === 'advancement' && r.args[0]) return 'Scout';
@@ -33,6 +33,9 @@ export function pageName(r) {
   if (r.name === 'inspect' && r.args[0]) return 'Inspection';
   if (r.name === 'notes' && r.args[1]) return r.args[2] ? 'Editing' : 'Notes';
   if (r.name === 'vote' && r.args[0]) return r.args[1] ? 'TV screen' : 'Election';
+  if (r.name === 'campfire' && r.args[0] === 'plan' && r.args[1]) return r.args[2] === 'edit' ? 'Editing' : 'Campfire plan';
+  if (r.name === 'campfire' && r.args[0]) return r.args[0] === 'kim' ? "Kim's Game" : 'Campfire book';
+  if (r.name === 'ceremonies' && r.args[0]) return 'Ceremony';
   if (r.name === 'thread') return 'Conversation';
   if (r.name === 'gallery' && r.query.album) return 'Album';
   return NAMES[r.name] || 'Back';
@@ -42,9 +45,12 @@ export function parentOf(r) {
   if (r.name === 'vote' && r.args[1]) return `vote/${r.args[0]}`;
   if (r.name === 'notes' && r.args[2]) return `notes/${r.args[0]}/${r.args[1]}`;
   if (r.name === 'notes' && r.args[0]) return `notes?book=${r.args[0]}`;
-  if (r.args[0] && ['advancement', 'hikes', 'inspect', 'vote'].includes(r.name)) return r.name;
+  if (r.name === 'campfire' && r.args[0] === 'plan' && r.args[1] && r.args[1] !== 'new' && r.args[2]) return `campfire/plan/${r.args[1]}`;
+  if (r.name === 'campfire' && r.args[0] === 'plan') return 'campfire?tab=plans';
+  if (r.name === 'ceremonies' && r.args[1]) return `ceremonies/${r.args[0]}`;
+  if (r.args[0] && ['advancement', 'hikes', 'inspect', 'vote', 'campfire', 'ceremonies'].includes(r.name)) return r.name;
   return { outing: 'outings', thread: 'messages', track: 'hikes', counselors: 'advancement', slideshow: 'gallery', snap: 'home', kitchen: 'more', gear: 'more', gallery: 'more',
-    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home', games: 'more', play: 'games', live: 'games', inspect: 'more', vote: 'more', notes: 'more' }[r.name] || 'home';
+    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home', games: 'more', play: 'games', live: 'games', inspect: 'more', vote: 'more', notes: 'more', campfire: 'more', ceremonies: 'more' }[r.name] || 'home';
 }
 
 // pages visited this session, one entry per page (kept in step with history)

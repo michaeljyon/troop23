@@ -126,6 +126,8 @@ export default function Home() {
           F.notes && (acct?.member?.role === 'scout' || isLeader) && ['notes', 'file', 'Meeting notes', isLeader ? 'PLC & committee' : 'PLC plans & decisions'],
           F.vote && ['vote', 'users', 'Elections', 'Troop & patrol leaders'],
           F.inspect && ['inspect', 'shield', 'Inspection', 'Patrol Cup'],
+          F.campfire && ['campfire', 'flame', 'Campfire', 'Songs, skits & cheers'],
+          F.ceremonies && ['ceremonies', 'flag', 'Ceremonies', 'Flag ceremony scripts'],
         ].filter(Boolean).map(([to, ic, b, sub]) => <a key={to} className="tile" href={`#/${to}`}><Icon name={ic} size={26} /><b>{b}</b><span>{sub}</span></a>)}
         {F.games && <a className="tile tile-games" href="#/games"><span className="tg-emoji" aria-hidden="true">🎯</span><span className="grow"><b>Games</b><span>Daily Challenge, puzzles{opts.gamesLive ? ' & Campfire Clash' : ''}</span></span><Icon name="chevronR" size={20} /></a>}
       </div>

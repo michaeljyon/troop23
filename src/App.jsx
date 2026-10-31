@@ -28,6 +28,8 @@ import Advancement from './screens/Advancement.jsx';
 import Counselors from './screens/Counselors.jsx';
 import Hikes, { Track } from './screens/Hikes.jsx';
 const Notes = lazy(() => import('./screens/Notes.jsx'));
+const Campfire = lazy(() => import('./screens/Campfire.jsx'));
+const Ceremonies = lazy(() => import('./screens/Ceremonies.jsx'));
 const Elections = lazy(() => import('./screens/Elections.jsx'));
 const Inspect = lazy(() => import('./screens/Inspect.jsx'));
 const loadGames = () => import('./screens/Games.jsx');
@@ -38,9 +40,9 @@ const TABS = [
   { id: 'outings', label: 'Outings', icon: 'tent', match: ['outings', 'outing'] },
   { id: 'snap', label: 'Snap', icon: 'camera', big: true },
   { id: 'messages', label: 'Chat', icon: 'message', match: ['messages', 'thread'] },
-  { id: 'more', label: 'More', icon: 'grid', match: ['more', 'kitchen', 'gallery', 'permission', 'packing', 'leaders', 'gear', 'advancement', 'counselors', 'hikes', 'games', 'play', 'live', 'inspect', 'vote', 'notes'] },
+  { id: 'more', label: 'More', icon: 'grid', match: ['more', 'kitchen', 'gallery', 'permission', 'packing', 'leaders', 'gear', 'advancement', 'counselors', 'hikes', 'games', 'play', 'live', 'inspect', 'vote', 'notes', 'campfire', 'ceremonies'] },
 ];
-const SCREENS = { home: Home, outings: Outings, outing: Outing, gear: Gear, kitchen: Kitchen, snap: Snap, gallery: Gallery, permission: Permission, leaders: Leaders, more: More, packing: Packing, messages: Messages, thread: Thread, advancement: Advancement, counselors: Counselors, hikes: Hikes, track: Track, games: Games, play: Play, live: Live, inspect: Inspect, vote: Elections, notes: Notes };
+const SCREENS = { home: Home, outings: Outings, outing: Outing, gear: Gear, kitchen: Kitchen, snap: Snap, gallery: Gallery, permission: Permission, leaders: Leaders, more: More, packing: Packing, messages: Messages, thread: Thread, advancement: Advancement, counselors: Counselors, hikes: Hikes, track: Track, games: Games, play: Play, live: Live, inspect: Inspect, vote: Elections, notes: Notes, campfire: Campfire, ceremonies: Ceremonies };
 
 export default function App() {
   const route = useRoute();

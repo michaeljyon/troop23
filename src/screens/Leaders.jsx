@@ -360,6 +360,8 @@ const FEATURE_LIST = [
   ['inspect', 'shield', 'Uniform inspection', 'Patrol leaders score uniforms on a tap-to-mark drawing; the Patrol Cup.', 'checklist'],
   ['vote', 'users', 'Troop elections', 'Secret ballots, the TV results screen, and voting on a leader\'s phone.', [['voteLiveDefault', 'Show live results on the TV by default', 'You can still change this for each election.']]],
   ['notes', 'file', 'Meeting notes', 'PLC notes for scouts and leaders; committee minutes for leaders only.', [['notesParentsPLC', 'Parents can read PLC notes', 'Committee minutes always stay leaders-only.']]],
+  ['campfire', 'flame', 'Campfire book', 'Songs, skits, run-ons, cheers, Scoutmaster\'s Minutes, patrol games, Kim\'s Game and campfire plans with Emcee mode.', [['fireSuggest', 'Scouts and parents can suggest songs and skits', 'Suggestions wait for a leader to approve them. Leaders and the PLC always add directly.']]],
+  ['ceremonies', 'flag', 'Ceremonies', 'Flag ceremony scripts with step-by-step Lead mode, flag etiquette, and your troop\'s own ceremonies.'],
   ['kitchen', 'pot', 'Troop kitchen', 'Recipes, recipe scanning, budgets and the pantry. Outing meal plans stay on either way.'],
   ['gear', 'box', 'Gear locker', 'Troop gear check-out and check-in, and the Gear tab on outings.'],
   ['counselors', 'people', 'Merit badge counselors', 'The counselor list under Advancement.'],

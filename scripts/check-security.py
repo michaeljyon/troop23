@@ -377,4 +377,36 @@ st, _ = call('sync/twh', {'members': [{'first': 'Hack', 'last': 'Er'}]}, s=S['sc
 check('activity export is leaders only', raw_get(f"leader/export/activity?s={S['scout']}") in (401, 403))
 bad = [r for r in results if not r[0]]
 print(f'\nWITH SYNC {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+
+# --- campfire book and ceremonies
+st, _ = call('fire'); check('campfire book needs the troop code', st == 401, st)
+st, d = call('fire', troop=True); check('guests can read the campfire book', st == 200 and not d['can']['suggest'], st)
+st, _ = call('fire/items', {'kind': 'song', 'title': 'x', 'text': 'y'}, troop=True); check('guests cannot add to the book', st == 401, st)
+st, r = call('fire/items', {'kind': 'skit', 'title': 'Sec skit', 'text': 'A: hi'}, s=S['mate']); check('scouts not on the PLC can only suggest', st == 200 and r['item']['status'] == 'pending', r); sk = r['item']['id']
+st, d = call('fire', s=S['outsider']); check('suggestions stay hidden until approved', st == 200 and not any(i['id'] == sk for i in d['items']), st)
+st, _ = call(f'fire/items/{sk}/approve', {}, s=S['pl']); check('only leaders approve suggestions', st == 403, st)
+st, _ = call(f'fire/items/{sk}', {'title': 'Hacked'}, method='PUT', s=S['outsider']); check("scouts can't change someone else's suggestion", st == 403, st)
+st, _ = call(f'fire/items/{sk}/approve', {}, s=S['leader']); check('leader approves a suggestion', st == 200, st)
+st, d = call('fire', s=S['outsider']); check('approved suggestions show for everyone', any(i['id'] == sk for i in d['items']), st)
+st, _ = call(f'fire/items/{sk}', method='DELETE', s=S['outsider']); check("scouts can't delete someone else's item", st == 403, st)
+st, r = call('fire/items', {'kind': 'song', 'ref': 'purple-stew', 'title': 'Purple Stew', 'text': '<img src=x onerror=alert(1)>'}, s=S['pl']); check('the PLC adds straight to the book', st == 200 and r['item']['status'] == 'ok', r); pw = r['item']['id']
+st, _ = call('fire/items', {'kind': 'nonsense', 'title': 'x', 'text': 'y'}, s=S['pl']); check('unknown kinds are refused', st == 400, st)
+st, _ = call('fire/meta', {'id': 'invisible-bench', 'hidden': True}, s=S['pl']); check('only leaders hide things from the book', st == 403, st)
+st, _ = call('fire/meta', {'id': 'invisible-bench', 'fav': True}, s=S['pl']); check('the PLC can pick troop favorites', st == 200, st)
+st, _ = call('fire/meta', {'id': '../people', 'fav': True}, s=S['leader']); check('bad ids are refused', st == 400, st)
+st, _ = call('fire/plans', {'title': 'x', 'items': []}, s=S['mate']); check('scouts not on the PLC cannot plan campfires', st == 403, st)
+st, r = call('fire/plans', {'title': 'Sec campfire', 'date': '2026-11-07', 'items': [{'ref': 'skit:echo-canyon', 'kind': 'skit', 'title': 'Echo Canyon', 'who': 'Foxes'}] * 80}, s=S['pl']); check('the PLC plans campfires (lineup capped)', st == 200 and len(r['plan']['items']) == 60, r); pid = r['plan']['id']
+st, d = call(f'fire/plans/{pid}', s=S['parent']); check('anyone in the troop can see a campfire plan', st == 200 and not d['canEdit'], st)
+st, _ = call(f'fire/plans/{pid}', method='DELETE', s=S['parent']); check('parents cannot delete campfire plans', st == 403, st)
+call('leader/settings', {'opts': {'fireSuggest': False}}, s=S['leader'])
+st, _ = call('fire/items', {'kind': 'cheer', 'title': 'x', 'text': 'y'}, s=S['mate']); check('suggestions can be switched off', st == 403, st)
+call('leader/settings', {'opts': {'fireSuggest': True}, 'features': {'campfire': False}}, s=S['leader'])
+st, _ = call(f'fire/plans/{pid}', s=S['scout']); check('campfire switched off on the server too', st == 403, st)
+st, _ = call('fire/items', {'kind': 'ceremony', 'title': 'Crossover', 'text': 'Caller: Welcome'}, s=S['pl']); check('ceremonies still work with campfire off', st == 200, st); cid = _['item']['id'] if st == 200 else ''
+call('leader/settings', {'features': {'campfire': True}}, s=S['leader'])
+for i in [sk, pw, cid]:
+    if i: call(f'fire/items/{i}', method='DELETE', s=S['leader'])
+call(f'fire/plans/{pid}', method='DELETE', s=S['leader']); call('fire/meta', {'id': 'invisible-bench', 'fav': False}, s=S['leader'])
+bad = [r for r in results if not r[0]]
+print(f'\nWITH CAMPFIRE {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
 for tok in S.values(): call('auth/signout', {}, s=tok)

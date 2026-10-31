@@ -24,6 +24,8 @@ export default function More() {
       F.counselors && ['counselors', 'people', 'Merit badge counselors', 'Who counsels which badge'],
       F.hikes && ['hikes', 'map', 'Hikes', 'Track distance and climbing with your group'],
       F.games && ['games', 'star', 'Games', 'Quizzes, puzzles and live troop games'],
+      F.campfire && ['campfire', 'flame', 'Campfire book', 'Songs, skits, run-ons, cheers, patrol games and campfire plans'],
+      F.ceremonies && ['ceremonies', 'flag', 'Ceremonies', 'Flag ceremonies and troop ceremonies, with scripts'],
     ]],
     ['Patrols & PLC', [
       F.notes && (isScout || isLeader || parentNotes) && ['notes', 'file', 'Meeting notes', isLeader ? 'PLC notes and committee minutes' : 'What the Patrol Leaders\' Council planned and decided'],

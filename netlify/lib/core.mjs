@@ -18,6 +18,7 @@ import { hikeRoutes } from './hikes.mjs';
 import { inspectRoutes } from './inspect.mjs';
 import { electRoutes } from './elect.mjs';
 import { notesRoutes } from './notes.mjs';
+import { fireRoutes } from './fire.mjs';
 import { syncRoutes } from './sync.mjs';
 import { quizRoutes, levelOf } from './quiz.mjs';
 
@@ -251,8 +252,8 @@ async function planAction(store, id, parts, req, body, now) {
 
 // ---------------------------------------------------------------- settings
 // Parts of the app leaders can switch off for the whole troop, and options for each.
-export const FEATURES = ['games', 'hikes', 'inspect', 'vote', 'notes', 'kitchen', 'gear', 'counselors'];
-const OPTS = { hikeHideEnds: true, voteLiveDefault: true, notesParentsPLC: false, gamesLive: true };
+export const FEATURES = ['games', 'hikes', 'inspect', 'vote', 'notes', 'campfire', 'ceremonies', 'kitchen', 'gear', 'counselors'];
+const OPTS = { hikeHideEnds: true, voteLiveDefault: true, notesParentsPLC: false, gamesLive: true, fireSuggest: true };
 async function settings(store) {
   const s = (await store.get('settings', { type: 'json' })) || {};
   const features = Object.fromEntries(FEATURES.map(f => [f, s.features?.[f] !== false]));
@@ -622,6 +623,7 @@ async function route(req, opts) {
     if (mr) return mr;
     const ctx2 = {};
     if (head === 'sync') return syncRoutes(store, rest, req, body, now, { me: session?.member, isLeader, passcode: !!opts.leaderPasscode && same(leaderGiven, opts.leaderPasscode), settings: await settings(store) });
+    if (head === 'fire') return fireRoutes(store, rest, req, body, now, { me: session?.member, isLeader, settings: await settings(store) });
     const FEATURE_OF = { quiz: 'games', hikes: 'hikes', inspect: 'inspect', elect: 'vote', notes: 'notes' };
     if (FEATURE_OF[head]) {
       const st = await settings(store);
