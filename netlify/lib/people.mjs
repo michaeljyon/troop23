@@ -85,9 +85,9 @@ async function listMsgs(store, threadId, since = 0, limit = 120) {
 }
 
 // chat attachments
-const ATT_MAX = 4 * 1024 * 1024;   // a Netlify function request tops out near 6 MB once base64-encoded
-const ATT_TYPES = /^(image\/(jpeg|png|gif|webp|heic|heif)|application\/pdf|text\/(plain|csv)|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|vnd\.ms-excel|vnd\.ms-powerpoint|rtf)|application\/vnd\.oasis\.opendocument\.(text|spreadsheet|presentation))$/;
-const BAD_EXT = /\.(exe|bat|cmd|com|msi|js|vbs|scr|ps1|sh|jar|apk|app|dmg|html?|svg)$/i;
+export const ATT_MAX = 4 * 1024 * 1024;   // a Netlify function request tops out near 6 MB once base64-encoded
+export const ATT_TYPES = /^(image\/(jpeg|png|gif|webp|heic|heif)|application\/pdf|text\/(plain|csv)|application\/(msword|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation)|vnd\.ms-excel|vnd\.ms-powerpoint|rtf)|application\/vnd\.oasis\.opendocument\.(text|spreadsheet|presentation))$/;
+export const BAD_EXT = /\.(exe|bat|cmd|com|msi|js|vbs|scr|ps1|sh|jar|apk|app|dmg|html?|svg)$/i;
 function attLabel(atts) {
   const n = atts.filter(a => a.kind === 'image').length, f = atts.length - n;
   return [n && `📷 ${n} photo${n > 1 ? 's' : ''}`, f && `📎 ${f} file${f > 1 ? 's' : ''}`].filter(Boolean).join(', ');

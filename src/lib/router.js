@@ -25,12 +25,13 @@ const NAMES = {
   home: 'Home', outings: 'Outings', outing: 'Outing', gallery: 'Photos', kitchen: 'Kitchen', gear: 'Gear locker', packing: 'Packing list',
   messages: 'Chat', thread: 'Chat', more: 'More', leaders: 'Leader tools', advancement: 'Advancement', counselors: 'Counselors',
   hikes: 'Hikes', track: 'Recording', permission: 'Photo permission', snap: 'Snap', slideshow: 'Slideshow',
-  games: 'Games', play: 'Game', live: 'Campfire Clash', inspect: 'Inspections', vote: 'Elections',
+  games: 'Games', play: 'Game', live: 'Campfire Clash', inspect: 'Inspections', vote: 'Elections', notes: 'Meeting notes',
 };
 export function pageName(r) {
   if (r.name === 'advancement' && r.args[0]) return 'Scout';
   if (r.name === 'hikes' && r.args[0]) return 'Hike';
   if (r.name === 'inspect' && r.args[0]) return 'Inspection';
+  if (r.name === 'notes' && r.args[1]) return r.args[2] ? 'Editing' : 'Notes';
   if (r.name === 'vote' && r.args[0]) return r.args[1] ? 'TV screen' : 'Election';
   if (r.name === 'thread') return 'Conversation';
   if (r.name === 'gallery' && r.query.album) return 'Album';
@@ -39,9 +40,11 @@ export function pageName(r) {
 export function parentOf(r) {
   if (r.name === 'gallery' && r.query.album) return 'gallery';
   if (r.name === 'vote' && r.args[1]) return `vote/${r.args[0]}`;
+  if (r.name === 'notes' && r.args[2]) return `notes/${r.args[0]}/${r.args[1]}`;
+  if (r.name === 'notes' && r.args[0]) return `notes?book=${r.args[0]}`;
   if (r.args[0] && ['advancement', 'hikes', 'inspect', 'vote'].includes(r.name)) return r.name;
   return { outing: 'outings', thread: 'messages', track: 'hikes', counselors: 'advancement', slideshow: 'gallery', snap: 'home', kitchen: 'more', gear: 'more', gallery: 'more',
-    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home', games: 'more', play: 'games', live: 'games', inspect: 'more', vote: 'more' }[r.name] || 'home';
+    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home', games: 'more', play: 'games', live: 'games', inspect: 'more', vote: 'more', notes: 'more' }[r.name] || 'home';
 }
 
 // pages visited this session, one entry per page (kept in step with history)

@@ -314,4 +314,31 @@ st, _ = call(f'elect/{eid}/vote', {'votes': {spl: cands[0]}}, s=S['outsider']); 
 st, _ = call(f'elect/{eid}', method='DELETE', s=S['leader']); check('leader can delete an election', st == 200, st)
 bad = [r for r in results if not r[0]]
 print(f'\nWITH ELECTIONS {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+
+# --- meeting notes
+import base64
+png = 'data:image/png;base64,' + base64.b64encode(bytes.fromhex('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082')).decode()
+st, _ = call('notes/plc', troop=True); check('notes need a personal code', st == 401, st)
+st, _ = call('notes/plc', s=S['parent']); check('parents cannot read PLC notes', st == 403, st)
+st, _ = call('notes/committee', s=S['parent']); check('parents cannot read committee minutes', st == 403, st)
+st, _ = call('notes/committee', s=S['scout']); check('scouts cannot read committee minutes', st == 403, st)
+st, _ = call('notes/plc', {'title': 'x', 'body': 'y'}, s=S['mate']); check('scouts not on the PLC cannot write PLC notes', st == 403, st)
+st, r = call('notes/plc', {'title': 'Sec PLC', 'body': 'Plan the campout', 'date': '2026-10-30'}, s=S['pl']); check('patrol leader can write PLC notes', st == 200, r); pn = r['note']['id']
+st, r = call(f'notes/plc/{pn}/files', {'name': 'board.png', 'type': 'image/png', 'data': png}, s=S['pl']); check('PLC notes take photos', st == 200, r); pf = r['file']['id']
+st, _ = call(f'notes/plc/{pn}/files', {'name': 'evil.html', 'type': 'text/html', 'data': png}, s=S['pl']); check('web pages and scripts are refused as files', st == 400, st)
+st, d = call(f'notes/plc/{pn}', s=S['outsider']); check('any scout can read PLC notes', st == 200 and d['note']['body'] == 'Plan the campout' and not d['canEdit'], st)
+st, _ = call(f'notes/plc/{pn}', {'title': 'hacked', 'body': ''}, method='PUT', s=S['outsider']); check("scouts can't change PLC notes they didn't write", st == 403, st)
+st, r = call(f'notes/committee', {'title': 'Sec committee', 'body': 'Budget'}, s=S['leader']); check('leader can write committee minutes', st == 200 and r['note']['status'] == 'draft', r); cn = r['note']['id']
+call(f'notes/committee/{cn}/files', {'name': 'budget.png', 'type': 'image/png', 'data': png}, s=S['leader'])
+cf = call(f'notes/committee/{cn}', s=S['leader'])[1]['note']['files'][0]['id']
+st, _ = call(f'notes/committee/{cn}', s=S['pl']); check("scouts can't open committee minutes", st == 403, st)
+st, _ = call(f'notes/committee/{cn}/files/{cf}', s=S['pl'], raw=True); check("scouts can't download committee files", st == 403, st)
+st, _ = call(f'notes/committee/{cn}/approve', {}, s=S['leader']); check('leader can approve minutes', st == 200, st)
+st, _ = call(f'notes/committee/{cn}', {'title': 'changed', 'body': 'x'}, method='PUT', s=S['leader']); check('approved minutes are locked', st == 409, st)
+st, _ = call(f'notes/committee/{cn}/files', {'name': 'more.png', 'type': 'image/png', 'data': png}, s=S['leader']); check('no new files on approved minutes', st == 409, st)
+call(f'notes/committee/{cn}/approve', {'approved': False}, s=S['leader'])
+st, _ = call(f'notes/committee/{cn}', {'title': 'changed', 'body': 'x'}, method='PUT', s=S['leader']); check('marking as draft unlocks them', st == 200, st)
+for b, nid in (('plc', pn), ('committee', cn)): call(f'notes/{b}/{nid}', method='DELETE', s=S['leader'])
+bad = [r for r in results if not r[0]]
+print(f'\nWITH NOTES {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
 for tok in S.values(): call('auth/signout', {}, s=tok)

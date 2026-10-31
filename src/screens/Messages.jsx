@@ -359,11 +359,11 @@ export function Thread({ route }) {
 
 const ATT_MAX = 4 * 1024 * 1024;
 const fmtSize = n => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
-const fileIcon = n => (/\.pdf$/i.test(n) ? 'file' : /\.(xlsx?|csv|ods)$/i.test(n) ? 'grid' : /\.(pptx?|odp)$/i.test(n) ? 'play' : 'file');
-const guessType = n => ({ pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', rtf: 'application/rtf' }[(n.split('.').pop() || '').toLowerCase()] || 'application/octet-stream');
-const asDataURL = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+export const fileIcon = n => (/\.pdf$/i.test(n) ? 'file' : /\.(xlsx?|csv|ods)$/i.test(n) ? 'grid' : /\.(pptx?|odp)$/i.test(n) ? 'play' : 'file');
+export const guessType = n => ({ pdf: 'application/pdf', txt: 'text/plain', csv: 'text/csv', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', rtf: 'application/rtf' }[(n.split('.').pop() || '').toLowerCase()] || 'application/octet-stream');
+export const asDataURL = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
 // Photos are resized on the phone (and their location data dropped) before upload.
-async function shrinkImage(f) {
+export async function shrinkImage(f) {
   const url = URL.createObjectURL(f);
   try {
     const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
@@ -375,7 +375,7 @@ async function shrinkImage(f) {
   } finally { URL.revokeObjectURL(url); }
 }
 
-function PicViewer({ list, start, url, dl, onClose }) {
+export function PicViewer({ list, start, url, dl, onClose }) {
   const [i, setI] = useState(start);
   const touch = useRef(null);
   useEffect(() => {
