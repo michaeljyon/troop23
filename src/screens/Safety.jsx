@@ -199,7 +199,7 @@ function FieldGuide({ id }) {
     <div className="content field">
       <PageHead backTo="field" eyebrow={`${g.emoji} Field guide`} title={g.title} sub={g.short} />
       {g.sections.map(([h, items]) => <div key={h} className="card fire-how"><b>{h}</b><ul>{items.map(t => <li key={t}>{t}</li>)}</ul></div>)}
-      <div className="btn-row"><a className="btn emerg-911 small" href="tel:911"><Icon name="phone" size={15} />911</a>{(g.calls || []).map(k => CALLS[k]).filter(Boolean).map(c => <a key={c.phone} className="btn secondary small" href={`tel:${c.phone.replace(/-/g, '')}`}>{c.emoji} {c.label} {c.phone}</a>)}</div>
+      {(g.calls || []).some(k => CALLS[k]) && <div className="btn-row">{g.calls.map(k => CALLS[k]).filter(Boolean).map(c => <a key={c.phone} className="btn secondary small" href={`tel:${c.phone.replace(/-/g, '')}`}>{c.emoji} {c.label} {c.phone}</a>)}</div>}
       <p className="small muted">Safety basics, not a substitute for first aid training. When in doubt, call 911.</p>
     </div>
   );
