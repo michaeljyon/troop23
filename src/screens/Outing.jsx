@@ -15,13 +15,14 @@ import { useFeatures } from '../lib/features.js';
 import { DutyRoster } from './Duty.jsx';
 import { OutingSafety } from './Safety.jsx';
 import Rides from './Rides.jsx';
+import { outingKind, outingTabOk } from '../lib/outingKind.js';
 
 const TABS = [['overview', 'Overview', 'info'], ['meals', 'Meals', 'pot'], ['duty', 'Duties', 'checklist'], ['rides', 'Rides & forms', 'route'], ['gear', 'Gear', 'box'], ['pack', 'Packing', 'list'], ['photos', 'Photos', 'image']];
 
 export default function Outing({ route }) {
   const F = useFeatures();
   const id = route.args[0];
-  const tab = route.query.tab || 'overview';
+  const askedTab = route.query.tab || 'overview';
   const o = useApi(`c/outings/${id}`);
   const rsvps = useCol('rsvps', { outing: id });
   const leader = useLeaderMode();
@@ -32,6 +33,7 @@ export default function Outing({ route }) {
   if (o.error) return <div className="content"><PageHead backTo="outings" /><Empty icon="alert" title="Outing not found">{o.error.message}</Empty></div>;
   if (!outing) return <div className="content"><PageHead backTo="outings" /><p className="muted">Loading…</p></div>;
   const t = outingType(outing.type);
+  const tab = outingTabOk(askedTab, outing) ? askedTab : 'overview';
 
   return (
     <div className="content">
@@ -52,7 +54,7 @@ export default function Outing({ route }) {
       </section>
 
       <div className="tabs scroll" role="tablist">
-        {TABS.filter(([k]) => (k !== 'gear' || F.gear) && (k !== 'duty' || F.duty) && (k !== 'rides' || F.carpool || F.slips)).map(([k, l, ic]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => go(`outing/${id}${k === 'overview' ? '' : `?tab=${k}`}`)}><Icon name={ic} size={17} />{l}</button>)}
+        {TABS.filter(([k]) => outingTabOk(k, outing) && (k !== 'gear' || F.gear) && (k !== 'duty' || F.duty) && (k !== 'rides' || F.carpool || F.slips)).map(([k, l, ic]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => go(`outing/${id}${k === 'overview' ? '' : `?tab=${k}`}`)}><Icon name={ic} size={17} />{l}</button>)}
       </div>
 
       {tab === 'overview' && <Overview outing={outing} rsvps={rsvps} />}
@@ -60,7 +62,7 @@ export default function Outing({ route }) {
       {tab === 'gear' && <OutingGear outing={outing} />}
       {tab === 'duty' && <DutyRoster outing={outing} />}
       {tab === 'rides' && <Rides outing={outing} />}
-      {tab === 'pack' && <PackingList storeKey={`pack-${outing.id}`} extras={outing.extras} title={outing.title} />}
+      {tab === 'pack' && <PackingList storeKey={`pack-${outing.id}`} extras={outing.extras} title={outing.title} day={outingKind(outing).day} />}
       {tab === 'photos' && <OutingPhotos outing={outing} />}
 
       <OutingForm outing={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); o.refresh(); }} />

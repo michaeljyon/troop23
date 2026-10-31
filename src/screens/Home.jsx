@@ -11,6 +11,7 @@ import { DutyToday } from './Duty.jsx';
 import { useLocal, useMe } from '../lib/store.js';
 import { troop, outingType } from '../lib/config.js';
 import { rangeLabel, whenLabel, monthDay, today } from '../lib/dates.js';
+import { outingTabOk } from '../lib/outingKind.js';
 
 export default function Home() {
   const [me] = useMe();
@@ -63,12 +64,17 @@ export default function Home() {
           <p className="next-meta"><Icon name="calendar" size={16} />{rangeLabel(next.start, next.end)}{next.location && <><span className="dot-sep" /><Icon name="pin" size={16} />{next.location}</>}</p>
           {next.meetTime && <p className="next-meta"><Icon name="clock" size={16} />Meet {next.meetTime}{next.meetPlace && ` · ${next.meetPlace}`}</p>}
           <Rsvp outing={next} rsvps={rsvps.items} onChange={rsvps.refresh} />
-          <div className="next-actions">
-            <a href={`#/outing/${next.id}?tab=meals`}><Icon name="pot" size={20} /><span>Meal plan</span></a>
-            <a href={`#/outing/${next.id}?tab=pack`}><Icon name="checklist" size={20} /><span>Packing</span></a>
-            <a href={`#/outing/${next.id}?tab=gear`}><Icon name="box" size={20} /><span>Gear</span></a>
-            <a href={`#/outing/${next.id}`}><Icon name="users" size={20} /><span>{going} going</span></a>
-          </div>
+          {(() => {
+            // only the shortcuts that fit this kind of outing (no meal plan or packing for a meeting in the hall)
+            const acts = [['meals', 'pot', 'Meal plan'], ['pack', 'checklist', 'Packing'], ['gear', 'box', 'Gear'], ['rides', 'route', 'Rides & forms']]
+              .filter(([k]) => outingTabOk(k, next) && (k !== 'gear' || F.gear) && (k !== 'rides' || F.carpool || F.slips)).slice(0, 3);
+            return (
+              <div className="next-actions" style={{ gridTemplateColumns: `repeat(${acts.length + 1}, 1fr)` }}>
+                {acts.map(([k, ic, l]) => <a key={k} href={`#/outing/${next.id}?tab=${k}`}><Icon name={ic} size={20} /><span>{l}</span></a>)}
+                <a href={`#/outing/${next.id}`}><Icon name="users" size={20} /><span>{going} going</span></a>
+              </div>
+            );
+          })()}
         </section>
       ) : (
         <Empty icon="tent" title="No outings on the calendar yet">Leaders add outings from the Outings tab.</Empty>

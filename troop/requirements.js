@@ -55,4 +55,4 @@ export const REQS = {
 export const REQ_RANKS = Object.keys(REQS);
 export const ALL_REQ_IDS = new Set(REQ_RANKS.flatMap(r => REQS[r].map(x => `${r}|${x.id}`)));
 // service hours each rank needs (Life: at least 3 conservation)
-export const SERVICE_GOALS = [['Tenderfoot', 1, 0], ['Second Class', 2, 0], ['Star', 6, 0], ['Life', 6, 3]];
+export const SERVICE_GOALS = [['Tenderfoot', 1, 0], ['Second Class', 2, 0], ['First Class', 3, 0], ['Star', 6, 0], ['Life', 6, 3]];

@@ -51,7 +51,7 @@ export default function Service() {
             {(isLeader || (e.status !== 'ok' && e.by === d.data.me)) && <button className="icon-btn" onClick={() => del(e.id)} aria-label="Remove"><Icon name="x" size={16} /></button>}</li>
         ))}</ul>}
       </Section>
-      <p className="small muted">Tenderfoot needs 1 hour, Second Class 2, Star 6, and Life 6 (at least 3 conservation), done after earning the rank before. Your Scoutmaster approves the projects.</p>
+      <p className="small muted">Tenderfoot needs 1 hour, Second Class 2, First Class 3, Star 6, and Life 6 (at least 3 conservation), done after earning the rank before. Your Scoutmaster approves the projects.</p>
       <Sheet open={log} onClose={() => setLog(false)} title="Log service hours">{log && <LogForm d={d.data} acct={acct} onDone={() => { setLog(false); d.refresh(); }} />}</Sheet>
     </div>
   );

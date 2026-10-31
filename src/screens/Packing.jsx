@@ -1,14 +1,19 @@
+import { useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import { PageHead, Section, Progress } from '../components/ui.jsx';
 import { useSynced, useApi } from '../lib/api.js';
 import { troop } from '../lib/config.js';
 
 // Personal packing checklist, saved on this phone (one per outing).
-export function PackingList({ storeKey, extras = [], title }) {
+export function PackingList({ storeKey, extras = [], title, day = false }) {
   const [done, setDone] = useSynced(storeKey, {});
+  const [full, setFull] = useState(false);
   const settings = useApi('settings');
   const standard = settings.data?.packing?.length ? settings.data.packing : troop.packing;   // leaders can edit it in Settings
-  const groups = [...(extras.length ? [{ group: 'For this trip', items: extras, special: true }] : []), ...standard];
+  // Day trips get what you wear plus the outdoor essentials, not the tent and sleeping bag. (Falls back to the whole list if leaders renamed the groups.)
+  const dayGroups = standard.filter(g => /wear|essential/i.test(g.group));
+  const trimmed = day && !full && dayGroups.length > 0;
+  const groups = [...(extras.length ? [{ group: 'For this trip', items: extras, special: true }] : []), ...(trimmed ? dayGroups : standard)];
   const all = groups.flatMap(g => g.items.map(i => `${g.group}|${i}`));
   const n = all.filter(k => done[k]).length;
   return (
@@ -28,6 +33,7 @@ export function PackingList({ storeKey, extras = [], title }) {
           </ul>
         </Section>
       ))}
+      {day && dayGroups.length > 0 && <p className="small muted center pad-top">{trimmed ? 'A day trip, so this shows the day essentials. ' : ''}<button className="link-btn small" onClick={() => setFull(!full)}>{trimmed ? 'Show the full overnight list' : 'Show just the day essentials'}</button></p>}
       <p className="small muted center pad-top">Saved to your account when you're signed in, or on this phone for guests.</p>
     </>
   );

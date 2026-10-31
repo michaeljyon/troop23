@@ -65,7 +65,8 @@ with sync_playwright() as pw:
     L.goto(BASE + '/#/checkin'); L.wait_for_selector('.count-list'); print('checked in:', L.locator('.count-list button.on').count())
     # Christmas tree sale
     L.goto(BASE + '/#/fundraiser'); L.wait_for_selector('.tree-hero'); L.click('button:has-text("Set up")'); L.fill('.sheet input[type=number] >> nth=0', '8000')
-    for i, pr in enumerate(['45', '55', '65', '85', '110', '25', '30', '25', '15']): L.locator(f'.sheet input[aria-label$=" price"]').nth(i).fill(pr)
+    prices = ['45', '55', '65', '85', '110', '25', '30', '25', '15']
+    for i in range(min(len(prices), L.locator('.sheet input[aria-label$=" price"]').count())): L.locator('.sheet input[aria-label$=" price"]').nth(i).fill(prices[i])
     L.locator('.sheet input[aria-label$=" received"]').nth(1).fill('120'); L.locator('.sheet input[aria-label$=" received"]').nth(2).fill('80')
     L.fill('.sheet input[maxlength="200"]', '1500 Main St, Tallahassee'); L.click('.sheet button:has-text("Save")'); L.wait_for_timeout(700)
     L.click('button:has-text("Add lot shifts")'); L.click('.sheet button:has-text("Add")'); L.wait_for_timeout(800)

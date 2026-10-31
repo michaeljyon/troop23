@@ -17,7 +17,8 @@ export const STAGES = [
   ['plan', 'Finish the detailed plan', 'Materials, tools, safety, volunteers, schedule.'],
   ['done', 'Carry out the project', 'Lead the volunteers. Take photos.'],
   ['report', 'Write the final report', 'Get the beneficiary\'s and Scoutmaster\'s sign-off.'],
-  ['app', 'Submit the Eagle application', 'With your references and statement of ambitions.'],
+  ['smc', 'Scoutmaster conference', 'Eagle requirement 6.'],
+  ['app', 'Submit the Eagle application', 'With your references and statement of ambitions. Everything except the board of review must be done before your 18th birthday.'],
   ['board', 'Eagle board of review', ''],
 ];
 

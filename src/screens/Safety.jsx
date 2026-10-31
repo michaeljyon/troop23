@@ -4,7 +4,8 @@ import { PageHead, Section, Empty } from '../components/ui.jsx';
 import { api, useApi, useCol } from '../lib/api.js';
 import { useLocal } from '../lib/store.js';
 import { useFeatures } from '../lib/features.js';
-import { GUIDE, POISON_CONTROL } from '../../troop/fieldguide.js';
+import { GUIDE, POISON_CONTROL, CALLS } from '../../troop/fieldguide.js';
+import { outingKind } from '../lib/outingKind.js';
 
 // Outing safety: two-deep check, weather, the emergency card, the buddy board and the Florida field guide.
 
@@ -12,7 +13,7 @@ const coords = o => { const m = /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s
 const todayISO = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
 
 export default function Safety({ route }) {
-  if (route.name === 'buddy') return <BuddyBoard oid={route.query.outing} />;
+  if (route.name === 'buddy') return <BuddyBoard oid={route.query.outing} startMode={route.query.mode === 'count' ? 'count' : 'water'} />;
   if (route.name === 'field') return <FieldGuide id={route.args[0]} />;
   return <Emergency oid={route.args[0]} />;
 }
@@ -23,26 +24,27 @@ export function OutingSafety({ outing }) {
   const d = useApi(`outsafe/${outing.id}`);
   const td = d.data?.twoDeep;
   const upcoming = (outing.end || outing.start) >= todayISO();
+  const kind = outingKind(outing);
   return (
     <Section title="Safety">
       {td && upcoming && td.scouts > 0 && (
         <div className={`card two-deep ${td.ok ? 'ok' : 'warn'}`}>
           <span className="td-ico" aria-hidden="true">{td.ok ? '✅' : '⚠️'}</span>
           <span className="grow"><b>{td.ok ? `Two-deep leadership: ${td.leaders} leaders going` : td.scouts === 0 ? 'No scouts signed up yet' : `Only ${td.leaders} leader${td.leaders === 1 ? '' : 's'} going`}</b>
-            <span className="small">{td.ok ? td.leaderNames.join(', ') : 'Every outing needs at least two registered adult leaders. Basecamp counts members marked as leaders who said they\'re going.'}</span></span>
+            <span className="small">{td.ok ? td.leaderNames.join(', ') : 'Every activity needs at least two registered adult leaders 21 or older (and a registered female leader 21+ when girls attend). Basecamp counts members marked as leaders who said they\'re going, so check ages yourself.'}</span></span>
         </div>
       )}
-      {upcoming && coords(outing) && <Weather where={coords(outing)} start={outing.start} end={outing.end || outing.start} />}
+      {upcoming && !kind.indoor && coords(outing) && <Weather where={coords(outing)} start={outing.start} end={outing.end || outing.start} overnight={kind.overnight} />}
       <div className="safety-links">
         <a className="card" href={`#/emergency/${outing.id}`}><span aria-hidden="true">🚑</span><b>Emergency card</b><span className="small muted">Nearest hospital, 911, plan</span></a>
-        <a className="card" href={`#/buddy?outing=${outing.id}`}><span aria-hidden="true">👥</span><b>Buddy board</b><span className="small muted">Waterfront and headcounts</span></a>
-        {F.safety && <a className="card" href="#/field"><span aria-hidden="true">🐍</span><b>Field guide</b><span className="small muted">Snakes, gators, lightning</span></a>}
+        <a className="card" href={`#/buddy?outing=${outing.id}${kind.indoor || (!kind.overnight && outing.type !== 'paddle') ? '&mode=count' : ''}`}><span aria-hidden="true">👥</span><b>{kind.indoor ? 'Headcount' : 'Buddy board'}</b><span className="small muted">{kind.indoor ? 'Make sure everyone is here' : outing.type === 'paddle' || kind.overnight ? 'Waterfront and headcounts' : 'Buddies and headcounts'}</span></a>
+        {F.safety && !kind.indoor && <a className="card" href="#/field"><span aria-hidden="true">🐍</span><b>Field guide</b><span className="small muted">Snakes, gators, lightning</span></a>}
       </div>
     </Section>
   );
 }
 
-export function Weather({ where, start, end }) {
+export function Weather({ where, start, end, overnight = true }) {
   const days = Math.round((Date.parse(start) - Date.parse(todayISO())) / 864e5);
   const d = useApi(days <= 7 ? `weather?lat=${where.lat}&lng=${where.lng}` : null);
   if (days > 7) return <div className="card wx muted small"><span aria-hidden="true">🌤️</span> The forecast for the campsite shows up here a week before the outing.</div>;
@@ -54,8 +56,8 @@ export function Weather({ where, start, end }) {
   const tips = [];
   if (/thunder|t-storm/.test(txt)) tips.push('⚡ Storms possible: plan where everyone goes when thunder roars (a building or hard-topped cars, not tents).');
   if (show.some(p => p.temp >= 90)) tips.push('🥵 Hot: extra water, shade breaks and hats. Watch your buddy for heat illness.');
-  if (show.some(p => p.temp <= 40)) tips.push('🥶 Cold nights: warm sleeping bag, a pad underneath, a hat to sleep in and dry socks.');
-  if (show.some(p => (p.rain ?? 0) >= 50)) tips.push('🌧️ Rain likely: rain gear, a ground cloth inside the tent and a dry bag for clothes.');
+  if (show.some(p => p.temp <= 40)) tips.push(overnight ? '🥶 Cold nights: warm sleeping bag, a pad underneath, a hat to sleep in and dry socks.' : '🥶 Cold: dress in layers, with a warm hat and gloves.');
+  if (show.some(p => (p.rain ?? 0) >= 50)) tips.push(overnight ? '🌧️ Rain likely: rain gear, a ground cloth inside the tent and a dry bag for clothes.' : '🌧️ Rain likely: rain gear and a dry change of socks.');
   return (
     <div className="card wx">
       <div className="wx-head"><b>Weather{d.data.place ? ` near ${d.data.place}` : ''}</b><span className="small muted">National Weather Service</span></div>
@@ -76,6 +78,7 @@ function Emergency({ oid }) {
   const card = d.data?.card || cached?.card || {};
   useEffect(() => { if (d.data && o) setCached({ card: d.data.card, title: o.title, address: o.address, location: o.location, mapQ: o.mapQ }); }, [d.data, o]); // eslint-disable-line react-hooks/exhaustive-deps
   const info = o || cached || {};
+  const indoor = outingKind(info).indoor;
   const c = coords(info);
   const near = q => (c ? `https://www.google.com/maps/search/${encodeURIComponent(q)}/@${c.lat},${c.lng},12z` : `https://www.google.com/maps/search/${encodeURIComponent(`${q} near ${info.address || info.location || ''}`)}`);
   return (
@@ -89,7 +92,7 @@ function Emergency({ oid }) {
           <div className="card emerg-list">
             <Row ico="📍" label="Where we are" val={info.address || info.location} link={info.address ? `https://www.google.com/maps/search/${encodeURIComponent(info.address)}` : null} />
             <Row ico="🏥" label="Nearest hospital" val={[card.hospital, card.hospitalAddress].filter(Boolean).join(' · ')} phone={card.hospitalPhone} link={card.hospitalAddress ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(card.hospitalAddress)}` : near('hospital')} linkLabel={card.hospitalAddress ? 'Directions' : 'Find the nearest hospital'} />
-            <Row ico="🌲" label="Ranger or camp office" val={card.ranger} phone={card.rangerPhone} />
+            <Row ico={indoor ? '🏢' : '🌲'} label={indoor ? 'Building contact' : 'Ranger or camp office'} val={card.ranger} phone={card.rangerPhone} />
             <Row ico="📣" label="Rally point" val={card.rally} />
             <Row ico="📶" label="Cell service" val={card.cell} />
             <Row ico="☠️" label="Poison Control" val="Free, any time" phone={POISON_CONTROL} />
@@ -126,10 +129,10 @@ function EditCard({ oid, card, onSaved }) {
 }
 
 // ---------------------------------------------------------------- buddy board (kept on this phone, works offline)
-function BuddyBoard({ oid }) {
+function BuddyBoard({ oid, startMode = 'water' }) {
   const rsvps = useCol('rsvps', oid ? { outing: oid } : { outing: '_none' });
   const going = rsvps.items.filter(r => r.status === 'yes').map(r => ({ id: r.memberId, name: r.name, scout: r.role === 'scout' }));
-  const [b, setB] = useLocal(`buddy-${oid || 'any'}`, { mode: 'water', extra: [], pairs: [], here: {}, inWater: {}, last: 0, every: 10, check: null });
+  const [b, setB] = useLocal(`buddy-${oid || 'any'}`, { mode: startMode, extra: [], pairs: [], here: {}, inWater: {}, last: 0, every: 10, check: null });
   const [now, setNow] = useState(Date.now());
   const [add, setAdd] = useState('');
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
@@ -159,7 +162,7 @@ function BuddyBoard({ oid }) {
             <div className="card buddy-check"><b>Buddy check!</b><span>Everyone grabs their buddy's hand and raises it. Tap each pair when you see them together.</span><span className="bc-time">{Math.max(0, Math.floor((now - b.check.at) / 1000))}s</span></div>
           ) : (
             <div className={`card buddy-timer ${due ? 'due' : ''}`}>
-              <span className="grow"><b>{since == null ? 'No buddy check yet' : due ? 'Time for a buddy check!' : `Last check ${Math.floor(since / 60)}:${String(since % 60).padStart(2, '0')} ago`}</b><span className="small">Check every <select value={b.every} onChange={e => set({ every: +e.target.value })} aria-label="Minutes between checks">{[5, 10, 15, 20].map(m => <option key={m} value={m}>{m}</option>)}</select> minutes</span></span>
+              <span className="grow"><b>{since == null ? 'No buddy check yet' : due ? 'Time for a buddy check!' : `Last check ${Math.floor(since / 60)}:${String(since % 60).padStart(2, '0')} ago`}</b><span className="small">Check every <select value={b.every} onChange={e => set({ every: +e.target.value })} aria-label="Minutes between checks">{[5, 10].map(m => <option key={m} value={m}>{m}</option>)}</select> minutes</span></span>
               <button className="btn accent" onClick={startCheck} disabled={!b.pairs.length}>Buddy check</button>
             </div>
           )}
@@ -175,7 +178,7 @@ function BuddyBoard({ oid }) {
             );
           })}</ul>
           {b.check && <button className="link-btn small" onClick={() => set({ check: null })}>Cancel check</button>}
-          <p className="small muted">Buddies stay within arm's reach and check in and out together. Follow Safe Swim Defense: a qualified supervisor, lookouts, and swimmers in the right area for their ability.</p>
+          <p className="small muted">Pair buddies from the same ability group (Make buddy pairs mixes everyone, so adjust by hand). Buddies stay together and check in and out together. Follow Safe Swim Defense: a qualified supervisor, lookouts, and swimmers in the right area for their ability.</p>
         </>
       ) : (
         <>
@@ -196,7 +199,7 @@ function FieldGuide({ id }) {
     <div className="content field">
       <PageHead backTo="field" eyebrow={`${g.emoji} Field guide`} title={g.title} sub={g.short} />
       {g.sections.map(([h, items]) => <div key={h} className="card fire-how"><b>{h}</b><ul>{items.map(t => <li key={t}>{t}</li>)}</ul></div>)}
-      <div className="btn-row"><a className="btn emerg-911 small" href="tel:911"><Icon name="phone" size={15} />911</a><a className="btn secondary small" href={`tel:${POISON_CONTROL.replace(/-/g, '')}`}>☠️ Poison Control {POISON_CONTROL}</a></div>
+      <div className="btn-row"><a className="btn emerg-911 small" href="tel:911"><Icon name="phone" size={15} />911</a>{(g.calls || []).map(k => CALLS[k]).filter(Boolean).map(c => <a key={c.phone} className="btn secondary small" href={`tel:${c.phone.replace(/-/g, '')}`}>{c.emoji} {c.label} {c.phone}</a>)}</div>
       <p className="small muted">Safety basics, not a substitute for first aid training. When in doubt, call 911.</p>
     </div>
   );
@@ -205,7 +208,7 @@ function FieldGuide({ id }) {
     <div className="content field">
       <PageHead backTo="more" title="Florida field guide" sub="What to watch for outdoors in Florida, and what to do. Saved on your phone, so it works without signal." />
       <ul className="fire-list">{GUIDE.map(x => <li key={x.id}><a href={`#/field/${x.id}`}><span className="fl-emoji" aria-hidden="true">{x.emoji}</span><span className="grow"><b>{x.title}</b><span className="small muted fl-sub">{x.short}</span></span><Icon name="chevronR" size={18} /></a></li>)}</ul>
-      <p className="small muted">In an emergency, call 911. Poison Control: {POISON_CONTROL}.</p>
+      <p className="small muted">In an emergency, call 911. Each topic lists any other number that helps, like Poison Control for bites and stings.</p>
     </div>
   );
 }

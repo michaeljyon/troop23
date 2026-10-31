@@ -64,7 +64,7 @@ export const CEREMONIES = [
     ],
     tips: ['If a song is part of evening colors, "America the Beautiful" (in the songbook) works well.'] },
 
-  { id: 'half-staff', group: 'flag', emoji: '🕯️', title: 'Flying the flag at half-staff', when: 'When the President or the Governor orders it, and on Memorial Day until noon',
+  { id: 'half-staff', group: 'flag', emoji: '🕯️', title: 'Flying the flag at half-staff', when: 'When the President or the Governor orders it, on Peace Officers Memorial Day (May 15), and on Memorial Day until noon',
     roles: ['Color guard of 2'],
     need: ['Nothing extra'],
     steps: [
@@ -133,9 +133,9 @@ export const FLAG_FACTS = [
   ['On a stage', 'The U.S. flag goes on the speaker\'s right, which is the audience\'s left. Other flags go on the other side.'],
   ['With other flags', 'In a parade or a line of flags, the U.S. flag is on the marching right or out in front of the center.'],
   ['First and last', 'On a row of flagpoles, the U.S. flag goes up first and comes down last.'],
-  ['Saluting', 'During the Pledge, the national anthem, raising and lowering the flag, and when it passes by. Scouts in uniform give the Scout salute; everyone else puts the right hand over the heart, hats off.'],
+  ['Saluting', 'During the Pledge, the national anthem, raising and lowering the flag, and when it passes by. Scouts in uniform give the Scout salute; everyone else puts the right hand over the heart, hats off. Veterans and service members out of uniform may give the military salute.'],
   ['Half-staff', 'Raise to the top first, then lower to the middle. Raise to the top again before lowering for the night.'],
-  ['Not a decoration', 'Don\'t use the flag as clothing, bedding or decoration. Use red, white and blue bunting instead.'],
+  ['Not a decoration', 'Don\'t use the flag as clothing, bedding or decoration. Use blue, white and red bunting instead, with blue on top.'],
   ['When it\'s worn', 'Retire it in a dignified way, preferably by burning (see "Retiring a worn flag").'],
 ];
 
