@@ -1,5 +1,10 @@
 // Stroke icons (24px grid). Decorative unless a label is given.
 const P = {
+  layers: 'M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17l9 5 9-5',
+  expand: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
+  shrink: 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5',
+  mountain: 'M3 20l6-10 4 6 3-4 5 8z',
+  route: 'M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM8 17h6a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h6',
   home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
   calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
   people: 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1M16 3.5a4 4 0 0 1 0 7M18 14a6 6 0 0 1 4 6v1',

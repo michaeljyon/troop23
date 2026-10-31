@@ -105,34 +105,40 @@ function HikeDetail({ id }) {
   const [d, setD] = useState(null);
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [focus, setFocus] = useState(null);
   const load = () => api(`hikes/${id}`).then(setD).catch(setError);
   useEffect(() => { load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!acct && !leader) return <SignInFirst title="Hike" />;
   if (error) return <div className="content"><PageHead backTo="hikes" /><Empty icon="alert" title="Can't show this hike">{error.message}</Empty></div>;
-  if (!d) return <div className="content"><PageHead backTo="hikes" /><p className="muted">Loading…</p></div>;
+  if (!d) return <div className="content"><PageHead backTo="hikes" /><div className="hike-map skeleton" style={{ height: 420 }} /></div>;
   const h = d.hike;
   const mine = acct && h.kudos.includes(acct.member.id);
   async function kudos() { const r = await api(`hikes/${h.id}/kudos`, { method: 'POST', body: {} }); setD({ ...d, hike: { ...h, kudos: r.kudos } }); }
   async function remove() { if (!confirm('Delete this hike for everyone in the group?')) return; await api(`hikes/${h.id}`, { method: 'DELETE' }); go('hikes'); }
+  const hasMap = d.points.length > 1;
+  const title = (
+    <div className="ho-top">
+      <p className="ho-date">{niceDate(h.date)}{h.manual ? ' · logged by hand' : ''}</p>
+      <h1>{h.title}</h1>
+      <p className="ho-by">{h.byName}{h.groupNames.length > 1 ? ` + ${h.groupNames.length - 1}` : ''}{h.outingTitle && <> · <a href={`#/outing/${h.outingId}`}>{h.outingTitle}</a></>}</p>
+    </div>
+  );
+  const stats = (
+    <div className="ho-stats">
+      <div className="ho-main"><span><b>{fmtMiles(h.distance, 2)}</b><i>mi</i></span><span><b>{fmtFeet(h.gain)}</b><i>ft up</i></span><span><b>{fmtDur(h.moving)}</b><i>moving</i></span></div>
+      <div className="ho-sub"><span>{fmtPace(h.distance, h.moving)} /mi</span>{h.maxEle != null && <span>High {fmtFeet(h.maxEle)} ft</span>}{h.loss != null && <span>Down {fmtFeet(h.loss)} ft</span>}{!h.manual && <span>{fmtDur(h.elapsed)} total</span>}</div>
+    </div>
+  );
   return (
-    <div className="content">
+    <div className="content hike-page">
       <PageHead backTo="hikes">{d.canEdit && <button className="btn small secondary head-btn" onClick={() => setEditing(true)}><Icon name="edit" size={15} />Edit</button>}</PageHead>
-      <section className="hike-hero">
-        <p className="eyebrow">{niceDate(h.date)}{h.manual ? ' · logged by hand' : ''}</p>
-        <h1>{h.title}</h1>
-        <p className="small muted">Recorded by {h.byName}{h.outingTitle && <> · <a href={`#/outing/${h.outingId}`}>{h.outingTitle}</a></>}</p>
-      </section>
-      <div className="hike-stats">
-        <div><b>{fmtMiles(h.distance, 2)}</b><span>miles</span></div>
-        <div><b>{fmtFeet(h.gain)}</b><span>ft climbed</span></div>
-        <div><b>{fmtDur(h.moving)}</b><span>moving time</span></div>
-        <div><b>{fmtPace(h.distance, h.moving)}</b><span>min / mile</span></div>
-        {h.maxEle != null && <div><b>{fmtFeet(h.maxEle)}</b><span>highest (ft)</span></div>}
-        {!h.manual && <div><b>{fmtDur(h.elapsed)}</b><span>total time</span></div>}
-      </div>
-      {d.points.length > 1 && <MapBox points={d.points} height={360} />}
-      {d.points.length > 1 && h.hideEnds && <p className="small muted map-note"><Icon name="lock" size={13} /> The first and last 200 m are left off the map for privacy. Distance includes them.</p>}
-      <ElevationChart profile={d.profile} />
+      {hasMap ? (
+        <MapBox points={d.points} offset={d.offset} focus={focus} height={520} tall className="hero-map" overlay={<>{title}{stats}</>} />
+      ) : (
+        <section className="hike-banner">{title}{stats}</section>
+      )}
+      {hasMap && h.hideEnds && <p className="small muted map-note"><Icon name="lock" size={13} /> The first and last 200 m are left off the map for privacy. Distance includes them.</p>}
+      <ElevationChart profile={d.profile} onFocus={hasMap ? setFocus : undefined} />
       {h.eleSource === 'map' && <p className="tiny muted">Elevation: Copernicus DEM (GLO-90) via Open-Meteo.</p>}
       {h.eleSource === 'gps' && <p className="tiny muted">Elevation from the phone's GPS, which can be off by several feet.</p>}
       {h.notes && <p className="hike-notes">{h.notes}</p>}
@@ -345,7 +351,7 @@ export function Track({ route }) {
 
       {s.phase === 'setup' && (
         <div className="track-body">
-          <MapBox points={[]} here={here} height={220} live />
+          <MapBox points={[]} here={here} height={240} live />
           <div className="card">
             <label className="field"><span>Name</span><input value={s.title} onChange={e => save({ ...s, title: e.target.value })} placeholder="e.g. Leon Sinks loop" maxLength={80} /></label>
             <OutingPick value={s.outingId} onChange={v => save({ ...s, outingId: v, title: s.title || outings.items.find(o => o.id === v)?.title || '' })} />
@@ -359,22 +365,25 @@ export function Track({ route }) {
       )}
 
       {(s.phase === 'rec' || s.phase === 'paused') && (
-        <div className="track-body live">
-          <MapBox points={livePts} here={here} height={260} live />
-          <div className={`live-stats ${s.phase}`}>
-            <div className="big"><b>{fmtMiles(stats.distance, 2)}</b><span>miles</span></div>
-            <div><b>{fmtTime(elapsed)}</b><span>time</span></div>
-            <div><b>{fmtFeet(stats.gain)}</b><span>ft climbed</span></div>
-            <div><b>{fmtPace(stats.distance, stats.moving)}</b><span>min / mile</span></div>
-            <div><b>{stats.ele == null ? '–' : fmtFeet(stats.ele)}</b><span>elevation ft</span></div>
-          </div>
-          {s.phase === 'paused' && <p className="paused-note"><Icon name="pause" size={16} /> Paused. Distance isn't counted until you resume.</p>}
-          {gpsErr && <p className="form-msg" role="alert">{gpsErr}</p>}
-          <p className="small muted center">{s.group.length} hiking{lockOn ? ' · screen stays on' : ''}</p>
-          <div className="track-btns">
-            {s.phase === 'rec' ? <button className="btn secondary big" onClick={pause}><Icon name="pause" size={20} />Pause</button> : <button className="btn big" onClick={resume}><Icon name="play" size={20} />Resume</button>}
-            <button className="btn accent big" onClick={finish}><Icon name="check" size={20} />Finish</button>
-          </div>
+        <div className="track-live">
+          <MapBox points={livePts} here={here} height="100%" live className="live-map" overlay={
+            <div className={`live-panel ${s.phase}`}>
+              {s.phase === 'paused' && <p className="paused-note"><Icon name="pause" size={15} /> Paused · distance isn't counted until you resume</p>}
+              {gpsErr && <p className="live-err" role="alert">{gpsErr}</p>}
+              <div className="lp-big"><b>{fmtMiles(stats.distance, 2)}</b><i>miles</i></div>
+              <div className="lp-row">
+                <span><b>{fmtTime(elapsed)}</b><i>time</i></span>
+                <span><b>{fmtFeet(stats.gain)}</b><i>ft up</i></span>
+                <span><b>{fmtPace(stats.distance, stats.moving)}</b><i>/ mile</i></span>
+                <span><b>{stats.ele == null ? '–' : fmtFeet(stats.ele)}</b><i>elev ft</i></span>
+              </div>
+              <div className="track-btns">
+                {s.phase === 'rec' ? <button className="btn ghost big" onClick={pause}><Icon name="pause" size={20} />Pause</button> : <button className="btn big" onClick={resume}><Icon name="play" size={20} />Resume</button>}
+                <button className="btn accent big" onClick={finish}><Icon name="check" size={20} />Finish</button>
+              </div>
+              <p className="lp-foot">{s.group.length} hiking{lockOn ? ' · screen stays on' : ' · keep Basecamp open'}</p>
+            </div>
+          } />
         </div>
       )}
 

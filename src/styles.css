@@ -1073,3 +1073,93 @@ input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-off
 .plan-n { min-width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--warn-bg); color: var(--warn); font: 800 22px var(--head); flex: none; }
 .plan-names { margin: 0; padding: 0 14px 12px 66px; color: var(--ink-2); }
 @media (min-width: 760px) { .hike-stats { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; } .hike-stats > div:first-child { grid-column: auto !important; } .live-stats { grid-template-columns: repeat(4, 1fr); } }
+
+/* ---------- trail map: overlays, layers, pins */
+.hike-map-wrap { border-radius: 22px; box-shadow: 0 10px 30px rgba(12,28,19,.18), 0 2px 6px rgba(12,28,19,.08); }
+.hike-map { background: linear-gradient(135deg, #DCE5D5, #E9E4D2); }
+.hike-map-wrap .leaflet-control-attribution { font-size: 10px; background: rgba(255,255,255,.72); border-radius: 8px 0 0 0; padding: 1px 6px; }
+.map-layer { display: none; }
+.map-tools { position: absolute; z-index: 460; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px; }
+.map-btn, .map-zoom button { width: 42px; height: 42px; display: grid; place-items: center; border: 0; border-radius: 13px; background: rgba(255,255,255,.94); color: var(--primary-dark); box-shadow: 0 4px 14px rgba(0,0,0,.18); cursor: pointer; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.map-btn:hover, .map-zoom button:hover { background: #fff; color: var(--accent); }
+.map-zoom { display: flex; flex-direction: column; border-radius: 13px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+.map-zoom button { border-radius: 0; box-shadow: none; font-size: 22px; line-height: 1; }
+.map-zoom button + button { border-top: 1px solid var(--line); }
+@media (hover: none) { .map-zoom { display: none; } }
+.map-panel { position: absolute; z-index: 470; top: 12px; right: 62px; width: min(268px, calc(100% - 80px)); max-height: calc(100% - 24px); overflow: auto; background: rgba(255,255,255,.97); border-radius: 18px; padding: 12px; box-shadow: 0 14px 40px rgba(0,0,0,.28); animation: up .16s ease; }
+.mp-h { margin: 4px 2px 6px; font: 800 12px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.mp-h + .mp-h, .mp-bases + .mp-h, .mp-check + .mp-h { margin-top: 12px; }
+.mp-bases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.mp-bases button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 0 6px; border: 2px solid transparent; border-radius: 12px; background: var(--page); font-size: 12px; font-weight: 700; color: var(--ink-2); cursor: pointer; overflow: hidden; }
+.mp-bases button.on { border-color: var(--accent); color: var(--primary-dark); }
+.mp-sw { display: block; width: 100%; height: 38px; }
+.mp-check { display: flex; align-items: center; gap: 8px; padding: 6px 2px; font-weight: 600; font-size: 14.5px; cursor: pointer; }
+.mp-check input { width: 20px; height: 20px; accent-color: var(--primary); }
+.mp-seg { display: flex; gap: 4px; background: var(--sand); border-radius: 11px; padding: 3px; }
+.mp-seg button { flex: 1; border: 0; background: transparent; border-radius: 8px; padding: 7px 4px; font-weight: 700; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+.mp-seg button.on { background: #fff; color: var(--primary); box-shadow: var(--shadow); }
+.mp-seg button:disabled { opacity: .4; cursor: not-allowed; }
+.map-legend { position: absolute; z-index: 455; top: 114px; right: 12px; flex-direction: column-reverse; padding: 8px 6px; border-radius: 13px; width: 42px; text-align: center; font-size: 10.5px; display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 99px; background: rgba(255,255,255,.92); box-shadow: 0 3px 10px rgba(0,0,0,.15); font-size: 11.5px; font-weight: 800; color: var(--ink-2); }
+.map-legend i { width: 6px; height: 70px; border-radius: 3px; }
+.map-legend i { transform: scaleY(-1); }
+@media (hover: hover) { .map-legend { top: 206px; } }
+.map-overlay { position: absolute; inset: 0; z-index: 450; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; }
+.map-overlay a, .map-overlay button { pointer-events: auto; }
+.hike-map-wrap.full { position: fixed; inset: 0; z-index: 90; border-radius: 0; }
+.hike-map-wrap.full .hike-map { height: 100% !important; }
+/* pins */
+.end-pin span, .mile-pin span, .you-pin span, .focus-pin span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; }
+.end-pin span { color: #fff; font-size: 11px; border: 2.5px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.end-pin.start span { background: #1F7A47; } .end-pin.finish span { background: #12301F; font-size: 12px; }
+.mile-pin span { background: #fff; color: var(--primary-dark); font: 800 11px var(--body); border: 2px solid var(--primary-dark); box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+.you-pin span { background: #1D5FBF; border: 3px solid #fff; box-shadow: 0 0 0 0 rgba(29,95,191,.55), 0 2px 8px rgba(0,0,0,.3); animation: you 1.8s ease-out infinite; }
+@keyframes you { 0% { box-shadow: 0 0 0 0 rgba(29,95,191,.5), 0 2px 8px rgba(0,0,0,.3); } 100% { box-shadow: 0 0 0 18px rgba(29,95,191,0), 0 2px 8px rgba(0,0,0,.3); } }
+.focus-pin span { background: #fff; border: 4px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+@media (prefers-reduced-motion: reduce) { .you-pin span { animation: none; } }
+
+/* hike page: map hero with the title and stats over it */
+.hero-map { margin: 4px -16px 0; border-radius: 0; }
+.hero-map .hike-map { height: max(440px, 64dvh) !important; }
+@media (min-width: 760px) { .hero-map { margin: 6px 0 0; border-radius: 24px; } .hero-map .hike-map { height: min(620px, 70dvh) !important; } }
+.ho-top { padding: 16px 70px 56px 18px; background: linear-gradient(to bottom, rgba(6,18,11,.82), rgba(6,18,11,.5) 55%, rgba(6,18,11,0)); color: #fff; }
+.ho-top h1 { margin: 2px 0 4px; font: 800 30px/1.02 var(--head); text-transform: uppercase; letter-spacing: .01em; text-shadow: 0 2px 10px rgba(0,0,0,.35); }
+.ho-date { margin: 0; font: 800 12.5px var(--body); letter-spacing: .14em; text-transform: uppercase; color: #F6C08F; }
+.ho-by { margin: 0; font-size: 14px; color: #DCE8E0; } .ho-by a { color: #fff; font-weight: 700; }
+.ho-stats { margin: 0 12px 24px; padding: 12px 16px 10px; border-radius: 20px; color: #fff; background: rgba(10,26,17,.78); border: 1px solid rgba(255,255,255,.14); -webkit-backdrop-filter: blur(14px) saturate(1.4); backdrop-filter: blur(14px) saturate(1.4); box-shadow: 0 10px 30px rgba(0,0,0,.3); pointer-events: auto; }
+.ho-main { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ho-main span { display: flex; flex-direction: column; }
+.ho-main span + span { padding-left: 12px; border-left: 1px solid rgba(255,255,255,.14); }
+.ho-main b { white-space: nowrap; font: 800 clamp(25px, 7.6vw, 36px)/1 var(--head); letter-spacing: .01em; font-variant-numeric: tabular-nums; }
+.ho-main i { font-style: normal; font: 800 11.5px var(--body); letter-spacing: .12em; text-transform: uppercase; color: #F6C08F; margin-top: 3px; }
+.ho-sub { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.14); font-size: 13.5px; font-weight: 600; color: #CFE0D5; }
+.hike-banner { margin-top: 6px; border-radius: 22px; overflow: hidden; background: radial-gradient(120% 90% at 85% 0%, #2E6B3F, #12301F 70%); box-shadow: var(--shadow); }
+.hike-banner .ho-top { background: none; padding-bottom: 14px; }
+.hike-banner .ho-stats { margin: 0 12px 14px; }
+/* elevation chart */
+.elev-chart { padding: 12px 12px 6px; border-radius: 20px; }
+.ec-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 4px 4px; }
+.ec-head > b { font: 800 18px var(--head); text-transform: uppercase; color: var(--primary-dark); }
+.ec-read { font-size: 13.5px; color: var(--ink-2); } .ec-read b { color: var(--accent); }
+.elev-chart svg { touch-action: pan-y; cursor: crosshair; }
+.ec-cursor line { stroke: var(--primary-dark); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.ec-cursor circle { fill: #fff; stroke: var(--accent); stroke-width: 3; }
+.elev-chart .line { stroke-width: 3; }
+
+/* live recording: the map fills the screen, numbers float over it */
+.track-live { position: relative; height: calc(100dvh - 58px - env(safe-area-inset-top)); }
+.track-live .hike-map-wrap { height: 100%; border-radius: 0; box-shadow: none; }
+.track-live .map-overlay { justify-content: flex-end; }
+.live-panel { pointer-events: auto; margin: 0 10px calc(env(safe-area-inset-bottom) + 10px); padding: 12px 14px; border-radius: 24px; color: #fff; background: rgba(10,26,17,.84); border: 1px solid rgba(255,255,255,.14); -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4); box-shadow: 0 -6px 30px rgba(0,0,0,.25); max-width: 620px; width: calc(100% - 20px); align-self: center; }
+.lp-big { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+.lp-big b { font: 800 76px/0.95 var(--head); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.lp-big i, .lp-row i { font-style: normal; font: 800 11.5px var(--body); letter-spacing: .12em; text-transform: uppercase; color: #F6C08F; }
+.lp-row { display: grid; grid-template-columns: repeat(4, 1fr); margin: 8px 0 12px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.14); border-bottom: 1px solid rgba(255,255,255,.14); }
+.lp-row span { display: flex; flex-direction: column; align-items: center; }
+.lp-row span + span { border-left: 1px solid rgba(255,255,255,.12); }
+.lp-row b { font: 800 24px/1.05 var(--head); font-variant-numeric: tabular-nums; }
+.live-panel.paused .lp-big b, .live-panel.paused .lp-row b { color: #BFD3C6; }
+.live-panel .paused-note { margin: 0 0 8px; background: rgba(233,185,73,.2); color: #F6D98B; font-size: 14px; }
+.live-err { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: rgba(179,38,30,.35); font-size: 14px; }
+.btn.ghost { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.35); color: #fff; }
+.lp-foot { margin: 8px 0 0; text-align: center; font-size: 12.5px; color: #BFD3C6; }
+.track-live .map-legend { display: none; }

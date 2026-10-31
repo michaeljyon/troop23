@@ -128,8 +128,17 @@ export async function analyze(rawPts, { useMap = true, lookup = mapElevations } 
   const { gain, loss } = eles ? climb(eles, band) : { gain: 0, loss: 0 };
   const known = (eles || []).filter(x => x != null);
   const profile = eles ? idx.map((i, k) => [Math.round(cum[i]), eles[k] == null ? null : +eles[k].toFixed(1)]) : [];
+  // give every point the (better) map elevation, so the route can be colored by height
+  if (source === 'map') {
+    for (let i = 0, k = 0; i < pts.length; i++) {
+      while (k < profile.length - 2 && profile[k + 1][0] < cum[i]) k++;
+      const [x0, e0] = profile[k], [x1, e1] = profile[Math.min(k + 1, profile.length - 1)];
+      const f = x1 > x0 ? Math.min(1, Math.max(0, (cum[i] - x0) / (x1 - x0))) : 0;
+      pts[i][2] = +(e0 + (e1 - e0) * f).toFixed(1);
+    }
+  }
   return {
-    pts, distance: Math.round(distance), elapsed, moving: movingSeconds(pts), gain: Math.round(gain), loss: Math.round(loss),
+    pts, cum, distance: Math.round(distance), elapsed, moving: movingSeconds(pts), gain: Math.round(gain), loss: Math.round(loss),
     maxEle: known.length ? Math.round(Math.max(...known)) : null, minEle: known.length ? Math.round(Math.min(...known)) : null, eleSource: source, profile,
   };
 }
@@ -219,7 +228,8 @@ export async function hikeRoutes(store, rest, req, body, now, ctx) {
       const hideEnds = body.hideEnds !== false;
       const shown = hideEnds ? trimEnds(a.pts) : a.pts;
       const stored = thin(shown, 3000);
-      await store.setJSON(`hikepts/${hid}`, { pts: stored, profile: a.profile });
+      const offset = shown.length ? Math.round(a.cum[a.pts.indexOf(shown[0])] || 0) : 0;   // meters hidden before the first map point
+      await store.setJSON(`hikepts/${hid}`, { pts: stored, profile: a.profile, offset });
       const local = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(startAt);   // date in Florida
       h = { id: hid, manual: false, distance: a.distance, gain: a.gain, loss: a.loss, moving: a.moving, elapsed: a.elapsed, maxEle: a.maxEle, minEle: a.minEle,
         eleSource: a.eleSource, hideEnds, date: DAY.test(body.date || '') ? body.date : local, startAt, preview: thin(shown, 60).map(p => [p[0], p[1], p[4] || 0]) };
@@ -236,7 +246,7 @@ export async function hikeRoutes(store, rest, req, body, now, ctx) {
   if (!h) return err('Hike not found.', 404);
   if (!sub && req.method === 'GET') {
     const t = h.manual ? null : await store.get(`hikepts/${h.id}`, { type: 'json' });
-    return json({ hike: shape(h), points: t?.pts || [], profile: t?.profile || [], canEdit: canEdit(h) });
+    return json({ hike: shape(h), points: t?.pts || [], profile: t?.profile || [], offset: t?.offset || 0, canEdit: canEdit(h) });
   }
   if (sub === 'kudos' && req.method === 'POST') {
     if (!me) return err('Sign in first.', 401);
