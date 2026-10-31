@@ -201,4 +201,15 @@ if not threads.get('board-troop', {}).get('last'):
     req = call('threads', {'group': grp['id']}, s=sess['Owen Harris'])['thread']['id']
     call(f'threads/{req}/msgs', {'text': 'Hi, I finished my Life requirements and would like to schedule my board of review. I\'m free any Monday after the meeting.'}, s=sess['Owen Harris'])
     call(f'threads/{dm}/msgs', {'text': 'Not quite yet — I still need to finish Environmental Science. Can I ask about it at the Court of Honor?'}, s=sess['Demo Scout'])
+
+# ---------------------------------------------------------------- games (a few scores on the leaderboard)
+import subprocess, os
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+Q = json.loads(subprocess.check_output(['node', '--input-type=module', '-e', "import {QUESTIONS} from './troop/quiz.js'; console.log(JSON.stringify(QUESTIONS.filter(q=>q.type==='mc'||q.type==='tf').map(q=>({id:q.id,a:q.a,type:q.type}))))"], cwd=ROOT))
+def ans(q, right): return q['a'] if right else ((not q['a']) if q['type'] == 'tf' else (q['a'] + 1) % 4)
+for who, games, skill in [('Mason Reyes', 4, .9), ('Demo Scout', 2, .75), ('Ethan Brooks', 3, .7), ('Owen Harris', 2, .85), ('Jordan Carter', 1, .6)]:
+    if call('quiz/me', s=sess[who]).get('xp'): continue
+    for g in range(games):
+        pick = random.sample(Q, 10)
+        call('quiz/result', {'mode': 'trail', 'answers': [{'id': q['id'], 'a': ans(q, random.random() < skill)} for q in pick], 'secs': 120}, s=sess[who])
 print('Demo ready. Leader code XXXX-XXXX, scout code XXXX-XXXS, guest troop code "demo".')

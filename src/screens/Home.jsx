@@ -107,6 +107,7 @@ export default function Home() {
         <a className="tile" href="#/packing"><Icon name="checklist" size={26} /><b>Packing list</b><span>Be ready to go</span></a>
         <a className="tile" href="#/hikes"><Icon name="map" size={26} /><b>Hikes</b><span>Track miles & climbing</span></a>
         <a className="tile" href="#/advancement"><Icon name="trophy" size={26} /><b>Advancement</b><span>Ranks & next steps</span></a>
+        <a className="tile tile-games" href="#/games"><span className="tg-emoji" aria-hidden="true">🎯</span><span className="grow"><b>Games</b><span>Daily Challenge, puzzles & Campfire Clash</span></span><Icon name="chevronR" size={20} /></a>
       </div>
 
       {upcoming.length > 1 && (

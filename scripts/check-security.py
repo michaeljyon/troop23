@@ -231,4 +231,29 @@ st, _ = call('leader/adv-needs', s=S['scout']); check('troop planning is leaders
 st, _ = call(f'hikes/{hid}', method='DELETE', leader=True); check('leader can delete a hike', st == 200, st)
 bad = [r for r in results if not r[0]]
 print(f'\nWITH HIKES {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+
+# --- games
+import subprocess
+Q = json.loads(subprocess.check_output(['node', '--input-type=module', '-e', "import {QUESTIONS} from './troop/quiz.js'; console.log(JSON.stringify(QUESTIONS.filter(q=>q.type==='mc').slice(0,3)))"]))
+st, _ = call('quiz/result', {'mode': 'trail', 'answers': [{'id': Q[0]['id'], 'a': Q[0]['a']}]}, troop=True); check('game scores need a personal code', st == 401, st)
+st, r = call('quiz/result', {'mode': 'trail', 'answers': [{'id': q['id'], 'a': (q['a'] + 1) % 4} for q in Q], 'points': 99999, 'xp': 99999}, s=S['scout'])
+check('wrong answers score nothing (server checks every answer)', st == 200 and r['right'] == 0 and r['points'] == 0, r)
+st, r = call('quiz/result', {'mode': 'trail', 'answers': [{'id': 'fake1', 'a': 0}, {'id': Q[0]['id'], 'a': Q[0]['a']}]}, s=S['scout'])
+check('made-up question ids are ignored', st == 200 and r['of'] == 1 and r['right'] == 1, r)
+st, r = call('quiz/result', {'mode': 'daily', 'answers': [{'id': Q[0]['id'], 'a': Q[0]['a']}]}, s=S['scout'])
+check("only today's questions count for the Daily Challenge", st in (400, 409), st)
+st, d = call('quiz/daily', s=S['other'])
+if not d.get('done'):
+    call('quiz/result', {'mode': 'daily', 'answers': [{'id': i, 'a': 0} for i in d['ids']]}, s=S['other'])
+st, _ = call('quiz/result', {'mode': 'daily', 'answers': [{'id': i, 'a': 0} for i in d['ids']]}, s=S['other']); check('Daily Challenge only once a day', st == 409, st)
+st, r = call('quiz/live', {'count': 3}, s=S['scout']); code = r['code']
+st, _ = call(f'quiz/live/{code}/start', {}, s=S['other']); check('only the host can start a live game', st == 403, st)
+call(f'quiz/live/{code}/start', {}, s=S['scout'])
+st, _ = call(f'quiz/live/{code}/answer', {'qi': 0, 'choice': 0}, s=S['parent']); check("can't answer a live game without joining", st == 403, st)
+st, g = call(f'quiz/live/{code}', s=S['other'])
+check('live question never includes the answer', 'a' not in g['question'] and 'why' not in g['question'] and 'orders' not in g, list(g['question'].keys()))
+st, _ = call(f'quiz/live/{code}/end', {}, s=S['other']); check('only the host can end a live game', st == 403, st)
+call(f'quiz/live/{code}/end', {}, s=S['scout'])
+bad = [r for r in results if not r[0]]
+print(f'\nWITH GAMES {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
 for tok in S.values(): call('auth/signout', {}, s=tok)

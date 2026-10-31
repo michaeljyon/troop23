@@ -25,6 +25,7 @@ const NAMES = {
   home: 'Home', outings: 'Outings', outing: 'Outing', gallery: 'Photos', kitchen: 'Kitchen', gear: 'Gear locker', packing: 'Packing list',
   messages: 'Chat', thread: 'Chat', more: 'More', leaders: 'Leader tools', advancement: 'Advancement', counselors: 'Counselors',
   hikes: 'Hikes', track: 'Recording', permission: 'Photo permission', snap: 'Snap', slideshow: 'Slideshow',
+  games: 'Games', play: 'Game', live: 'Campfire Clash',
 };
 export function pageName(r) {
   if (r.name === 'advancement' && r.args[0]) return 'Scout';
@@ -37,7 +38,7 @@ export function parentOf(r) {
   if (r.name === 'gallery' && r.query.album) return 'gallery';
   if (r.args[0] && ['advancement', 'hikes'].includes(r.name)) return r.name;
   return { outing: 'outings', thread: 'messages', track: 'hikes', counselors: 'advancement', slideshow: 'gallery', snap: 'home', kitchen: 'more', gear: 'more', gallery: 'more',
-    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home' }[r.name] || 'home';
+    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home', games: 'more', play: 'games', live: 'games' }[r.name] || 'home';
 }
 
 // pages visited this session, one entry per page (kept in step with history)

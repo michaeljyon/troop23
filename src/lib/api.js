@@ -54,10 +54,11 @@ export function clearApiCache() {
 }
 
 export function useApi(path, deps = []) {
-  const [state, setState] = useState(() => { const c = cacheGet(path); return { data: c, error: null, loading: true }; });
+  const [state, setState] = useState(() => { const c = path ? cacheGet(path) : null; return { data: c, error: null, loading: true }; });
   const [tick, setTick] = useState(0);
   useEffect(() => {
     let stop = false;
+    if (!path) { setState({ data: null, error: null, loading: false, path }); return undefined; }
     const c = cacheGet(path);
     setState(s => ({ data: c ?? (s.path === path ? s.data : null), error: null, loading: true, path }));
     api(path).then(data => { cachePut(path, data); if (!stop) setState({ data, error: null, loading: false, path }); })

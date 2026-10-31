@@ -110,6 +110,7 @@ function TroopPlanning() {
 }
 
 // "What's next" for one scout
+const QUIZ_RANK = { Scout: 'scout', Tenderfoot: 'tenderfoot', 'Second Class': 'second', 'First Class': 'first', Star: 'star', Life: 'star', Eagle: 'star' };
 export function NextSteps({ id, limit, compact }) {
   const [p, setP] = useState(null);
   useEffect(() => { api(`adv/${id}/plan`).then(setP).catch(() => setP({ steps: [] })); }, [id]);
@@ -122,6 +123,7 @@ export function NextSteps({ id, limit, compact }) {
         <div className="card rank-check">
           <p className="rc-head"><b>On the way to {p.nextRank.rank}</b></p>
           <ul>{p.nextRank.items.map(it => <li key={it.label} className={it.ok ? 'ok' : ''}><span className="rc-ico">{it.ok ? <Icon name="check" size={14} strokeWidth={3} /> : ''}</span><span className="grow">{it.label}</span><span className="rc-v">{it.need > 1 ? `${Math.min(it.have, it.need)}/${it.need}` : it.note || (it.ok ? 'Done' : '')}</span></li>)}</ul>
+          {QUIZ_RANK[p.nextRank.rank] && <a className="link-btn small rc-practice" href={`#/games?rank=${QUIZ_RANK[p.nextRank.rank]}`}>🎯 Practice {p.nextRank.rank} skills in Games <Icon name="chevronR" size={14} /></a>}
         </div>
       )}
       <ul className="steps">{steps.map(s => (

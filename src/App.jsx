@@ -2,7 +2,7 @@ import Icon from './components/Icon.jsx';
 import { Mark } from './components/ui.jsx';
 import { useRoute } from './lib/router.js';
 import { useLocal, useMe } from './lib/store.js';
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { useLeaderMode, refreshAccount, useAccount, isDemo } from './lib/api.js';
 import { troop } from './lib/config.js';
 import { useInbox } from './lib/inbox.js';
@@ -25,15 +25,17 @@ import Messages, { Thread } from './screens/Messages.jsx';
 import Advancement from './screens/Advancement.jsx';
 import Counselors from './screens/Counselors.jsx';
 import Hikes, { Track } from './screens/Hikes.jsx';
+const loadGames = () => import('./screens/Games.jsx');
+const Games = lazy(loadGames), Play = lazy(() => loadGames().then(m => ({ default: m.Play }))), Live = lazy(() => loadGames().then(m => ({ default: m.Live })));
 
 const TABS = [
   { id: 'home', label: 'Home', icon: 'home' },
   { id: 'outings', label: 'Outings', icon: 'tent', match: ['outings', 'outing'] },
   { id: 'snap', label: 'Snap', icon: 'camera', big: true },
   { id: 'messages', label: 'Chat', icon: 'message', match: ['messages', 'thread'] },
-  { id: 'more', label: 'More', icon: 'grid', match: ['more', 'kitchen', 'gallery', 'permission', 'packing', 'leaders', 'gear', 'advancement', 'counselors', 'hikes'] },
+  { id: 'more', label: 'More', icon: 'grid', match: ['more', 'kitchen', 'gallery', 'permission', 'packing', 'leaders', 'gear', 'advancement', 'counselors', 'hikes', 'games', 'play', 'live'] },
 ];
-const SCREENS = { home: Home, outings: Outings, outing: Outing, gear: Gear, kitchen: Kitchen, snap: Snap, gallery: Gallery, permission: Permission, leaders: Leaders, more: More, packing: Packing, messages: Messages, thread: Thread, advancement: Advancement, counselors: Counselors, hikes: Hikes, track: Track };
+const SCREENS = { home: Home, outings: Outings, outing: Outing, gear: Gear, kitchen: Kitchen, snap: Snap, gallery: Gallery, permission: Permission, leaders: Leaders, more: More, packing: Packing, messages: Messages, thread: Thread, advancement: Advancement, counselors: Counselors, hikes: Hikes, track: Track, games: Games, play: Play, live: Live };
 
 export default function App() {
   const route = useRoute();
@@ -58,7 +60,7 @@ export default function App() {
   if (!inside && route.name !== 'leaders') return <Gate />;
 
   return (
-    <div className={`app ${route.name === 'thread' || route.name === 'track' ? 'chat-mode' : ''}`}>
+    <div className={`app ${['thread', 'track', 'live'].includes(route.name) ? 'chat-mode' : ''}`}>
       <header className="app-header">
         <a className="header-brand" href="#/" aria-label={`${troop.appName} home`}>
           <Mark size={40} dark />
@@ -72,7 +74,7 @@ export default function App() {
           <a className="icon-btn on-dark" href="#/snap" aria-label="Share a photo"><Icon name="camera" /></a>
         </div>
       </header>
-      <main className="app-main" id="main"><Screen route={route} /></main>
+      <main className="app-main" id="main"><Suspense fallback={<div className="content"><p className="muted">Loading…</p></div>}><Screen route={route} /></Suspense></main>
       {acct && <WelcomeBack inbox={inbox} route={route} />}
       {inside && (
         <nav className="tabbar" aria-label="Main">
