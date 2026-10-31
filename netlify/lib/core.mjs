@@ -14,6 +14,7 @@ import troop from '../../troop/troop.js';
 import { resolveSession, memberRoutes, leaderPeople, redeem } from './people.mjs';
 import { pushRoutes, notify } from './push.mjs';
 import { calendarFeed, calendarLink } from './calendar.mjs';
+import { hikeRoutes } from './hikes.mjs';
 
 const MAX_PHOTO_BYTES = 4.2 * 1024 * 1024;
 const MAX_THUMB_BYTES = 400 * 1024;
@@ -478,7 +479,7 @@ async function leader(store, req, parts, body, now) {
     return json({ ok: true, settings: await settings(store) });
   }
   if (what === 'export') return exportCSV(store, id);
-  const pr = await leaderPeople(store, what, id, sub, req, body, now, {});
+  const pr = await leaderPeople(store, what, id, sub, req, body, now, { colItems });
   if (pr) return pr;
   if (what === 'stats') {
     const [photos, fams] = await Promise.all([photoMetas(store), listJSON(store, 'consents/')]);
@@ -550,8 +551,9 @@ async function route(req, opts) {
       const d = await r.json(); return json({ url: `${d.url}&demo=1` });
     }
     if (head === 'demo' && req.method === 'GET') return json({ demo: !!opts.demo });
-    const mr = await memberRoutes(store, head, rest, req, body, now, { session, isLeader, patrols: (await settings(store)).patrols, later, notify: (...a) => notify(store, ...a) });
+    const mr = await memberRoutes(store, head, rest, req, body, now, { session, isLeader, colItems, patrols: (await settings(store)).patrols, later, notify: (...a) => notify(store, ...a) });
     if (mr) return mr;
+    if (head === 'hikes') return hikeRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people, isLeader, colItems, useMap: opts.useMap });
     if (head === 'mbcatalog' && req.method === 'GET') {
       const [advs, gear, counselors] = await Promise.all([listJSON(store, 'adv/'), colItems(store, 'gear'), colItems(store, 'counselors')]);
       const names = new Map();

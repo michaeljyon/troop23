@@ -7,7 +7,7 @@ import { PackingList } from './Packing.jsx';
 import { GearPicker, CheckinAll } from './Gear.jsx';
 import { useApi, useCol, useLeaderMode, photoUrl, usePatrols } from '../lib/api.js';
 import { outingType } from '../lib/config.js';
-import { rangeLabel, whenLabel } from '../lib/dates.js';
+import { rangeLabel, whenLabel, today } from '../lib/dates.js';
 import { go } from '../lib/router.js';
 import { OutingForm } from './Outings.jsx';
 import { useCalendarLink, outingIcs } from '../lib/calendar.js';
@@ -42,6 +42,7 @@ export default function Outing({ route }) {
           {cal && !outing.cancelled && <a href={outingIcs(cal, outing.id)}><Icon name="calendar" size={14} />Add to calendar</a>}
           {outing.placePhone && <a href={`tel:${outing.placePhone.replace(/[^0-9+]/g, '')}`}><Icon name="phone" size={14} />Call</a>}
           {/^https?:\/\//.test(outing.placeWeb || '') && <a href={outing.placeWeb} target="_blank" rel="noopener noreferrer"><Icon name="external" size={14} />Website</a>}
+          {['hike', 'campout', 'camp', 'paddle', 'trip'].includes(outing.type) && !outing.cancelled && (outing.end || outing.start) >= today() && <a href={`#/track?outing=${outing.id}`}><Icon name="map" size={14} />Track a hike</a>}
         </p>
       </section>
 

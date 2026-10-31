@@ -5,6 +5,7 @@ import Rsvp from '../components/Rsvp.jsx';
 import { useApi, useCol, photoUrl, useAccount } from '../lib/api.js';
 import { useInbox } from '../lib/inbox.js';
 import { InboxCard } from '../components/Inbox.jsx';
+import { NextSteps } from './Advancement.jsx';
 import { useLocal, useMe } from '../lib/store.js';
 import { troop, outingType } from '../lib/config.js';
 import { rangeLabel, whenLabel, monthDay, today } from '../lib/dates.js';
@@ -60,6 +61,12 @@ export default function Home() {
         <Empty icon="tent" title="No outings on the calendar yet">Leaders add outings from the Outings tab.</Empty>
       )}
 
+      {acct?.member?.role === 'scout' && (
+        <Section title="Your next step" action={<a className="link-btn" href={`#/advancement/${acct.member.id}`}>Advancement</a>}>
+          <NextSteps id={acct.member.id} limit={2} compact />
+        </Section>
+      )}
+
       {posts.items.length > 0 && (
         <Section title="Bulletin">
           <ul className="posts">
@@ -98,6 +105,8 @@ export default function Home() {
         <a className="tile" href="#/gear"><Icon name="box" size={26} /><b>Gear locker</b><span>Check out & in</span></a>
         <a className="tile" href="#/gallery"><Icon name="image" size={26} /><b>Photos</b><span>Troop gallery</span></a>
         <a className="tile" href="#/packing"><Icon name="checklist" size={26} /><b>Packing list</b><span>Be ready to go</span></a>
+        <a className="tile" href="#/hikes"><Icon name="map" size={26} /><b>Hikes</b><span>Track miles & climbing</span></a>
+        <a className="tile" href="#/advancement"><Icon name="trophy" size={26} /><b>Advancement</b><span>Ranks & next steps</span></a>
       </div>
 
       {upcoming.length > 1 && (

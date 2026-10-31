@@ -24,15 +24,16 @@ import Packing from './screens/Packing.jsx';
 import Messages, { Thread } from './screens/Messages.jsx';
 import Advancement from './screens/Advancement.jsx';
 import Counselors from './screens/Counselors.jsx';
+import Hikes, { Track } from './screens/Hikes.jsx';
 
 const TABS = [
   { id: 'home', label: 'Home', icon: 'home' },
   { id: 'outings', label: 'Outings', icon: 'tent', match: ['outings', 'outing'] },
   { id: 'snap', label: 'Snap', icon: 'camera', big: true },
   { id: 'messages', label: 'Chat', icon: 'message', match: ['messages', 'thread'] },
-  { id: 'more', label: 'More', icon: 'grid', match: ['more', 'kitchen', 'gallery', 'permission', 'packing', 'leaders', 'gear', 'advancement'] },
+  { id: 'more', label: 'More', icon: 'grid', match: ['more', 'kitchen', 'gallery', 'permission', 'packing', 'leaders', 'gear', 'advancement', 'counselors', 'hikes'] },
 ];
-const SCREENS = { home: Home, outings: Outings, outing: Outing, gear: Gear, kitchen: Kitchen, snap: Snap, gallery: Gallery, permission: Permission, leaders: Leaders, more: More, packing: Packing, messages: Messages, thread: Thread, advancement: Advancement, counselors: Counselors };
+const SCREENS = { home: Home, outings: Outings, outing: Outing, gear: Gear, kitchen: Kitchen, snap: Snap, gallery: Gallery, permission: Permission, leaders: Leaders, more: More, packing: Packing, messages: Messages, thread: Thread, advancement: Advancement, counselors: Counselors, hikes: Hikes, track: Track };
 
 export default function App() {
   const route = useRoute();
@@ -57,7 +58,7 @@ export default function App() {
   if (!inside && route.name !== 'leaders') return <Gate />;
 
   return (
-    <div className={`app ${route.name === 'thread' ? 'chat-mode' : ''}`}>
+    <div className={`app ${route.name === 'thread' || route.name === 'track' ? 'chat-mode' : ''}`}>
       <header className="app-header">
         <a className="header-brand" href="#/" aria-label={`${troop.appName} home`}>
           <Mark size={40} dark />

@@ -10,6 +10,8 @@
 // Committee Chair (no one-on-one contact), messages can't be deleted by the
 // people who sent them, and anyone can report a message for leaders to review.
 import { coach, aiStatus } from './coach.mjs';
+import { adviseScout, troopNeeds } from './advice.mjs';
+import { hikeTotals } from './hikes.mjs';
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
   status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
@@ -273,7 +275,13 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
     if (!allowed) return err('You can see advancement for yourself and your own scouts.', 403);
     const m = p.members.find(x => x.id === id);
     if (!m) return err('Not found', 404);
-    return json({ scout: summary(m), record: (await store.get(`adv/${id}`, { type: 'json' })) || null });
+    const record = (await store.get(`adv/${id}`, { type: 'json' })) || null;
+    if (rest[1] === 'plan') {
+      const [counselors, outings, hikes] = await Promise.all([ctx.colItems(store, 'counselors'), ctx.colItems(store, 'outings'), ctx.colItems(store, 'hikes')]);
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(now);
+      return json(adviseScout({ scout: summary(m), record, counselors, outings, hikeTotal: hikeTotals(hikes).get(id) || null, today }));
+    }
+    return json({ scout: summary(m), record });
   }
   return null;
 }
@@ -387,6 +395,14 @@ export async function leaderPeople(store, what, id, sub, req, body, now, ctx) {
     r.open = false; r.resolved = { action: body.action === 'hide' ? 'hidden' : 'kept', at: now };
     await store.setJSON(`reports/${id}`, r);
     return json({ ok: true });
+  }
+  if (what === 'adv-needs' && req.method === 'GET') {
+    const p = await loadPeople(store);
+    const scouts = p.members.filter(m => m.role === 'scout' && m.active !== false).map(summary);
+    const recs = await Promise.all(scouts.map(s => store.get(`adv/${s.id}`, { type: 'json' })));
+    const [counselors, outings] = await Promise.all([ctx.colItems(store, 'counselors'), ctx.colItems(store, 'outings')]);
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(now);
+    return json(troopNeeds({ scouts, records: Object.fromEntries(scouts.map((s, i) => [s.id, recs[i] || {}])), counselors, outings, today }));
   }
   if (what === 'ai-status' && req.method === 'GET') return json(await aiStatus(store));
   if (what === 'import' && req.method === 'POST') return importData(store, body, now);

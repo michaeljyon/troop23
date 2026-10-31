@@ -14,6 +14,7 @@ export default function More() {
   const links = [
     ['advancement', 'trophy', 'Advancement', acct?.member?.leader ? 'The whole troop\'s trail to Eagle' : 'Ranks and merit badges'],
     ['counselors', 'people', 'Merit badge counselors', 'Who counsels which badge'],
+    ['hikes', 'map', 'Hikes', 'Track distance and climbing with your group'],
     ['gear', 'box', 'Gear locker', 'Tents, stoves and the merit badge library'],
     ['kitchen', 'pot', 'Troop kitchen', 'Recipes and the pantry'],
     ['gallery', 'image', 'Photo gallery', 'Every outing, every patrol'],

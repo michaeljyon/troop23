@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import Icon from '../components/Icon.jsx';
-import { PageHead, Section, Empty, Progress, Pill } from '../components/ui.jsx';
+import { PageHead, Section, Empty, Progress, Pill, Seg } from '../components/ui.jsx';
 import { api, useAccount, useLeaderMode, usePatrols } from '../lib/api.js';
 import { go } from '../lib/router.js';
 
@@ -22,6 +22,7 @@ function ScoutList() {
   const [error, setError] = useState(null);
   const [q, setQ] = useState('');
   const [patrol, setPatrol] = useState('');
+  const [view, setView] = useState('scouts');
   useEffect(() => { api('adv').then(d => { setData(d); if (!leader && d.scouts.length === 1) go(`advancement/${d.scouts[0].id}`); }).catch(setError); }, [leader]);
   if (!acct && !leader) return <div className="content"><PageHead backTo="more" title="Advancement" /><Empty icon="trophy" title="Sign in with your personal code">Scouts see their own advancement, and parents see their scouts'. Ask a leader for your code.</Empty></div>;
   const list = (data?.scouts || []).filter(s => (!q || s.name.toLowerCase().includes(q.toLowerCase())) && (!patrol || s.patrol === patrol));
@@ -31,6 +32,8 @@ function ScoutList() {
       <PageHead backTo="more" title="Advancement" sub={leader ? 'The whole troop, from the latest TroopWebHost export.' : 'Your scouts\' trail to Eagle.'}><a className="btn small secondary head-btn" href="#/counselors"><Icon name="people" size={15} />Counselors</a></PageHead>
       {error ? <Empty icon="alert" title="Couldn't load">{error.message}</Empty> : !data ? <p className="muted">Loading…</p> : (
         <>
+          {leader && <Seg value={view} onChange={setView} label="Show" options={[['scouts', 'Scouts'], ['plan', 'Troop planning']]} />}
+          {leader && view === 'plan' ? <TroopPlanning /> : <>
           {leader && (
             <>
               <div className="stat-row four">
@@ -53,9 +56,83 @@ function ScoutList() {
               ))}
             </ul>
           )}
+          </>}
         </>
       )}
     </div>
+  );
+}
+
+// Leaders: what the troop as a whole needs (merit badge class ideas, who's
+// close to a rank, partials that are nearly done).
+function TroopPlanning() {
+  const [d, setD] = useState(null);
+  const [err, setErr] = useState(null);
+  const [open, setOpen] = useState(null);
+  useEffect(() => { api('leader/adv-needs').then(setD).catch(setErr); }, []);
+  if (err) return <Empty icon="alert" title="Couldn't load">{err.message}</Empty>;
+  if (!d) return <p className="muted mt">Working it out…</p>;
+  return (
+    <>
+      <Section title="Merit badge class ideas">
+        <p className="small muted">Eagle-required badges that the most Second Class and older scouts still need.</p>
+        <ul className="plan-list">{d.classes.slice(0, 8).map(c => (
+          <li key={c.badge} className="card">
+            <button className="plan-row" onClick={() => setOpen(open === c.badge ? null : c.badge)} aria-expanded={open === c.badge}>
+              <span className="plan-n">{c.need}</span>
+              <span className="grow"><b>{c.badge}</b><span className="small muted">{c.need} scout{c.need > 1 ? 's' : ''} need it{c.started ? ` · ${c.started} started` : ''} · {c.counselors.length ? `Counselor${c.counselors.length > 1 ? 's' : ''}: ${c.counselors.join(', ')}` : 'No troop counselor listed yet'}</span>
+                {c.outing && <span className="small"><Icon name="calendar" size={13} /> <a href={`#/outing/${c.outing.id}`}>{c.outing.title}</a> mentions it</span>}</span>
+              <Icon name={open === c.badge ? 'chevronL' : 'chevronR'} size={18} />
+            </button>
+            {open === c.badge && <p className="small plan-names">{c.scouts.map(x => x.name).join(', ')}</p>}
+          </li>
+        ))}</ul>
+        {d.classes.some(c => !c.counselors.length) && <p className="small muted">Add merit badge counselors in <a href="#/leaders">Leader tools</a> → Troop setup so scouts can find them.</p>}
+      </Section>
+      {d.ready.length > 0 && (
+        <Section title="Merit badges done for the next rank">
+          <ul className="adv-list">{d.ready.map(s => <li key={s.id}><a className="adv-row" href={`#/advancement/${s.id}`}><span className="grow"><b>{s.name}</b><span className="small muted">{s.rank}: merit badges complete{s.time ? ' · time as current rank met' : ' · still building time in rank'}</span></span><Icon name="chevronR" size={18} /></a></li>)}</ul>
+        </Section>
+      )}
+      {d.close.length > 0 && (
+        <Section title="Close to their next rank">
+          <ul className="adv-list">{d.close.map(s => <li key={s.id}><a className="adv-row" href={`#/advancement/${s.id}`}><span className="grow"><b>{s.name}</b><span className="small muted">{s.left ? `${s.left} requirement${s.left > 1 ? 's' : ''} left for ${s.rank}` : `Ready for a ${s.rank} conference`}</span></span><Icon name="chevronR" size={18} /></a></li>)}</ul>
+        </Section>
+      )}
+      {d.nearly.length > 0 && (
+        <Section title="Partial merit badges almost done">
+          <ul className="adv-list">{d.nearly.slice(0, 20).map((n, i) => <li key={i}><a className="adv-row" href={`#/advancement/${n.id}`}><span className="grow"><b>{n.name} · {n.badge}</b><span className="small muted">{n.left} requirement{n.left === 1 ? '' : 's'} left{n.counselor ? ` · ${n.counselor}` : ''}</span></span><Icon name="chevronR" size={18} /></a></li>)}</ul>
+        </Section>
+      )}
+      <p className="small muted center pad-top">Suggestions only. Scoutbook and TroopWebHost are the official records.</p>
+    </>
+  );
+}
+
+// "What's next" for one scout
+export function NextSteps({ id, limit, compact }) {
+  const [p, setP] = useState(null);
+  useEffect(() => { api(`adv/${id}/plan`).then(setP).catch(() => setP({ steps: [] })); }, [id]);
+  if (!p) return compact ? null : <p className="muted">Working out next steps…</p>;
+  const steps = limit ? p.steps.slice(0, limit) : p.steps;
+  if (!steps.length) return null;
+  return (
+    <>
+      {!compact && p.nextRank?.rank && p.nextRank.items.length > 0 && (
+        <div className="card rank-check">
+          <p className="rc-head"><b>On the way to {p.nextRank.rank}</b></p>
+          <ul>{p.nextRank.items.map(it => <li key={it.label} className={it.ok ? 'ok' : ''}><span className="rc-ico">{it.ok ? <Icon name="check" size={14} strokeWidth={3} /> : ''}</span><span className="grow">{it.label}</span><span className="rc-v">{it.need > 1 ? `${Math.min(it.have, it.need)}/${it.need}` : it.note || (it.ok ? 'Done' : '')}</span></li>)}</ul>
+        </div>
+      )}
+      <ul className="steps">{steps.map(s => (
+        <li key={s.id} className={`step k-${s.kind}`}>
+          <span className="step-ico"><Icon name={s.icon} size={18} /></span>
+          <span className="grow"><b>{s.title}</b>{s.eagle && <Pill tone="warn">Eagle</Pill>}<span className="step-detail">{s.detail}</span>
+            {s.href && <a className="link-btn small" href={s.href}>{s.hrefLabel || 'Open'} <Icon name="chevronR" size={14} /></a>}</span>
+        </li>
+      ))}</ul>
+      {!compact && p.hiking?.count > 0 && <p className="small muted">Hikes tracked in Basecamp: {p.hiking.count} · {p.hiking.miles} mi · {p.hiking.gainFt.toLocaleString()} ft climbed{p.hiking.over10 ? ` · ${p.hiking.over10} of 10+ miles` : ''}. <a href="#/hikes">See hikes</a></p>}
+    </>
   );
 }
 
@@ -96,9 +173,13 @@ function ScoutRecord({ id }) {
         </div>
       )}
 
+      <Section title="Next steps">
+        <NextSteps id={s.id} />
+      </Section>
+
       <div className="stat-row four">
         <div className="stat"><b>{earned.size}</b><span>merit badges</span></div>
-        <div className="stat"><b>{s.eagleReq}/{groups.length || 13}</b><span>Eagle-required</span></div>
+        <div className="stat"><b>{s.eagleReq}/{groups.filter(g => !g.every(x => x === 'Citizenship in Society')).length || 13}</b><span>Eagle-required</span></div>
         <div className="stat"><b>{t.nights ?? '–'}</b><span>nights camped</span></div>
         <div className="stat"><b>{t.service ?? '–'}</b><span>service hours</span></div>
       </div>

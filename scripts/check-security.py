@@ -213,3 +213,22 @@ if dl[0] == 200:
     call('auth/signout', {}, s=tok)
 bad = [r for r in results if not r[0]]
 print(f'\nWITH DEMO {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+
+# --- hikes
+S = {k: sess(v) for k, v in dict(scout=scout, other=other_scout, parent=parent, adult=adult, leader=leader).items()}
+st, _ = call('hikes', troop=True); check('hikes need a personal code', st == 401, st)
+pts = [[30.315 + i * 0.0001, -84.344, None, i * 8, 0] for i in range(40)]
+st, r = call('hikes', {'points': pts, 'title': 'Sec hike', 'group': [other_scout['id'], 'm-not-real']}, s=S['scout'])
+check('hike saves', st == 200, r)
+hid = r['hike']['id']
+check('unknown people dropped from hike group', 'm-not-real' not in r['hike']['group'] and scout['id'] in r['hike']['group'], r['hike']['group'])
+st, _ = call(f'hikes/{hid}', {'title': 'hacked'}, method='PUT', s=S['other']); check('group member who did not record cannot edit', st == 403, st)
+st, _ = call(f'hikes/{hid}', method='DELETE', s=S['parent']); check('others cannot delete a hike', st == 403, st)
+st, r = call('hikes', {'points': [[91, 0, None, 0], ['x', 1, 2, 3]]}, s=S['scout']); check('junk track refused', st == 400, st)
+st, r = call('hikes', {'manual': True, 'miles': 5000}, s=S['scout']); check('silly manual distance refused', st == 400, st)
+st, _ = call(f'adv/{other_scout["id"]}/plan', s=S['scout']); check("scout cannot see another scout's suggestions", st == 403, st)
+st, _ = call('leader/adv-needs', s=S['scout']); check('troop planning is leaders only', st == 401, st)
+st, _ = call(f'hikes/{hid}', method='DELETE', leader=True); check('leader can delete a hike', st == 200, st)
+bad = [r for r in results if not r[0]]
+print(f'\nWITH HIKES {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+for tok in S.values(): call('auth/signout', {}, s=tok)

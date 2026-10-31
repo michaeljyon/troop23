@@ -78,6 +78,7 @@ O['coh'] = outing('o-demo-coh', title='Court of Honor', type='meeting', start=D(
 O['hike'] = outing('o-demo-hike', title='Leon Sinks Geological Area Hike', type='hike', start=D(27), location='Leon Sinks Geological Area', address='Crawfordville Hwy, Tallahassee, FL 32305', mapQ='Leon Sinks Geological Area', meetTime='9:00 AM', details='5 miles past sinkholes and karst. Good for Second Class hiking requirements.')
 O['paddle'] = outing('o-demo-paddle', title='Wakulla River Paddle', type='paddle', start=D(41), location='Wakulla River', mapQ='Wakulla River canoe launch', meetTime='8:00 AM', cost='$15 canoe rental', details='6 miles downstream. Swim check required.')
 O['camp2'] = outing('o-demo-winter', title='Winter Camp at Camp Wallwood', type='camp', start=D(58), end=D(61), location='Camp Wallwood', meetTime='Sat 9:00 AM', details='Merit badge classes all week: Cooking, First Aid, Wilderness Survival, Pioneering.')
+O['mbclass'] = outing('o-demo-mbclass', title='Citizenship in the Nation merit badge class', type='merit', start=D(20), location='Troop meeting hall', meetTime='9:00 AM', details='Two Saturday sessions with Pat Morgan. Bring a blue card and a notebook. Also a good start on Personal Management.')
 O['past1'] = outing('o-demo-past1', title='Fall Campout at Wakulla Springs', type='campout', start=D(-35), end=D(-33), location='Wakulla Springs State Park')
 O['past2'] = outing('o-demo-past2', title='Food Drive Service Project', type='service', start=D(-21), location='Second Harvest Food Bank')
 O['past3'] = outing('o-demo-past3', title='Leon Sinks Day Hike', type='hike', start=D(-9), location='Leon Sinks Geological Area')
@@ -117,7 +118,7 @@ for i, (n, q, u, loc, low) in enumerate([('Cooking oil', 1, 'bottle', 'Eagles pa
 call('c/posts/post-demo-1', {'title': 'Campout permission slips due Wednesday', 'body': 'Turn in the form and $25 at the meeting. Patrols: finish your meal plans in Basecamp by Wednesday night.', 'pinned': True, '_by': 'Demo Leader'}, method='PUT', leader=True)
 call('c/posts/post-demo-2', {'title': 'Welcome to the Basecamp demo', 'body': 'This is a sample troop with made-up scouts, outings and photos. Look around — nothing here is real.', '_by': 'Demo Leader'}, method='PUT', leader=True)
 for i, (n, b) in enumerate([('Sam Brooks', ['First Aid', 'Emergency Preparedness', 'Personal Fitness']), ('Chris Reyes', ['Camping', 'Cooking', 'Wilderness Survival', 'Pioneering']),
-                            ('Pat Morgan', ['Citizenship in the Community', 'Citizenship in the Nation', 'Communication']), ('Dana Whitfield', ['Kayaking', 'Canoeing', 'Swimming'])]):
+                            ('Pat Morgan', ['Citizenship in the Community', 'Citizenship in the Nation', 'Communication', 'Personal Management']), ('Dana Whitfield', ['Kayaking', 'Canoeing', 'Swimming'])]):
     call(f'c/counselors/mbc-demo-{i}', {'memberId': P.get(n, {}).get('id', ''), 'name': n, 'badges': b, 'active': True, 'notes': 'Outside counselor (district list)' if n not in P else ''}, method='PUT', leader=True)
 for i, (n, a, q) in enumerate([('Torreya State Park', '2576 NW Torreya Park Rd, Bristol, FL 32321', 'Torreya State Park'), ('Tom Brown Park', '501 Easterwood Dr, Tallahassee, FL 32311', 'Tom Brown Park'),
                                ('Leon Sinks Geological Area', 'Crawfordville Hwy, Tallahassee, FL 32305', 'Leon Sinks Geological Area'), ('Wakulla Springs State Park', '465 Wakulla Park Dr, Wakulla Springs, FL 32327', 'Wakulla Springs State Park')]):
@@ -158,6 +159,27 @@ for album, kind, cap, patrol, taken in shots:
 call('leader/settings', {'autoApprove': False, 'by': 'Demo setup'}, leader=True)
 call('consent', {'parent': {'name': 'Jordan Carter'}, 'scouts': [{'first': 'Liam', 'lastInitial': 'C', 'patrol': 'Eagles', 'level': 'public'}], 'signature': 'Jordan Carter', 'agreed': True})
 call('consent', {'parent': {'name': 'Riley Patel'}, 'scouts': [{'first': 'Noah', 'lastInitial': 'P', 'patrol': 'Foxes', 'level': 'troop'}], 'signature': 'Riley Patel', 'agreed': True})
+
+# ---------------------------------------------------------------- hikes (made-up tracks)
+import math
+def loop(lat0, lng0, km, n=500, climb=25, wiggle=0.15, start_t=0):
+    pts = []; r = km / (2 * math.pi) / 111.0
+    for i in range(n):
+        a = 2 * math.pi * i / (n - 1); w = 1 + wiggle * math.sin(5 * a) + 0.05 * math.sin(17 * a)
+        pts.append([lat0 + r * w * math.sin(a), lng0 + r * w * (1 - math.cos(a)) / math.cos(math.radians(lat0)), 30 + climb * math.sin(2 * a) ** 2, start_t + int(i * km * 1000 / n / 1.25), 0])
+    return pts
+have_h = {h['title'] for h in call('hikes', s=sess['Demo Leader'])['hikes']}
+for who, title, lat, lng, km, climb, group, outing, days in [
+        ('Demo Leader', 'Leon Sinks Day Hike', 30.3185, -84.3462, 9.6, 18, ['Demo Scout', 'Mason Reyes', 'Owen Harris', 'Jack Lopez', 'Chris Reyes'], O['past3'], -9),
+        ('Mason Reyes', 'Torreya Challenge loop (practice)', 30.5672, -84.9465, 11.3, 60, ['Demo Scout', 'Ethan Brooks', 'Liam Carter'], '', -16),
+        ('Demo Scout', 'Lake Overstreet trail', 30.5260, -84.2470, 4.8, 12, ['Liam Carter', 'Jordan Carter'], '', -4)]:
+    if title in have_h: continue
+    start = int((dt.datetime.combine(TODAY + dt.timedelta(days=days), dt.time(13, 0))).timestamp() * 1000)
+    h = call('hikes', {'points': loop(lat, lng, km, climb=climb), 'title': title, 'group': [P[g]['id'] for g in group], 'outingId': outing, 'hideEnds': True, 'startAt': start}, s=sess[who])['hike']
+    for k in ['Pat Morgan', 'Demo Leader', 'Ethan Brooks']:
+        if k != who: call(f"hikes/{h['id']}/kudos", {}, s=sess[k])
+if 'Saturday Tram Road walk' not in have_h:
+    call('hikes', {'manual': True, 'title': 'Saturday Tram Road walk', 'miles': 6.2, 'gainFt': 90, 'minutes': 140, 'date': D(-25), 'group': [P['Ethan Brooks']['id'], P['Noah Patel']['id']]}, s=sess['Ethan Brooks'])
 
 # ---------------------------------------------------------------- chat
 threads = {t['id']: t for t in call('threads', s=sess['Demo Leader'])['threads']}

@@ -6,10 +6,10 @@ import { go } from '../lib/router.js';
 
 // Merit badge counselors: find who counsels a badge and message troop
 // counselors (the Scoutmaster and Committee Chair are always included).
-export default function Counselors() {
+export default function Counselors({ route }) {
   const list = useCol('counselors');
   const acct = useAccount();
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(route?.query?.q || '');
   const [msg, setMsg] = useState('');
   const active = list.items.filter(c => c.active !== false);
   const byBadge = new Map();
