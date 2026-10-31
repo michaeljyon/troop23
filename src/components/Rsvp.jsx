@@ -1,5 +1,5 @@
 import Icon from './Icon.jsx';
-import { saveDoc, useAccount } from '../lib/api.js';
+import { saveDoc, useAccount, leaderPass } from '../lib/api.js';
 import { slug } from '../lib/config.js';
 import { useMe } from '../lib/store.js';
 
@@ -15,6 +15,7 @@ export default function Rsvp({ outing, rsvps, onChange, compact }) {
     ? [{ id: acct.member.id, name: acct.member.name, patrol: acct.member.patrol, role: acct.member.role === 'scout' ? 'scout' : 'adult', self: true }, ...(acct.scouts || []).map(s => ({ id: s.id, name: s.name, patrol: s.patrol, role: 'scout' }))]
     : [{ name: me.name, patrol: me.patrol, role: me.role === 'scout' ? 'scout' : 'adult', self: true }];
   if (outing.cancelled) return <p className="pill pill-bad">Cancelled</p>;
+  if (!acct && !leaderPass()) return <p className="small muted rsvp-guest"><a href="#/more">Sign in with your personal code</a> to say who's going.</p>;
   async function set(person, status) {
     await saveDoc('rsvps', idFor(outing.id, person), { outingId: outing.id, memberId: person.id || '', name: person.name, patrol: person.patrol || '', role: person.role, status }, me.name);
     onChange?.();

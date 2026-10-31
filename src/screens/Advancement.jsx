@@ -163,6 +163,11 @@ function ScoutRecord({ id }) {
         <span className={`rank-badge r${Math.max(0, rankIdx)}`}>{RANK_ABBR[s.rank] || '–'}</span>
         <div><p className="adv-kicker">{s.patrol || 'Troop 23'}{s.positions?.length ? ` · ${s.positions.join(', ')}` : ''}</p><h1>{s.name}</h1><p className="adv-rank">{s.rank ? `${s.rank} Scout` : 'Working on Scout rank'}{s.rankDate && ` · ${fmt(s.rankDate)}`}</p></div>
       </section>
+      {(F.reqs || F.service || F.eagle) && <div className="adv-links">
+        {F.reqs && <a className="chip" href={`#/reqs/${id}`}>✅ Requirement sign-offs</a>}
+        {F.service && <a className="chip" href="#/service">🤝 Service hours</a>}
+        {F.eagle && /star|life|eagle/i.test(s.rank || '') && <a className="chip" href={`#/eagle/${id}`}>🦅 Eagle project</a>}
+      </div>}
 
       <div className="ladder" aria-label="Rank progress">
         {RANKS.map((rk, i) => {

@@ -20,7 +20,8 @@ async function hash(s) {
   const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
   return [...new Uint8Array(b)].slice(0, 12).map(x => x.toString(16).padStart(2, '0')).join('');
 }
-const validSub = s => s && typeof s.endpoint === 'string' && /^https:\/\//.test(s.endpoint) && s.endpoint.length < 1000 && s.keys && typeof s.keys.p256dh === 'string' && typeof s.keys.auth === 'string';
+const PUSH_HOSTS = /^https:\/\/([a-z0-9-]+\.)*(fcm\.googleapis\.com|android\.googleapis\.com|push\.services\.mozilla\.com|push\.apple\.com|notify\.windows\.com)\//i;
+const validSub = s => s && typeof s.endpoint === 'string' && PUSH_HOSTS.test(s.endpoint) && s.endpoint.length < 1000 && s.keys && typeof s.keys.p256dh === 'string' && typeof s.keys.auth === 'string';
 const cleanPrefs = p => Object.fromEntries(Object.keys(DEFAULT_PREFS).map(k => [k, p?.[k] === undefined ? DEFAULT_PREFS[k] : !!p[k]]));
 
 // /api/push/...  (signed-in members only, except the public key)

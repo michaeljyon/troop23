@@ -27,3 +27,10 @@
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
     Referrer-Policy = "same-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "geolocation=(self), camera=(self), microphone=(), payment=(), usb=()"
+    Strict-Transport-Security = "max-age=31536000"
+    Cross-Origin-Opener-Policy = "same-origin"
+

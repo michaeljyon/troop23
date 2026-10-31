@@ -6,10 +6,17 @@ import { troop, t } from '../lib/config.js';
 import { useLocal, useMe } from '../lib/store.js';
 import { api, useApi, usePatrols } from '../lib/api.js';
 import { resizeImage } from '../lib/image.js';
+import { SignInFirst, useCanChange } from '../components/SignInFirst.jsx';
 
 // Share photos — the Pack 6 / Statewide Synergy photo flow. Every outing is
 // an album; tag scouts so leaders can check each family's permission.
 export default function Snap({ route }) {
+  const canChange = useCanChange();
+  if (!canChange) return <SignInFirst title="Share a photo" what="Signing in lets you share photos with the troop." backTo="home" />;
+  return <SnapForm route={route} />;
+}
+
+function SnapForm({ route }) {
   const [me] = useMe();
   const [agreed, setAgreed] = useLocal('share-rules', false);
   const [mine, setMine] = useLocal('my-photos', []);

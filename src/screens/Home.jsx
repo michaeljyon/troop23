@@ -3,7 +3,7 @@ import Icon from '../components/Icon.jsx';
 import { Section, Empty, Pill } from '../components/ui.jsx';
 import Rsvp from '../components/Rsvp.jsx';
 import { useSettings } from '../lib/features.js';
-import { useApi, useCol, photoUrl, useAccount } from '../lib/api.js';
+import { useApi, useCol, photoUrl, useAccount, leaderPass } from '../lib/api.js';
 import { useInbox } from '../lib/inbox.js';
 import { InboxCard } from '../components/Inbox.jsx';
 import { NextSteps } from './Advancement.jsx';
@@ -22,6 +22,10 @@ export default function Home() {
   const hunts = useApi(acct && F.hunts ? 'hunt' : null);
   const openHunt = hunts.data?.hunts?.find(h => h.status === 'open');
   const pts = useApi(F.points ? 'points' : null);
+  const polls = useApi(acct && F.polls ? 'poll' : null);
+  const openPoll = polls.data?.polls?.find(x => !x.closed && !x.mine);
+  const fund = useApi(acct && F.fund ? 'fund' : null);
+  const fundShifts = (fund.data?.shifts || []).filter(x => x.date >= today());
   const openElection = F.vote && elect.data?.elections?.find(e => e.status === 'open' && (e.canVote || e.isLeader));
   const [family] = useLocal('family', null);
   const [mine, setMine] = useLocal('my-photos', []);
@@ -101,7 +105,28 @@ export default function Home() {
         </Section>
       )}
 
+      {!acct && !leaderPass() && (
+        <a className="alert-card" href="#/more">
+          <span className="alert-ico"><Icon name="lock" size={22} /></span>
+          <span className="grow"><b>You're looking around as a guest</b><span>Sign in with your personal code to sign up for outings, share photos, chat and more.</span></span>
+          <Icon name="chevronR" />
+        </a>
+      )}
       {F.duty && <DutyToday />}
+      {openPoll && (
+        <a className="alert-card" href="#/polls">
+          <span className="alert-ico" aria-hidden="true" style={{ fontSize: 22 }}>🗳️</span>
+          <span className="grow"><b>Vote: {openPoll.q}</b><span>{openPoll.options.map(o => o.text).join(' · ')}</span></span>
+          <Icon name="chevronR" />
+        </a>
+      )}
+      {fundShifts.length > 0 && (
+        <a className="alert-card tree-home" href="#/fundraiser">
+          <span className="alert-ico" aria-hidden="true" style={{ fontSize: 22 }}>🎄</span>
+          <span className="grow"><b>{fund.data.cfg.name}{fund.data.cfg.goal ? `: ${Math.round((fund.data.raised / fund.data.cfg.goal) * 100)}% of our goal` : ''}</b><span>{fundShifts.filter(x => x.signups.length < x.adults + x.scouts).length} lot shifts still need people. Sign up!</span></span>
+          <Icon name="chevronR" />
+        </a>
+      )}
       {openHunt && (
         <a className="alert-card warm" href={`#/hunts/${openHunt.id}`}>
           <span className="alert-ico" aria-hidden="true" style={{ fontSize: 22 }}>📸</span>

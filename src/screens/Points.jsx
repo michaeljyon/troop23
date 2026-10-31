@@ -9,7 +9,7 @@ import { useWakeLock } from './Campfire.jsx';
 // uniform inspections and scavenger hunts add points on their own. TV mode for meetings.
 
 const REASONS = ['Patrol spirit', 'Best campsite', 'Patrol yell', 'Service', 'Uniform', 'Attendance', 'Game winner', 'Helping out', 'Leave No Trace'];
-const KIND = { awards: ['🏅', 'Awards'], inspections: ['👕', 'Inspections'], hunts: ['📸', 'Hunts'] };
+const KIND = { awards: ['🏅', 'Awards'], inspections: ['👕', 'Inspections'], hunts: ['📸', 'Hunts'], geocaching: ['📍', 'Geocaching'] };
 const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} hr ago` : new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }); };
 
 export default function Points({ route }) {

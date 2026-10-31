@@ -39,6 +39,7 @@ export async function resolveSession(store, req) {
   if (!tok || !/^(demo)?[a-f0-9]{48}$/.test(tok)) return null;
   const s = await store.get(`sessions/${tok}`, { type: 'json' });
   if (!s) return null;
+  if (Date.now() - (s.created || 0) > 180 * 864e5) { await store.delete(`sessions/${tok}`); return null; }
   const p = await loadPeople(store);
   const m = p.members.find(x => x.id === s.memberId && x.active !== false);
   return m ? { member: m, people: p, token: tok } : null;
@@ -111,6 +112,7 @@ export async function memberRoutes(store, head, rest, req, body, now, ctx) {
     if (req.method === 'PUT') {
       const s = JSON.stringify(body.value ?? null);
       if (s.length > 50000) return err('Too much data');
+      if (!(await store.get(k, { type: 'json' }))) { const { blobs } = await store.list({ prefix: `userdata/${me.id}/` }); if (blobs.length >= 40) return err('Too much saved data on this account.', 429); }
       await store.setJSON(k, { value: body.value ?? null, at: now }); return json({ ok: true });
     }
   }
@@ -327,7 +329,7 @@ export async function leaderPeople(store, what, id, sub, req, body, now, ctx) {
     }
     if (sub === 'code') m.code = newCode();
     if (body.patrol !== undefined) m.patrol = clean(body.patrol, 40);
-    if (body.leader !== undefined) m.leader = !!body.leader;
+    if (body.leader !== undefined) m.leader = !!body.leader && m.role !== 'scout';
     if (body.active !== undefined) m.active = !!body.active;
     if (Array.isArray(body.scouts)) m.scouts = body.scouts.filter(s => p.members.some(x => x.id === s && x.role === 'scout'));
     if (Array.isArray(body.positions)) m.positions = body.positions.map(x => clean(x, 60)).filter(Boolean).slice(0, 6);

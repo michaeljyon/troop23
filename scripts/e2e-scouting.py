@@ -67,6 +67,6 @@ with sync_playwright() as pw:
         t.goto(f'{BASE}/#/{path}'); t.wait_for_selector(sel); shot(t, n); print(n, 'overflow:', overflow(t))
     # clean up demo test data
     L.goto(BASE + '/#/hunts'); L.wait_for_selector('.fire-list'); L.locator('.fire-list a').first.click(); L.click('a:has-text("Edit")'); L.click('button:has-text("Delete hunt")'); L.wait_for_selector('.hunts')
-    L.goto(BASE + '/#/coh'); L.wait_for_selector('.fire-list'); L.locator('.fire-list a').first.click(); L.wait_for_selector('.save-bar'); L.click('button:has-text("Delete")'); L.wait_for_timeout(500)
+    L.goto(BASE + '/#/coh'); L.wait_for_selector('.fire-list'); L.locator('.fire-list a').first.click(); L.wait_for_selector('button:has-text("Delete")'); L.click('button:has-text("Delete")'); L.wait_for_timeout(500)
     b.close()
 print('ERRORS', errors)

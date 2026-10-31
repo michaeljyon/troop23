@@ -95,6 +95,15 @@ export async function pointsBoard(store, patrols, opts) {
       for (const [p, pts] of Object.entries(per)) { add(p, pts, 'hunts'); auto.push({ kind: 'hunts', patrol: p, pts, reason: h.title, at: h.closedAt || h.created }); }
     }
   }
+  if (opts.pointsGeo !== false) {
+    for (const c of await listJSON(store, 'geo/c/')) {
+      if (c.status === 'draft' || (season.start && (c.date || '') < season.start)) continue;
+      const pts = Object.fromEntries(c.caches.map(x => [x.id, x.pts])); const per = {};
+      const { blobs } = await store.list({ prefix: `geo/f/${c.id}/` });
+      for (const b of blobs) { const f = await store.get(b.key, { type: 'json' }); if (f?.patrol) per[f.patrol] = (per[f.patrol] || 0) + Object.keys(f.found || {}).reduce((t, k) => t + (pts[k] || 0), 0); }
+      for (const [p, n] of Object.entries(per)) if (n) { add(p, n, 'geocaching'); auto.push({ kind: 'geocaching', patrol: p, pts: n, reason: c.title, at: c.created }); }
+    }
+  }
   const board = Object.values(tally).sort((a, b) => b.total - a.total);
   return { season, board, recent: entries.slice(0, 60), auto: auto.sort((a, b) => b.at - a.at).slice(0, 30) };
 }
@@ -327,7 +336,7 @@ export async function cohRoutes(store, rest, req, body, now, { me, isLeader, peo
   const c = await store.get(key(id), { type: 'json' });
   if (!c) return err('Court of Honor not found.', 404);
   if (sub === 'csv' && req.method === 'GET') {
-    const esc = v => { const s = String(v ?? ''); const t = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s; return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const esc = v => { const s = String(v ?? ''); const t = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s; return /[",\r\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
     const rows = [['Scout', 'Award type', 'Award', 'Earned', 'Presented at', 'Court of Honor date'], ...c.awards.map(a => [a.name, a.kind === 'rank' ? 'Rank' : a.kind === 'badge' ? 'Merit badge' : 'Other', a.item, a.earned, a.presented ? c.title : '', c.date])];
     return new Response(rows.map(r => r.map(esc).join(',')).join('\r\n'), { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="court-of-honor-${c.date || c.id}.csv"`, 'cache-control': 'no-store' } });
   }

@@ -6,7 +6,7 @@ The private troop app for Scouts BSA Troop 23, Tallahassee, Florida.
 
 Everyone on the TroopWebHost roster has a **personal code** (like `K7QM-2XPA`) and a sign-in link (`…/#/join/K7QM-2XPA`). Opening the link, or typing the code, signs that phone in as that person. Their sign-ups, packing checklists, chat and advancement then follow them to any phone they sign in on. Leaders send codes from Leader tools → Members (**Send invite** on one person, or **Invite list (CSV)** for everyone). Parents get linked to their scouts there too, so one parent can sign the whole family up.
 
-The troop code still works as a **guest** sign-in (no chat, nothing synced). Adults marked Leader get leader mode automatically, with no passcode.
+The troop code still works as a **guest** sign-in, but it is **read-only**: guests can look at outings, the calendar, the bulletin and the tools, and see first names with last initials. To RSVP, share photos, set photo permission or change anything else, people sign in with their personal code. Adults marked Leader get leader mode automatically, with no passcode.
 
 ## What's in it
 
@@ -40,6 +40,23 @@ The troop code still works as a **guest** sign-in (no chat, nothing synced). Adu
 - **Notifications.** Signed-in members turn them on per phone under More → Notifications, and choose messages, boards and announcements. On iPhone, Basecamp has to be added to the Home Screen first (iOS 16.4 or later). Notification keys are made automatically, so there's nothing to set up.
 - **Outings calendar.** Outings → Calendar shows a month grid colored by kind of outing; swipe or jump to any month and year, tap a day for its events. Past outings can be filtered by year, kind and search, with photo counts.
 - **Troop calendar.** Outings → "Put troop outings in your phone's calendar" subscribes Apple, Google or Outlook calendars to a live feed. Each outing also has Add to calendar.
+- **Outing safety (each outing's Overview).** A two-deep check (counts registered leaders who said Going and warns when there are fewer than two), an emergency card leaders fill in (nearest hospital and phone, ranger, rally point, emergency plan, where there's cell signal; saved on the phone for offline use), and the National Weather Service forecast and active alerts for the campsite.
+- **Emergency info, buddy board and field guide (More → Skills & outdoors).** The buddy board pairs scouts for a swim or hike with a check-in timer (kept on the phone only). The field guide covers snakes, alligators, lightning, heat, poison ivy and oak, fire ants, ticks and mosquitoes, bears and water safety in Florida, with Poison Control's number.
+- **Carpools (each outing's "Rides & forms" tab).** Adults offer a car (seats, going/returning/both, leave time); families sign up their own scouts. Seats are capped, and the screen reminds drivers of the no one-on-one rule.
+- **Permission slips (same tab).** Leaders turn on a slip with the standard wording (editable) and a due date. A parent checks the box and types their name to sign for their own scout; leaders see who's signed and can record a paper form.
+- **Requirement sign-offs (More → Advancement → Requirements).** Scout through First Class requirements in short form. Leaders (and, if Settings allow, the SPL, ASPL and patrol leaders for other scouts) tap to sign off with the date. Conferences and boards of review are leader-only. CSV export to enter in Scoutbook.
+- **Service hours (More → Advancement → Service hours).** Scouts log hours with what they did; leaders approve them, and can log a project for several scouts at once. Shows progress toward the rank service totals. CSV export.
+- **Eagle tracker (More → Advancement → Eagle tracker).** The steps from Life to Eagle (project idea, proposal approval, project done, workbook, application, references, board of review) with dates for each scout working on it.
+- **Summer camp planner (More → Camp & gear → Summer camp).** Leaders add a camp and its merit badge sessions with seat limits; scouts pick their sessions.
+- **Meeting planner (More → Troop → Meetings).** The troop meeting plan parts (pre-opening, opening, skills instruction, patrol meetings, interpatrol activity, closing) with times, who's in charge and suggestion chips.
+- **Polls (More → Troop → Polls, banner on Home).** Leaders ask a question; members see results after they vote.
+- **Meeting check-in (More → Troop → Check-in).** A leader opens check-in and shows a QR code on a TV or phone (it changes every minute) plus a short typed code. Scouts scan or type it to mark themselves here. Leaders can mark people by hand. CSV export.
+- **Christmas Tree Sale (More → Troop → Fundraiser, banner on Home).** The troop's fundraiser: tree sizes and prices, lot days, daily sales totals entered by leaders, and lot shifts people sign up for (with a limit per shift). Each scout's hours worked are totaled.
+- **Year in review (More → Troop → Year in review).** Nights camped, miles hiked, service hours, ranks and badges earned, outings and photos for any year.
+- **Eagle wall (More → Troop → Eagle Scouts).** The troop's Eagle Scouts by year.
+- **Lost and found (More → Troop → Lost and found).** Post a photo of what was left behind; the person who posted it or a leader marks it returned.
+- **Geocaching (More → Skills & outdoors → Geocaching).** Leaders hide a course of caches ("Use my spot" averages five GPS readings) and print cache cards with code words. Scouts navigate with a compass arrow and distance, then type the code word to log the find (25 tries per cache). Finds can count toward patrol points.
+- **Hike GPX export.** Every recorded hike has a GPX download for other mapping apps.
 - **Food budget calculator** and a shopping-list price book: per-meal rates from `troop.mealCosts`, headcount from sign-ups, the amount to collect per scout, and prices remembered from past trips.
 
 ## Demo troop (for showing the app to others)
@@ -76,7 +93,7 @@ Signing in with the leader passcode turns on leader mode for that browser tab. L
 - **Permission.** The family roster, including the No-photos list.
 - **Bulletin.** Post and pin announcements.
 - **Settings** (each section opens with a tap, so the page stays short):
-  - **Features.** Switch off any part of Basecamp the troop doesn't use: Hikes, Games, Uniform inspection, Troop elections, Meeting notes, Campfire book, Ceremonies, Knot trainer, Patrol points, Scavenger hunts, Campsite duty roster, Night sky, Court of Honor planner, Troop kitchen, Gear locker, Merit badge counselors. A switched-off part disappears from Home and More for everyone and is turned off on the server too; leaders can still open it, with a note that it's off. Nothing is deleted, and switching it back on brings everything back. Options under each: hide the start and finish of new hikes by default; Campfire Clash live games on or off; which optional uniform items are checked (hat, neckerchief); live election results on the TV by default; whether parents can read PLC notes; whether scouts and parents can suggest songs and skits for the campfire book; whether inspections and scavenger hunts add patrol points; and the troop jobs each duty roster starts with.
+  - **Features.** Switch off any part of Basecamp the troop doesn't use: Hikes, Games, Uniform inspection, Troop elections, Meeting notes, Campfire book, Ceremonies, Knot trainer, Patrol points, Scavenger hunts, Campsite duty roster, Night sky, Court of Honor planner, Outing safety, Carpools, Permission slips, Requirement sign-offs, Service hours, Eagle tracker, Summer camp, Meetings, Polls, Check-in, Fundraiser, Year in review, Eagle wall, Lost and found, Geocaching, Troop kitchen, Gear locker, Merit badge counselors. A switched-off part disappears from Home and More for everyone and is turned off on the server too; leaders can still open it, with a note that it's off. Nothing is deleted, and switching it back on brings everything back. Options under each: hide the start and finish of new hikes by default; Campfire Clash live games on or off; which optional uniform items are checked (hat, neckerchief); live election results on the TV by default; whether parents can read PLC notes; whether scouts and parents can suggest songs and skits for the campfire book; whether inspections and scavenger hunts add patrol points; and the troop jobs each duty roster starts with.
   - **Patrols**, **Photo albums**, **Standard packing list** (the everyday list every scout sees; one item per line, groups you can add or remove), and the **Chat writing helper**.
 - **Records.** CSV downloads, grouped: roster (no codes) and photo permission; outing sign-ups, food spending, gear inventory, gear history and hikes; uniform inspections, election results (vote counts only, never who voted for whom) and games; and the photo log. They download straight to the phone or computer, whether you signed in with your personal code or the leader passcode.
 
@@ -97,6 +114,22 @@ Scoutbook Plus, TroopWebHost and Black Pug (Scouting Event) don't offer connecti
 - **Sync history:** every import, compare and change, with who did it.
 
 The command-line importers in `scripts/` still work, but the Sync center does the same job from a phone or computer.
+
+## Security and privacy
+
+Basecamp is for a youth troop, so it is built to keep scouts' information safe:
+
+- **No sensitive records.** The app never stores birthdays, ages, addresses, phone numbers, BSA IDs, medical or allergy information, or money owed. Those stay in TroopWebHost and Scoutbook.
+- **Personal codes, not shared passwords.** Every change (RSVPs, photos, photo permission, carpools, slips) needs a personal sign-in. The troop code is read-only, and guests see only first names with last initials.
+- **Families act for their own scouts only.** A parent can RSVP, sign slips and book rides only for scouts linked to them. Scouts can't sign off their own requirements.
+- **Guessing is blocked.** Wrong troop codes, personal codes and leader passcodes are limited to a handful of tries per 15 minutes from one place. Passcodes are compared in constant time.
+- **Sessions expire** after 180 days. Leader mode only goes to adults.
+- **Photos** have location data removed on the phone, and leaders approve each one against the family's photo permission. Photos aren't cached by shared proxies.
+- **Hike privacy.** Leaders can hide the start and end of every recorded hike so a home address never shows on a map.
+- **Browser protections.** A strict Content Security Policy (no outside scripts), no framing, HTTPS only, `noindex` and a `robots.txt` that blocks search engines. Exports guard against spreadsheet formula injection.
+- **Chat** follows Safeguarding Youth Training rules (see Chat above).
+
+Two things to know: sign-in links carry the person's code, so treat an invite like a key and reset a code (Leader tools → Members) if one is shared by mistake. The public demo troop's leader code is printed below, so anyone can change demo data; keep real information out of the demo.
 
 ## Settings
 

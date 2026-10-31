@@ -35,6 +35,14 @@ const Points = lazy(() => import('./screens/Points.jsx'));
 const Hunts = lazy(() => import('./screens/Hunts.jsx'));
 const NightSky = lazy(() => import('./screens/NightSky.jsx'));
 const Coh = lazy(() => import('./screens/Coh.jsx'));
+const Safety = lazy(() => import('./screens/Safety.jsx'));
+const Reqs = lazy(() => import('./screens/Reqs.jsx'));
+const Service = lazy(() => import('./screens/Service.jsx'));
+const Eagle = lazy(() => import('./screens/Eagle.jsx'));
+const CampPlan = lazy(() => import('./screens/CampPlan.jsx'));
+const TroopOps = lazy(() => import('./screens/Troop.jsx'));
+const Trees = lazy(() => import('./screens/Trees.jsx'));
+const Geocache = lazy(() => import('./screens/Geocache.jsx'));
 const Elections = lazy(() => import('./screens/Elections.jsx'));
 const Inspect = lazy(() => import('./screens/Inspect.jsx'));
 const loadGames = () => import('./screens/Games.jsx');
@@ -45,9 +53,9 @@ const TABS = [
   { id: 'outings', label: 'Outings', icon: 'tent', match: ['outings', 'outing'] },
   { id: 'snap', label: 'Snap', icon: 'camera', big: true },
   { id: 'messages', label: 'Chat', icon: 'message', match: ['messages', 'thread'] },
-  { id: 'more', label: 'More', icon: 'grid', match: ['more', 'kitchen', 'gallery', 'permission', 'packing', 'leaders', 'gear', 'advancement', 'counselors', 'hikes', 'games', 'play', 'live', 'inspect', 'vote', 'notes', 'campfire', 'ceremonies', 'knots', 'points', 'hunts', 'sky', 'coh'] },
+  { id: 'more', label: 'More', icon: 'grid', match: ['more', 'kitchen', 'gallery', 'permission', 'packing', 'leaders', 'gear', 'advancement', 'counselors', 'hikes', 'games', 'play', 'live', 'inspect', 'vote', 'notes', 'campfire', 'ceremonies', 'knots', 'points', 'hunts', 'sky', 'coh', 'field', 'reqs', 'service', 'eagle', 'camp', 'meetings', 'polls', 'checkin', 'year', 'eagles', 'lost', 'fundraiser', 'geocache'] },
 ];
-const SCREENS = { home: Home, outings: Outings, outing: Outing, gear: Gear, kitchen: Kitchen, snap: Snap, gallery: Gallery, permission: Permission, leaders: Leaders, more: More, packing: Packing, messages: Messages, thread: Thread, advancement: Advancement, counselors: Counselors, hikes: Hikes, track: Track, games: Games, play: Play, live: Live, inspect: Inspect, vote: Elections, notes: Notes, campfire: Campfire, ceremonies: Ceremonies, knots: Knots, points: Points, hunts: Hunts, sky: NightSky, coh: Coh };
+const SCREENS = { home: Home, outings: Outings, outing: Outing, gear: Gear, kitchen: Kitchen, snap: Snap, gallery: Gallery, permission: Permission, leaders: Leaders, more: More, packing: Packing, messages: Messages, thread: Thread, advancement: Advancement, counselors: Counselors, hikes: Hikes, track: Track, games: Games, play: Play, live: Live, inspect: Inspect, vote: Elections, notes: Notes, campfire: Campfire, ceremonies: Ceremonies, knots: Knots, points: Points, hunts: Hunts, sky: NightSky, coh: Coh, emergency: Safety, buddy: Safety, field: Safety, reqs: Reqs, service: Service, eagle: Eagle, camp: CampPlan, meetings: TroopOps, polls: TroopOps, checkin: TroopOps, year: TroopOps, eagles: TroopOps, lost: TroopOps, fundraiser: Trees, geocache: Geocache };
 
 export default function App() {
   const route = useRoute();

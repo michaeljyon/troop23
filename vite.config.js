@@ -39,7 +39,7 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
-          { urlPattern: /\/api\/photos\/[^/]+(\/thumb)?\?/, handler: 'CacheFirst', options: { cacheName: 'photos', expiration: { maxEntries: 400, maxAgeSeconds: 86400 * 14 } } },
+          { urlPattern: /\/api\/photos\/[^/]+(\/thumb)?\?/, handler: 'NetworkFirst', options: { cacheName: 'photos', networkTimeoutSeconds: 4, expiration: { maxEntries: 300, maxAgeSeconds: 86400 * 2 } } },
         ],
       },
     }),

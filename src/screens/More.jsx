@@ -19,22 +19,40 @@ export default function More() {
   const parentNotes = !isScout && !isLeader && (acct?.scouts?.length > 0) && opts.notesParentsPLC;
   // grouped so the list stays easy to scan; switched-off parts of the app don't show up
   const groups = [
-    ['Scouting', [
+    ['Advancement', [
       ['advancement', 'trophy', 'Advancement', isLeader ? 'The whole troop\'s trail to Eagle' : 'Ranks and merit badges'],
+      F.reqs && ['reqs', 'checklist', 'Requirement sign-offs', 'Scout through First Class, one requirement at a time'],
+      F.service && ['service', 'heart', 'Service hours', 'Log hours toward Tenderfoot through Life'],
+      F.eagle && ['eagle', 'flag', 'Eagle projects', 'Every step from idea to board of review'],
       F.counselors && ['counselors', 'people', 'Merit badge counselors', 'Who counsels which badge'],
-      F.hikes && ['hikes', 'map', 'Hikes', 'Track distance and climbing with your group'],
+      F.camp && ['camp', 'tent', 'Summer camp', 'Pick merit badges for each session'],
+    ]],
+    ['Skills & outdoors', [
+      F.knots && ['knots', 'link', 'Knot trainer', 'Every rank knot and lashing, a timer and a quiz'],
       F.games && ['games', 'star', 'Games', 'Quizzes, puzzles and live troop games'],
+      F.hikes && ['hikes', 'map', 'Hikes', 'Track distance and climbing with your group'],
+      F.geo && ['geocache', 'pin', 'Geocaching', 'Follow the arrow to hidden caches; log the code word'],
+      F.sky && ['sky', 'star', 'Night sky', 'Tonight\'s stars, planets and Moon; point your phone up'],
+      F.safety && ['field', 'alert', 'Florida field guide', 'Snakes, gators, lightning, heat and more'],
       F.campfire && ['campfire', 'flame', 'Campfire book', 'Songs, skits, run-ons, cheers, patrol games and campfire plans'],
       F.ceremonies && ['ceremonies', 'flag', 'Ceremonies', 'Flag ceremonies and troop ceremonies, with scripts'],
-      F.knots && ['knots', 'link', 'Knot trainer', 'Every rank knot and lashing, a timer and a quiz'],
-      F.sky && ['sky', 'star', 'Night sky', 'Tonight\'s stars, planets and Moon; point your phone up'],
     ]],
     ['Patrols & PLC', [
       F.notes && (isScout || isLeader || parentNotes) && ['notes', 'file', 'Meeting notes', isLeader ? 'PLC notes and committee minutes' : 'What the Patrol Leaders\' Council planned and decided'],
+      F.meetings && ['meetings', 'calendar', 'Meeting plans', 'The PLC\'s plan for each troop meeting'],
+      F.polls && ['polls', 'users', 'Polls', 'Quick votes on trips, menus and plans'],
       F.vote && ['vote', 'users', 'Troop elections', 'Vote for SPL, patrol leaders and more'],
       F.inspect && ['inspect', 'shield', 'Uniform inspection', 'Patrol inspections and the Patrol Cup'],
       F.points && ['points', 'trophy', 'Patrol points', 'The patrol competition, with a TV screen'],
       F.hunts && ['hunts', 'camera', 'Scavenger hunts', 'Find it, snap it, score for your patrol'],
+    ]],
+    ['Troop', [
+      F.fund && ['fundraiser', 'gift', 'Christmas tree sale', 'Lot shifts, sales and our goal'],
+      F.checkin && isLeader && ['checkin', 'checklist', 'Meeting check-in', 'Scouts scan a code to check in'],
+      F.checkin && !isLeader && acct && ['checkin/go', 'checklist', 'Check in to a meeting', 'Type the code on the screen'],
+      F.year && ['year', 'sparkle', 'Year in review', 'Nights camped, miles hiked, badges earned'],
+      F.eagles && ['eagles', 'trophy', 'Eagle Scouts', 'Every Eagle Scout from our troop'],
+      F.lost && ['lost', 'box', 'Lost and found', 'Left something at camp?'],
     ]],
     ['Camp & gear', [
       F.gear && ['gear', 'box', 'Gear locker', 'Tents, stoves and the merit badge library'],

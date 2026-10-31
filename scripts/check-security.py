@@ -50,13 +50,13 @@ for path in ['members', 'threads', 'adv']:
     st, _ = call(path, troop=True); check(f'troop code only: GET /{path} needs personal code', st == 401, st)
 for col in ['outings', 'posts', 'counselors', 'places']:
     st, _ = call(f'c/{col}/x-test-1', {'title': 'Hack', 'name': 'Hack', 'start': '2030-01-01'}, method='PUT', troop=True)
-    check(f'troop code cannot write {col}', st == 403, st)
+    check(f'troop code cannot write {col}', st in (401, 403), st)
     st, _ = call(f'c/{col}/x-test-1', {'title': 'Hack', 'name': 'Hack', 'start': '2030-01-01'}, method='PUT', s=S['scout'])
     check(f'scout cannot write {col}', st == 403, st)
 for col in ['outings', 'gear', 'recipes', 'posts', 'counselors', 'places']:
     st, items = call(f'c/{col}', troop=True); first = (items.get('items') or [{}])[0].get('id') if st == 200 else None
     if first:
-        st, _ = call(f'c/{col}/{first}', method='DELETE', troop=True); check(f'troop code cannot delete {col}', st == 403, st)
+        st, _ = call(f'c/{col}/{first}', method='DELETE', troop=True); check(f'troop code cannot delete {col}', st in (401, 403), st)
 st, _ = call('c/outings/../../people', troop=True); check('path tricks rejected', st in (400, 404), st)
 
 # --- calendar feed
@@ -180,23 +180,25 @@ cons = [json.load(open(f'{STORE}/{f}')) for f in os.listdir(STORE) if f.startswi
 none_kid = next((s for c in cons for s in c['scouts'] if s['level'] == 'none'), None)
 if none_kid:
     img = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg=='
-    st, r = call('photos', {'release': True, 'name': 'Sec Check', 'image': img, 'scouts': [none_kid['id']]}, troop=True); pid = r.get('photo', {}).get('id') or r.get('id')
+    st, _ = call('photos', {'release': True, 'name': 'Sec Check', 'image': img, 'scouts': [none_kid['id']]}, troop=True); check('the troop code alone cannot share photos', st == 401, st)
+    P2 = sess(parent)
+    st, r = call('photos', {'release': True, 'name': 'Sec Check', 'image': img, 'scouts': [none_kid['id']]}, s=P2); pid = r.get('photo', {}).get('id') or r.get('id')
     if not pid: pid = next(p['id'] for p in call('leader/photos', leader=True)[1]['photos'] if p.get('name') == 'Sec Check')
     st, r = call(f'leader/photos/{pid}', {'status': 'approved'}, leader=True)
     check('approving a photo of a "no photos" scout keeps it out of the gallery', r['photo']['status'] == 'hidden', r['photo']['status'])
     st, r = call(f'leader/photos/{pid}', {'public': True}, leader=True); check('cannot make it public', st == 400, st)
     cur = call('leader/settings', leader=True)[1]
     call('leader/settings', {'autoApprove': True, 'by': 'Sec Check'}, leader=True)
-    st, r = call('photos', {'release': True, 'name': 'Sec Check', 'image': img, 'scouts': [none_kid['id']]}, troop=True)
+    st, r = call('photos', {'release': True, 'name': 'Sec Check', 'image': img, 'scouts': [none_kid['id']]}, s=P2)
     st, ph = call('leader/photos', leader=True); mine = [p for p in ph['photos'] if p.get('name') == 'Sec Check']
     check('override toggle still holds back "no photos" scouts', all(p['status'] != 'approved' for p in mine), [p['status'] for p in mine])
-    st, r = call('photos', {'release': True, 'name': 'Sec Check', 'image': img}, troop=True)
+    st, r = call('photos', {'release': True, 'name': 'Sec Check', 'image': img}, s=P2)
     st, ph = call('leader/photos', leader=True); mine = [p for p in ph['photos'] if p.get('name') == 'Sec Check']
     check('override toggle auto-approves untagged photos', any(p['status'] == 'approved' for p in mine), [p['status'] for p in mine])
     call('leader/settings', {'autoApprove': bool(cur.get('autoApprove')), 'by': 'Sec Check'}, leader=True)
     for p in mine: call(f"leader/photos/{p['id']}", {'status': 'deleted'}, leader=True)
-    st, r = call('photos', {'release': False, 'name': 'X', 'image': img}, troop=True); check('photo needs sharing agreement', st == 400, st)
-    st, r = call('photos', {'release': True, 'name': 'X', 'image': 'data:text/html;base64,PHNjcmlwdD4='}, troop=True); check('non-image upload refused', st == 400, st)
+    st, r = call('photos', {'release': False, 'name': 'X', 'image': img}, s=P2); check('photo needs sharing agreement', st == 400, st)
+    st, r = call('photos', {'release': True, 'name': 'X', 'image': 'data:text/html;base64,PHNjcmlwdD4='}, s=P2); check('non-image upload refused', st == 400, st)
 bad = [r for r in results if not r[0]]
 print(f'\nFINAL {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
 
@@ -415,7 +417,7 @@ st, _ = call('knots'); check('knots need the troop code', st == 401, st)
 st, _ = call('knots/time', {'knot': 'bowline', 'ms': 20000, 'checked': True}, troop=True); check('guests cannot save knot times', st == 401, st)
 st, _ = call('knots/time', {'knot': 'bowline', 'ms': 20000}, s=S['mate']); check('knot times need a buddy check', st == 400, st)
 st, _ = call('knots/time', {'knot': 'bowline', 'ms': 200, 'checked': True}, s=S['mate']); check('impossible knot times are refused', st == 400, st)
-st, r = call('knots/time', {'knot': 'bowline', 'ms': 21000, 'checked': True}, s=S['mate']); check('scouts save checked knot times', st == 200 and r['best'], r)
+st, r = call('knots/time', {'knot': 'bowline', 'ms': 21000, 'checked': True}, s=S['mate']); check('scouts save checked knot times', st == 200 and r['pb']['ms'] <= 21000, r)
 st, d = call('knots', s=S['outsider']); check('the knot board shows first name and last initial only', st == 200 and all(len(b['name'].split()[-1]) <= 2 for b in d['boards'].get('bowline', [])), d.get('boards'))
 st, _ = call('points', {'patrol': scout['patrol'], 'pts': 5, 'reason': 'x'}, s=S['mate']); check('scouts cannot give patrol points', st == 403, st)
 pt = next(p for p in call('points', leader=True)[1]['board'])['patrol']
@@ -456,4 +458,115 @@ st, _ = call('points', s=S['scout']); check('patrol points switched off on the s
 call('leader/settings', {'features': {'points': True}}, s=S['leader'])
 bad = [r for r in results if not r[0]]
 print(f'\nWITH SCOUTING {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+
+# --- outing safety, carpools, slips, sign-offs, service, Eagle, camp, polls, check-in, tree sale, lost and found, geocaching
+plain = next(m for m in active if m['role'] == 'scout' and not m.get('positions') and m['id'] not in (pl['id'], outsider['id']) and m['id'] not in parent.get('scouts', []))
+S['plain'] = sess(plain)
+kid = M[parent['scouts'][0]]; other_kid = next(m for m in active if m['role'] == 'scout' and m['id'] not in parent['scouts'])
+oid2 = next(o['id'] for o in call('c/outings', leader=True)[1]['items'] if o.get('end') and o['end'] > o['start'])
+st, _ = call(f'outsafe/{oid2}'); check('safety card needs the troop code', st == 401, st)
+st, _ = call(f'outsafe/{oid2}', {'hospital': 'x'}, method='PUT', s=S['parent']); check('only leaders edit the emergency card', st == 403, st)
+st, _ = call(f'carpool/{oid2}', {'op': 'drive', 'seats': 3}, s=S['plain']); check('scouts cannot offer to drive', st == 403, st)
+st, r = call(f'carpool/{oid2}', {'op': 'drive', 'seats': 1, 'leg': 'both'}, s=S['parent']); check('a parent offers seats', st == 200, r); did = next(v['id'] for v in r['drivers'] if v['by'] == parent['id'])
+st, _ = call(f'carpool/{oid2}', {'op': 'ride', 'driverId': did, 'riderId': other_kid['id']}, s=S['parent']); check("parents can't sign up someone else's scout", st == 403, st)
+st, _ = call(f'carpool/{oid2}', {'op': 'ride', 'driverId': did, 'riderId': kid['id']}, s=S['parent']); check('parents sign up their own scout', st == 200, st)
+st, _ = call(f'carpool/{oid2}', {'op': 'ride', 'driverId': did, 'riderId': plain['id']}, s=S['plain']); check('full cars are full', st == 409, st)
+call(f'carpool/{oid2}', {'op': 'stop', 'driverId': did}, s=S['parent'])
+call(f'slip/{oid2}/cfg', {'on': True, 'text': 'Permission text'}, method='PUT', s=S['leader'])
+st, d = call(f'slip/{oid2}', s=S['parent']); check("parents don't see the troop's slip list", st == 200 and d['roster'] is None, st)
+st, _ = call(f'slip/{oid2}/sign', {'scoutId': other_kid['id'], 'agree': True, 'typed': 'Some Parent'}, s=S['parent']); check("parents can't sign for someone else's scout", st == 403, st)
+st, _ = call(f'slip/{oid2}/sign', {'scoutId': kid['id'], 'typed': 'Some Parent'}, s=S['parent']); check('a slip needs the box checked', st == 400, st)
+st, _ = call(f'slip/{oid2}/sign', {'scoutId': kid['id'], 'agree': True, 'typed': parent['name']}, s=S['parent']); check('parents sign for their own scout', st == 200, st)
+st, _ = call(f'slip/{oid2}/sign', {'scoutId': kid['id'], 'paper': True}, s=S['parent']); check('only leaders record paper slips', st == 403, st)
+call(f'slip/{oid2}/sign/{kid["id"]}', method='DELETE', s=S['leader']); call(f'slip/{oid2}/cfg', {'on': False, 'text': ''}, method='PUT', s=S['leader'])
+st, _ = call(f'signoff/{other_kid["id"]}', s=S['parent']); check("parents can't see another scout's requirements", st == 403, st)
+st, _ = call(f'signoff/{plain["id"]}', {'rank': 'Scout', 'req': '1a', 'on': True}, s=S['plain']); check('scouts cannot sign their own requirements', st == 403, st)
+st, _ = call(f'signoff/{plain["id"]}', {'rank': 'Scout', 'req': '1a', 'on': True}, s=S['parent']); check('parents cannot sign off requirements', st == 403, st)
+st, _ = call(f'signoff/{plain["id"]}', {'rank': 'Scout', 'req': '1a', 'on': True}, s=S['pl']); check('a patrol leader can sign off a requirement', st == 200, st)
+st, _ = call(f'signoff/{plain["id"]}', {'rank': 'Tenderfoot', 'req': '10', 'on': True}, s=S['pl']); check('conferences and boards are adult leaders only', st == 403, st)
+st, _ = call(f'signoff/{plain["id"]}', {'rank': 'Scout', 'req': '99z', 'on': True}, s=S['leader']); check('unknown requirements are refused', st == 400, st)
+call(f'signoff/{plain["id"]}', {'rank': 'Scout', 'req': '1a', 'on': False}, s=S['leader'])
+check('sign-off download is leaders only', raw_get(f"signoff/export.csv?s={S['pl']}") in (401, 403))
+st, _ = call('service', {'memberId': other_kid['id'], 'date': '2026-10-01', 'hours': 2, 'project': 'x'}, s=S['plain']); check("scouts can't log hours for others", st == 403, st)
+st, r = call('service', {'memberId': plain['id'], 'date': '2026-10-01', 'hours': 2, 'project': 'Park cleanup', 'conservation': True}, s=S['plain']); check('scouts log hours, waiting for a leader', st == 200 and r['entries'][0]['status'] == 'pending', r); vid = r['entries'][0]['id']
+st, _ = call(f'service/{vid}/approve', {}, s=S['pl']); check('only leaders approve service hours', st == 403, st)
+st, _ = call(f'service/{vid}/approve', {}, s=S['leader']); check('leaders approve service hours', st == 200, st)
+st, _ = call(f'service/{vid}', method='DELETE', s=S['plain']); check("scouts can't delete approved hours", st == 403, st)
+call(f'service/{vid}', method='DELETE', s=S['leader'])
+st, _ = call(f'eagle/{other_kid["id"]}', s=S['parent']); check("parents can't open another scout's Eagle project", st == 403, st)
+st, _ = call('camp', {'name': 'x'}, s=S['parent']); check('only leaders set up summer camp', st == 403, st)
+st, _ = call('poll', {'q': 'x', 'options': ['a', 'b']}, s=S['plain']); check('scouts not on the PLC cannot make polls', st == 403, st)
+st, r = call('poll', {'q': 'Campout spot?', 'options': ['Lake', 'River'], 'aud': 'all'}, s=S['leader']); poid = r['poll']['id']
+st, d = call('poll', s=S['plain']); pp = next(p for p in d['polls'] if p['id'] == poid); check('poll results stay hidden until you vote', pp['counts'] is None, pp.get('counts'))
+st, _ = call(f'poll/{poid}/vote', {'opts': ['o0', 'o1']}, s=S['plain']); check('one choice only on single-choice polls', st == 400, st)
+st, r = call(f'poll/{poid}/vote', {'opts': ['o0']}, s=S['plain']); check('scouts vote and then see results', st == 200 and r['poll']['counts']['o0'] == 1, r)
+call(f'poll/{poid}/vote', {'opts': ['o1']}, s=S['plain']); st, d = call('poll', s=S['plain']); pp = next(p for p in d['polls'] if p['id'] == poid); check('changing your vote counts once', pp['counts'] == {'o0': 0, 'o1': 1}, pp['counts'])
+call(f'poll/{poid}', method='DELETE', s=S['leader'])
+st, _ = call('attend/open', {'title': 'x'}, s=S['plain']); check('scouts cannot open check-in', st == 403, st)
+call('attend/open', {'title': 'Sec meeting'}, s=S['leader']); td = call('attend', leader=True)[1]['today']; sess_ = call(f'attend/{td}', s=S['leader'])[1]
+st, _ = call('attend/in', {'code': 'WRONG1'}, s=S['plain']); check('a wrong check-in code is refused', st == 409, st)
+st, _ = call('attend/in', {'code': sess_['code']}, s=S['plain']); check('scouts check in with the code', st == 200, st)
+st, _ = call('attend/in', {'code': sess_['code']}, troop=True); check('check-in needs a personal code', st == 401, st)
+call(f'attend/{td}/close', {}, s=S['leader'])
+st, _ = call('attend/in', {'code': sess_['fixed']}, s=S['plain']); check('closed check-in refuses codes', st == 409, st)
+st, _ = call('fund/day', {'date': '2026-12-01', 'sold': {'f67': 3}}, method='PUT', s=S['parent']); check('only leaders record tree sales', st == 403, st)
+st, r = call('fund/shifts', {'dates': ['2026-12-05'], 'times': [['10:00', '12:00']], 'adults': 1, 'scouts': 1}, s=S['leader']); shid = r['shifts'][0]['id']
+st, _ = call(f'fund/shift/{shid}', {'memberId': other_kid['id'], 'on': True}, s=S['parent']); check("parents can't sign up someone else's scout for a lot shift", st == 403, st)
+st, _ = call(f'fund/shift/{shid}', {'memberId': kid['id'], 'on': True}, s=S['parent']); check('parents sign their scout up for a lot shift', st == 200, st)
+st, _ = call(f'fund/shift/{shid}', {'memberId': plain['id'], 'on': True}, s=S['plain']); check('full shifts are full', st == 409, st)
+st, d = call('fund', s=S['parent']); check('families see the goal but not daily money', d['scoutHours'] is None and all('sold' not in x for x in d['days']), st)
+call(f'fund/shift/{shid}', method='DELETE', s=S['leader'])
+st, _ = call('lost', troop=True); check('lost and found needs a personal code', st == 401, st)
+st, r = call('lost', {'title': 'Blue bottle', 'data': png}, s=S['plain']); lid = r['item']['id']
+st, _ = call(f'lost/{lid}', method='DELETE', s=S['outsider']); check("you can't remove someone else's lost-and-found post", st == 403, st)
+st, _ = call(f'lost/{lid}/photo', raw=True); check('lost-and-found photos need sign-in', st == 401, st)
+call(f'lost/{lid}', method='DELETE', s=S['plain'])
+st, r = call('geo', {'title': 'Sec course', 'caches': [{'name': 'Oak', 'lat': 30.44, 'lng': -84.28, 'code': 'acorn', 'pts': 7}]}, s=S['leader']); gid = r['course']['id']; gcid = r['course']['caches'][0]['id']
+st, _ = call(f'geo/{gid}', s=S['plain']); check('draft geocache courses are hidden', st == 404, st)
+call(f'geo/{gid}', {'status': 'open'}, method='PUT', s=S['leader'])
+st, d = call(f'geo/{gid}', s=S['plain']); check("scouts don't get the code words", 'code' not in d['course']['caches'][0], d['course']['caches'][0])
+st, _ = call(f'geo/{gid}/find', {'cacheId': gcid, 'code': 'pinecone'}, s=S['plain']); check('wrong code words are refused', st == 400, st)
+st, r = call(f'geo/{gid}/find', {'cacheId': gcid, 'code': ' Acorn '}, s=S['plain']); check('the right code word logs a find', st == 200 and r['pts'] == 7, r)
+st, d = call('points', s=S['leader']); check('geocache finds add patrol points', any(b['patrol'] == plain.get('patrol') and b['by'].get('geocaching', 0) >= 7 for b in d['board']) or not plain.get('patrol'), [b for b in d['board'] if b['patrol'] == plain.get('patrol')])
+call(f'geo/{gid}', method='DELETE', s=S['leader'])
+call('leader/settings', {'features': {'carpool': False}}, s=S['leader'])
+st, _ = call(f'carpool/{oid2}', s=S['parent']); check('carpools switched off on the server too', st == 403, st)
+call('leader/settings', {'features': {'carpool': True}}, s=S['leader'])
+bad = [r for r in results if not r[0]]
+print(f'\nWITH TROOP TOOLS {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
+
+# --- hardening: read-only troop code, sign-up ownership, consent ids, names for guests, rate limits, headers
+oid3 = next(o['id'] for o in call('c/outings', leader=True)[1]['items'])
+st, _ = call(f'c/rsvps/{oid3}__{leader["id"]}', {'outingId': oid3, 'memberId': leader['id'], 'name': 'x', 'status': 'yes'}, method='PUT', troop=True); check('the troop code alone cannot sign anyone up', st == 401, st)
+st, _ = call(f'c/rsvps/{oid3}__{leader["id"]}', {'outingId': oid3, 'memberId': leader['id'], 'name': 'x', 'status': 'yes'}, method='PUT', s=S['plain']); check("scouts can't sign up a leader (or anyone else)", st == 403, st)
+st, r = call(f'c/rsvps/{oid3}__{plain["id"]}', {'outingId': oid3, 'memberId': plain['id'], 'name': 'Fake Name', 'role': 'adult', 'status': 'yes'}, method='PUT', s=S['plain']); check('sign-ups use the real name and role', st == 200 and r['item']['name'] == plain['name'] and r['item']['role'] == 'scout', r.get('item'))
+st, d = call(f'c/rsvps?outing={oid3}', troop=True); check('guests see first names and last initials on sign-ups', all(len(x['name'].split()[-1]) <= 2 for x in d['items'] if ' ' in x['name']), [x['name'] for x in d['items']][:3])
+call(f'c/rsvps/{oid3}__{plain["id"]}', method='DELETE', s=S['plain'])
+fams = [json.load(open(f'{STORE}/{f}')) for f in os.listdir(STORE) if f.startswith('consents%2F')]
+victim = next((sc for f in fams for sc in f['scouts']), None)
+if victim:
+    st, r = call('consent', {'agreed': True, 'parent': {'name': 'x'}, 'signature': 'x', 'scouts': [{'id': victim['id'], 'first': 'A', 'level': 'public'}]}, s=S['adult'])
+    check("a family can't take over another family's photo permission", st == 200 and r['record']['scouts'][0]['id'] != victim['id'], r.get('record', {}).get('scouts'))
+    st, rs = call('roster', troop=True); check('the other family\'s choice still stands', next((x for x in rs['scouts'] if x['id'] == victim['id']), None) is not None)
+    os.remove(f"{STORE}/consents%2F{r['familyId']}") if st == 200 else None
+st, _ = call(f'carpool/{oid3}', troop=True); check('carpools need a personal code', st == 401, st)
+st, _ = call('eagles', troop=True); check('the Eagle wall needs a personal code', st == 401, st)
+st, _ = call('push/subscribe', {'sub': {'endpoint': 'https://evil.example.com/x', 'keys': {'p256dh': 'a', 'auth': 'b'}}, 'prefs': {}}, s=S['plain']); check('push only goes to real push services', st >= 400, st)
+st, r = call(f"leader/members/{plain['id']}", {'leader': True}, leader=True)
+st, d = call('leader/members', leader=True); check('a scout can never be made a leader', not next(m for m in d['members'] if m['id'] == plain['id']).get('leader'), st)
+import time
+def h(path, hdrs):
+    r = urllib.request.Request(BASE + path, headers=hdrs)
+    try: return urllib.request.urlopen(r).status
+    except urllib.error.HTTPError as e: return e.code
+codes = [h('leader/check', {'x-leader-passcode': f'wrong-{i}', 'x-forwarded-for': '203.0.113.9'}) for i in range(12)]
+check('guessing the leader passcode gets locked out', codes[-1] == 429, codes)
+check('the lockout holds even with the right passcode', h('leader/check', {'x-leader-passcode': 'leader', 'x-forwarded-for': '203.0.113.9'}) == 429)
+check('other people are not locked out', h('leader/check', {'x-leader-passcode': 'leader', 'x-forwarded-for': '203.0.113.10'}) in (200, 404))
+codes = [h('auth/redeem', {}) for _ in range(1)]
+for f in os.listdir(STORE):
+    if f.startswith('rl%2F'): os.remove(f'{STORE}/{f}')
+st, _ = call('%E0%A4%A'); check('a broken URL is a clean error, not a crash', st in (400, 401, 404), st)
+bad = [r for r in results if not r[0]]
+print(f'\nWITH HARDENING {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]
 for tok in S.values(): call('auth/signout', {}, s=tok)

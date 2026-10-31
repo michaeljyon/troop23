@@ -5,7 +5,8 @@ BASE = 'http://localhost:5288'; SP = sys.argv[1]; DEMO = 'scripts/demo'
 errors = []
 def api(path, body=None, method=None, leader=False):
     h = {'content-type': 'application/json', 'x-troop-code': 'troop23'}
-    if leader: h['x-leader-passcode'] = 'leader'
+    # the shared troop code is read-only now, so test data is written as a leader
+    if leader or (body is not None and (method or 'POST') != 'GET'): h['x-leader-passcode'] = 'leader'
     r = urllib.request.Request(BASE + '/api/' + path, data=json.dumps(body).encode() if body is not None else None, headers=h, method=method or ('POST' if body is not None else 'GET'))
     return json.loads(urllib.request.urlopen(r).read())
 def shot(pg, name, full=False): pg.wait_for_timeout(350); pg.screenshot(path=f'{SP}/{name}.png', full_page=full)

@@ -25,7 +25,7 @@ const NAMES = {
   home: 'Home', outings: 'Outings', outing: 'Outing', gallery: 'Photos', kitchen: 'Kitchen', gear: 'Gear locker', packing: 'Packing list',
   messages: 'Chat', thread: 'Chat', more: 'More', leaders: 'Leader tools', advancement: 'Advancement', counselors: 'Counselors',
   hikes: 'Hikes', track: 'Recording', permission: 'Photo permission', snap: 'Snap', slideshow: 'Slideshow',
-  games: 'Games', play: 'Game', live: 'Campfire Clash', inspect: 'Inspections', vote: 'Elections', notes: 'Meeting notes', campfire: 'Campfire', ceremonies: 'Ceremonies', knots: 'Knots', points: 'Patrol points', hunts: 'Scavenger hunts', sky: 'Night sky', coh: 'Court of Honor',
+  games: 'Games', play: 'Game', live: 'Campfire Clash', inspect: 'Inspections', vote: 'Elections', notes: 'Meeting notes', campfire: 'Campfire', ceremonies: 'Ceremonies', knots: 'Knots', points: 'Patrol points', hunts: 'Scavenger hunts', sky: 'Night sky', coh: 'Court of Honor', emergency: 'Emergency card', buddy: 'Buddy board', field: 'Field guide', reqs: 'Requirements', service: 'Service hours', eagle: 'Eagle projects', camp: 'Summer camp', meetings: 'Meeting plans', polls: 'Polls', checkin: 'Check-in', year: 'Year in review', eagles: 'Eagle Scouts', lost: 'Lost and found', fundraiser: 'Tree sale', geocache: 'Geocaching',
 };
 export function pageName(r) {
   if (r.name === 'advancement' && r.args[0]) return 'Scout';
@@ -38,6 +38,11 @@ export function pageName(r) {
   if (r.name === 'ceremonies' && r.args[0]) return 'Ceremony';
   if (r.name === 'knots' && r.args[0]) return r.args[0] === 'quiz' ? 'Which knot?' : 'Knot';
   if (r.name === 'hunts' && r.args[0]) return 'Hunt';
+  if (r.name === 'reqs' && r.args[0]) return 'Scout';
+  if (r.name === 'eagle' && r.args[0]) return 'Eagle project';
+  if (r.name === 'meetings' && r.args[0]) return 'Meeting';
+  if (r.name === 'field' && r.args[0]) return 'Field guide';
+  if (r.name === 'camp' && r.args[0]) return 'Camp';
   if (r.name === 'coh' && r.args[0]) return r.args[1] === 'program' ? 'Program' : 'Court of Honor';
   if (r.name === 'thread') return 'Conversation';
   if (r.name === 'gallery' && r.query.album) return 'Album';
@@ -51,10 +56,13 @@ export function parentOf(r) {
   if (r.name === 'campfire' && r.args[0] === 'plan' && r.args[1] && r.args[1] !== 'new' && r.args[2]) return `campfire/plan/${r.args[1]}`;
   if (r.name === 'campfire' && r.args[0] === 'plan') return 'campfire?tab=plans';
   if (r.name === 'ceremonies' && r.args[1]) return `ceremonies/${r.args[0]}`;
-  if (['knots', 'hunts', 'coh'].includes(r.name) && r.args[1]) return `${r.name}/${r.args[0]}`;
-  if (r.args[0] && ['advancement', 'hikes', 'inspect', 'vote', 'campfire', 'ceremonies', 'knots', 'points', 'hunts', 'sky', 'coh'].includes(r.name)) return r.name;
+  if (r.name === 'geocache' && r.args[1]) return `geocache/${r.args[0]}`;
+  if (['knots', 'hunts', 'coh', 'meetings', 'camp'].includes(r.name) && r.args[1]) return `${r.name}/${r.args[0]}`;
+  if (r.name === 'emergency' && r.args[0]) return `outing/${r.args[0]}`;
+  if (r.name === 'buddy' && r.query.outing) return `outing/${r.query.outing}`;
+  if (r.args[0] && ['advancement', 'hikes', 'inspect', 'vote', 'campfire', 'ceremonies', 'knots', 'points', 'hunts', 'sky', 'coh', 'field', 'reqs', 'eagle', 'camp', 'meetings', 'checkin', 'year', 'geocache'].includes(r.name)) return r.name;
   return { outing: 'outings', thread: 'messages', track: 'hikes', counselors: 'advancement', slideshow: 'gallery', snap: 'home', kitchen: 'more', gear: 'more', gallery: 'more',
-    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home', games: 'more', play: 'games', live: 'games', inspect: 'more', vote: 'more', notes: 'more', campfire: 'more', ceremonies: 'more', knots: 'more', points: 'more', hunts: 'more', sky: 'more', coh: 'more' }[r.name] || 'home';
+    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home', games: 'more', play: 'games', live: 'games', inspect: 'more', vote: 'more', notes: 'more', campfire: 'more', ceremonies: 'more', knots: 'more', points: 'more', hunts: 'more', sky: 'more', coh: 'more', field: 'more', reqs: 'advancement', service: 'advancement', eagle: 'advancement', camp: 'more', meetings: 'more', polls: 'more', checkin: 'more', year: 'more', eagles: 'more', lost: 'more', fundraiser: 'more', geocache: 'more', buddy: 'outings', emergency: 'outings' }[r.name] || 'home';
 }
 
 // pages visited this session, one entry per page (kept in step with history)

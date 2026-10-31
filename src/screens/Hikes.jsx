@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import { PageHead, Section, Empty, Sheet, Seg, Pill, BackButton } from '../components/ui.jsx';
-import { api, useAccount, useApi, useCol, useLeaderMode, photoUrl } from '../lib/api.js';
+import { api, useAccount, useApi, useCol, useLeaderMode, photoUrl, sessionToken, leaderPass } from '../lib/api.js';
 import { go } from '../lib/router.js';
 import { readLocal, writeLocal } from '../lib/store.js';
 import { today } from '../lib/dates.js';
@@ -242,6 +242,7 @@ function HikeDetail({ id }) {
       </Section>
       <div className="btn-row">
         {acct && <button className={`btn ${mine ? '' : 'secondary'}`} onClick={kudos}>👏 {mine ? 'High-fived' : 'High five'}{h.kudos.length ? ` · ${h.kudos.length}` : ''}</button>}
+        {!h.manual && hasMap && <a className="btn secondary" href={`/api/hikes/${h.id}/gpx?${sessionToken() ? `s=${sessionToken()}` : `lk=${encodeURIComponent(leaderPass())}`}`} download><Icon name="download" size={16} />GPX</a>}
         {d.canEdit && <button className="link-btn danger" onClick={remove}><Icon name="trash" size={16} />Delete hike</button>}
       </div>
       {editing && <EditSheet h={h} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); load(); }} />}
@@ -456,7 +457,8 @@ export function Track({ route }) {
             <label className="field"><span>Name</span><input value={s.title} onChange={e => save({ ...s, title: e.target.value })} placeholder="e.g. Leon Sinks loop" maxLength={80} /></label>
             <OutingPick value={s.outingId} onChange={v => save({ ...s, outingId: v, title: s.title || outings.items.find(o => o.id === v)?.title || '' })} />
             <GroupPicker value={s.group} onChange={g => save({ ...s, group: g })} lock={acct.member.id} />
-            <label className="check"><input type="checkbox" checked={s.hideEnds} onChange={e => save({ ...s, hideEnds: e.target.checked, touchedEnds: true })} /><span>Hide the start and finish on the map <span className="small muted">(first and last 200 m, so a hike from home doesn't show your house)</span></span></label>
+            {hikeOpts.hikeHideEnds ? <p className="small muted"><Icon name="lock" size={13} /> The start and finish (first and last 200 m) are always left off the map, so a hike from home never shows a house.</p>
+              : <label className="check"><input type="checkbox" checked={s.hideEnds} onChange={e => save({ ...s, hideEnds: e.target.checked, touchedEnds: true })} /><span>Hide the start and finish on the map <span className="small muted">(first and last 200 m, so a hike from home doesn't show your house)</span></span></label>}
           </div>
           {(gpsCode === 1 || gpsCode === 2 || !fix) && <LocationCheck onReady={() => setWatchKey(k => k + 1)} />}
           <div className="tip-box"><Icon name="info" size={18} /><span>Keep Basecamp open while you hike. The screen stays on, and tracking pauses if the phone locks. One person can record for the whole group.</span></div>

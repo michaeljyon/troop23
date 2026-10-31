@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
 // Troop 23 Basecamp API.
 //
 // Photos + family photo permission come from Pack 6 Photo Trail (itself
@@ -19,7 +20,10 @@ import { inspectRoutes } from './inspect.mjs';
 import { electRoutes } from './elect.mjs';
 import { notesRoutes } from './notes.mjs';
 import { fireRoutes } from './fire.mjs';
-import { knotRoutes, pointsRoutes, huntRoutes, dutyRoutes, cohRoutes } from './scouting.mjs';
+import { knotRoutes, pointsRoutes, huntRoutes, dutyRoutes, cohRoutes, pointsBoard } from './scouting.mjs';
+import { safetyRoutes } from './safety.mjs';
+import { advance2Routes } from './advance2.mjs';
+import { troopOpsRoutes } from './troopops.mjs';
 import { syncRoutes } from './sync.mjs';
 import { quizRoutes, levelOf } from './quiz.mjs';
 
@@ -33,7 +37,21 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
 const err = (message, status = 400) => json({ error: message }, status);
 const rid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const clean = (s, n = 200) => String(s ?? '').replace(/[\u0000-\u0009\u000b-\u001f]/g, ' ').trim().slice(0, n);
-const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+const same = (a, b) => {   // forgiving (trimmed, any case) but constant-time
+  const x = Buffer.from(String(a || '').trim().toLowerCase()), y = Buffer.from(String(b || '').trim().toLowerCase());
+  return x.length === y.length && x.length > 0 && timingSafeEqual(x, y);
+};
+// Too many wrong codes from one address locks it out for a while (troop code, personal codes, leader passcode).
+const ipOf = req => (req.headers.get('x-nf-client-connection-ip') || (req.headers.get('x-forwarded-for') || '').split(',')[0] || 'local').trim();
+const rlKey = (kind, req) => `rl/${kind}/${createHash('sha256').update(ipOf(req)).digest('hex').slice(0, 24)}`;
+async function locked(store, kind, req, now) { const r = await store.get(rlKey(kind, req), { type: 'json' }); return !!r && r.until > now; }
+async function failed(store, kind, req, now, max = 10, win = 15 * 60000) {
+  const k = rlKey(kind, req); const r = (await store.get(k, { type: 'json' })) || { n: 0, first: now, until: 0 };
+  if (now - r.first > win) { r.n = 0; r.first = now; }
+  r.n += 1; if (r.n >= max) r.until = now + win;
+  await store.setJSON(k, r);
+}
+const tooMany = () => err('Too many wrong tries. Wait 15 minutes and try again.', 429);
 const ID = /^[a-z0-9_-]{1,80}$/i;
 
 export function shortName(name) {
@@ -152,6 +170,13 @@ function trackCols(store) {
   } });
 }
 
+const initial = n => { const w = String(n || '').trim().split(/\s+/); return w.length > 1 ? `${w[0]} ${w[w.length - 1][0]}.` : w[0] || ''; };
+function guestSafe(col, x) {
+  if (col === 'rsvps') return { ...x, name: initial(x.name), note: '' };
+  if (col === 'plans') return { ...x, grubmaster: initial(x.grubmaster), duties: null, spend: (x.spend || []).map(e => ({ ...e, by: initial(e.by) })) };
+  if (col === 'gear') return { ...x, checkout: x.checkout ? { ...x.checkout, who: initial(x.checkout.who) } : null, log: (x.log || []).map(l => ({ ...l, by: initial(l.by) })) };
+  return x;
+}
 async function listCol(store, col, url) {
   let items = [...await colItems(store, col)];
   const outing = url.searchParams.get('outing');
@@ -253,8 +278,8 @@ async function planAction(store, id, parts, req, body, now) {
 
 // ---------------------------------------------------------------- settings
 // Parts of the app leaders can switch off for the whole troop, and options for each.
-export const FEATURES = ['games', 'hikes', 'inspect', 'vote', 'notes', 'campfire', 'ceremonies', 'knots', 'points', 'hunts', 'duty', 'sky', 'coh', 'kitchen', 'gear', 'counselors'];
-const OPTS = { hikeHideEnds: true, voteLiveDefault: true, notesParentsPLC: false, gamesLive: true, fireSuggest: true, pointsInspect: true, pointsHunts: true };
+export const FEATURES = ['games', 'hikes', 'inspect', 'vote', 'notes', 'campfire', 'ceremonies', 'knots', 'points', 'hunts', 'duty', 'sky', 'coh', 'safety', 'carpool', 'slips', 'reqs', 'service', 'eagle', 'camp', 'meetings', 'polls', 'checkin', 'fund', 'year', 'eagles', 'lost', 'geo', 'kitchen', 'gear', 'counselors'];
+const OPTS = { hikeHideEnds: true, voteLiveDefault: true, notesParentsPLC: false, gamesLive: true, fireSuggest: true, pointsInspect: true, pointsHunts: true, signYouth: true, pointsGeo: true };
 async function settings(store) {
   const s = (await store.get('settings', { type: 'json' })) || {};
   const features = Object.fromEntries(FEATURES.map(f => [f, s.features?.[f] !== false]));
@@ -282,7 +307,10 @@ async function albums(store, withCounts = true) {
 // ---------------------------------------------------------------- consent
 async function roster(store) {
   const fams = await listJSON(store, 'consents/');
-  return fams.flatMap(f => f.scouts.map(s => ({ ...s, familyId: f.id, parent: f.parent.name, updated: f.updated })))
+  const rank = { none: 0, troop: 1, public: 2 };
+  const all = fams.flatMap(f => f.scouts.map(s => ({ ...s, familyId: f.id, parent: f.parent.name, updated: f.updated })));
+  const best = new Map(); for (const x of all) { const p = best.get(x.id); if (!p || rank[x.level] < rank[p.level]) best.set(x.id, x); }
+  return [...best.values()]
     .sort((a, b) => (a.patrol || '').localeCompare(b.patrol || '') || a.first.localeCompare(b.first));
 }
 
@@ -304,6 +332,9 @@ async function saveConsent(store, body, now) {
   let id = /^f-[a-z0-9]{6,24}$/.test(body.familyId || '') ? body.familyId : null;
   const prev = id ? await store.get(`consents/${id}`, { type: 'json' }) : null;
   if (!prev) id = `f-${rid()}${rid().slice(-4)}`;
+  // a family can only keep the scout ids it already had; anything else gets a fresh id
+  const own = new Set((prev?.scouts || []).map(x => x.id));
+  for (const sc of scouts) if (!own.has(sc.id)) sc.id = `s-${rid()}`;
   const rec = {
     id, parent, scouts, signature, agreed: true, created: prev?.created || now, updated: now,
     history: [...(prev?.history || []), { at: now, by: signature, levels: scouts.map(s => `${scoutName(s)}: ${s.level}`) }].slice(-20),
@@ -379,7 +410,7 @@ async function photoFile(store, id, { leader = false, thumb = false } = {}) {
   let res = thumb ? await store.getWithMetadata(`photos/thumb/${meta.id}`, { type: 'arrayBuffer' }) : null;
   res ||= await store.getWithMetadata(`photos/img/${meta.id}`, { type: 'arrayBuffer' });
   if (!res) return new Response('Not found', { status: 404 });
-  return new Response(res.data, { headers: { 'content-type': res.metadata?.type || meta.type || 'image/jpeg', 'cache-control': leader ? 'no-store' : 'private, max-age=86400' } });
+  return new Response(res.data, { headers: { 'content-type': res.metadata?.type || meta.type || 'image/jpeg', 'cache-control': leader ? 'no-store' : 'private, max-age=600' } });
 }
 
 // ---------------------------------------------------------------- CSV
@@ -588,7 +619,7 @@ export async function handle(req, opts) {
 async function route(req, opts) {
   const { store } = opts;
   const url = new URL(req.url);
-  const parts = url.pathname.replace(/^\/(?:api|\.netlify\/functions\/api)\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
+  const parts = url.pathname.replace(/^\/(?:api|\.netlify\/functions\/api)\/?/, '').split('/').filter(Boolean).map(x => { try { return decodeURIComponent(x); } catch { return ''; } });
   const now = Date.now();
   let body = {};
   if (['POST', 'PUT'].includes(req.method)) { try { body = await req.json(); } catch { return err('Bad request'); } }
@@ -597,22 +628,42 @@ async function route(req, opts) {
     const [head, ...rest] = parts;
     if (head === 'health') return json({ ok: true, app: troop.id });
     if (!opts.troopCode) return err('The troop code isn\'t set yet. Add TROOP_CODE in Netlify → Site configuration → Environment variables.', 503);
-    if (head === 'join' && req.method === 'POST') return same(body.code, opts.troopCode) ? json({ ok: true }) : err('That troop code doesn\'t match. Check with your Scoutmaster.', 401);
-    if (head === 'auth' && rest[0] === 'redeem' && req.method === 'POST') return redeem(store, body, req, now, opts.demo ? 'demo' : '');
+    if (head === 'join' && req.method === 'POST') {
+      if (await locked(store, 'join', req, now)) return tooMany();
+      if (same(body.code, opts.troopCode)) return json({ ok: true });
+      await failed(store, 'join', req, now);
+      return err('That troop code doesn\'t match. Check with your Scoutmaster.', 401);
+    }
+    if (head === 'auth' && rest[0] === 'redeem' && req.method === 'POST') {
+      if (await locked(store, 'code', req, now)) return tooMany();
+      const r = await redeem(store, body, req, now, opts.demo ? 'demo' : '');
+      if (r.status === 401 || r.status === 404 || r.status === 400) await failed(store, 'code', req, now, 15);
+      return r;
+    }
 
     // work that can finish after the response (phone notifications)
     const later = p => { const q = Promise.resolve(p).catch(e => console.error(e)); if (opts.waitUntil) opts.waitUntil(q); else opts.pending.push(q); return q; };
     if (head === 'calendar.ics' && req.method === 'GET') return calendarFeed(store, url, req);
     const session = await resolveSession(store, req);
     const leaderGiven = req.headers.get('x-leader-passcode') || url.searchParams.get('lk');
-    const isLeader = (!!opts.leaderPasscode && same(leaderGiven, opts.leaderPasscode)) || !!session?.member.leader;
+    let passOK = false;
+    if (leaderGiven && opts.leaderPasscode) {
+      if (await locked(store, 'lead', req, now)) return tooMany();
+      passOK = same(leaderGiven, opts.leaderPasscode);
+      if (!passOK) await failed(store, 'lead', req, now);
+    }
+    const isLeader = passOK || !!session?.member.leader;
     if (head === 'leader') {
       if (!isLeader) return err(opts.leaderPasscode ? 'Wrong leader passcode.' : 'Leader tools are off.', 401);
       return leader(store, req, rest, body, now);
     }
 
     const code = req.headers.get('x-troop-code') || url.searchParams.get('k');
-    if (!same(code, opts.troopCode) && !isLeader && !session) return err('Enter the troop code to continue.', 401);
+    const codeOK = !!code && same(code, opts.troopCode);
+    if (code && !codeOK && !isLeader && !session) { if (await locked(store, 'join', req, now)) return tooMany(); await failed(store, 'join', req, now); }
+    if (!codeOK && !isLeader && !session) return err('Enter the troop code to continue.', 401);
+    // The shared troop code is read-only: making any change needs a personal code (or the leader passcode).
+    if (!['GET', 'HEAD'].includes(req.method) && !session && !isLeader) return err('Sign in with your personal code to make changes. Ask a leader if you don\'t have one.', 401);
 
     if (head === 'push') { const r = await pushRoutes(store, rest, req, body, now, session?.member); if (r) return r; }
     if (head === 'calendar' && rest[0] === 'link' && req.method === 'GET') {
@@ -626,12 +677,22 @@ async function route(req, opts) {
     const ctx2 = {};
     if (head === 'sync') return syncRoutes(store, rest, req, body, now, { me: session?.member, isLeader, passcode: !!opts.leaderPasscode && same(leaderGiven, opts.leaderPasscode), settings: await settings(store) });
     if (head === 'fire') return fireRoutes(store, rest, req, body, now, { me: session?.member, isLeader, settings: await settings(store) });
-    const FEATURE_OF = { quiz: 'games', hikes: 'hikes', inspect: 'inspect', elect: 'vote', notes: 'notes', knots: 'knots', points: 'points', hunt: 'hunts', duty: 'duty', coh: 'coh' };
+    const FEATURE_OF = { weather: 'safety', outsafe: 'safety', carpool: 'carpool', slip: 'slips', signoff: 'reqs', service: 'service', eagle: 'eagle', camp: 'camp', meet: 'meetings', poll: 'polls', attend: 'checkin', fund: 'fund', year: 'year', eagles: 'eagles', lost: 'lost', quiz: 'games', hikes: 'hikes', inspect: 'inspect', elect: 'vote', notes: 'notes', knots: 'knots', points: 'points', hunt: 'hunts', duty: 'duty', coh: 'coh' };
     if (FEATURE_OF[head]) {
       const st = await settings(store);
       if (!st.features[FEATURE_OF[head]] && !(isLeader && req.method === 'GET')) return err('Leaders have turned this part of Basecamp off.', 403);
       ctx2.opts = st.opts;
       if (head === 'quiz' && rest[0] === 'live' && !st.opts.gamesLive && !isLeader) return err('Leaders have turned live games off.', 403);
+    }
+    const OPS = { safety: ['weather', 'outsafe', 'carpool', 'slip'], adv: ['signoff', 'service', 'eagle', 'camp'], ops: ['meet', 'poll', 'attend', 'fund', 'year', 'eagles', 'lost', 'geo'] };
+    if ([...OPS.safety, ...OPS.adv, ...OPS.ops].includes(head)) {
+      const st = await settings(store), me = session?.member, people = session?.people || await loadPeople(store);
+      const off = { weather: 'safety', outsafe: 'safety', carpool: 'carpool', slip: 'slips', signoff: 'reqs', service: 'service', eagle: 'eagle', camp: 'camp', meet: 'meetings', poll: 'polls', attend: 'checkin', fund: 'fund', year: 'year', eagles: 'eagles', lost: 'lost', geo: 'geo' }[head];
+      if (!st.features[off] && !(isLeader && req.method === 'GET')) return err('Leaders have turned this part of Basecamp off.', 403);
+      if (OPS.safety.includes(head)) return safetyRoutes(store, head, rest, req, body, now, { me, isLeader, people, colItems, url, settings: { ...st, unit: troop.unit } });
+      if (OPS.adv.includes(head)) return advance2Routes(store, head, rest, req, body, now, { me, isLeader, people, settings: st });
+      const listAdv = async () => { const { blobs } = await store.list({ prefix: 'adv/' }); const out = {}; await Promise.all(blobs.map(async b => { out[b.key.slice(4)] = await store.get(b.key, { type: 'json' }); })); return out; };
+      return troopOpsRoutes(store, head, rest, req, body, now, { me, isLeader, people, colItems, settings: st, listAdv, photoMetas, pointsBoard: () => pointsBoard(store, st.patrols, st.opts) });
     }
     if (['knots', 'points', 'hunt', 'duty', 'coh'].includes(head)) {
       const st = await settings(store), me = session?.member;
@@ -648,7 +709,7 @@ async function route(req, opts) {
     if (head === 'elect') return electRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people || await loadPeople(store), isLeader, opts: ctx2.opts });
     if (head === 'inspect') return inspectRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people, isLeader });
     if (head === 'quiz') return quizRoutes(store, rest, req, body, now, { me: session?.member });
-    if (head === 'hikes') return hikeRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people, isLeader, colItems, useMap: opts.useMap });
+    if (head === 'hikes') return hikeRoutes(store, rest, req, body, now, { me: session?.member, people: session?.people, isLeader, colItems, useMap: opts.useMap, opts: ctx2.opts });
     if (head === 'mbcatalog' && req.method === 'GET') {
       const [advs, gear, counselors] = await Promise.all([listJSON(store, 'adv/'), colItems(store, 'gear'), colItems(store, 'counselors')]);
       const names = new Map();
@@ -660,20 +721,39 @@ async function route(req, opts) {
     }
     if (head === 'pricebook' && req.method === 'GET') return json({ book: (await store.get('pricebook', { type: 'json' })) || {} });
 
+    {
+      const st = await settings(store);
+      const offFor = { recipes: 'kitchen', pantry: 'kitchen', gear: 'gear', counselors: 'counselors' }[head === 'c' ? rest[0] : head === 'gear' ? 'gear' : head === 'pricebook' ? 'pantry' : ''];
+      if (offFor && !st.features[offFor] && !(isLeader && req.method === 'GET')) return err('Leaders have turned this part of Basecamp off.', 403);
+    }
     // generic collections: /api/c/:col[/:id]
     if (head === 'c' && COLS[rest[0]]) {
       const [col, id] = rest;
-      if (!id && req.method === 'GET') return json({ items: await listCol(store, col, url) });
+      if (!id && req.method === 'GET') {
+        let items = await listCol(store, col, url);
+        // guests on the shared troop code see first names and last initials only
+        if (!session && !isLeader && ['rsvps', 'plans', 'gear'].includes(col)) items = items.map(x => guestSafe(col, x));
+        return json({ items });
+      }
       if (!id || !ID.test(id)) return err('Bad id');
       if (req.method === 'GET') { const d = await getDoc(store, col, id); return d ? json({ item: d }) : err('Not found', 404); }
       if (req.method === 'PUT') {
         const isNew = col === 'posts' && !(await getDoc(store, col, id));
+        if (col === 'rsvps' && !isLeader) {
+          const mine = [session.member.id, ...(session.member.scouts || [])];
+          if (!mine.includes(body.memberId)) return err('You can sign up yourself or your own scouts.', 403);
+          const who = session.people.members.find(m => m.id === body.memberId);
+          body = { ...body, name: who.name, role: who.role === 'scout' ? 'scout' : 'adult', patrol: who.patrol || '' };
+          if (id !== `${body.outingId}__${body.memberId}`) return err('Bad id');
+        }
+        if (col === 'posts' && body.link && !/^https?:\/\//i.test(String(body.link))) body = { ...body, link: '' };
         const res = await putDoc(store, col, id, body, isLeader, now);
         if (isNew && res.status === 200) later(notify(store, null, 'news', { title: `📣 ${String(body.title || '').slice(0, 80)}`, body: body.body || 'New announcement from the troop leaders.', url: '#/', tag: `post-${id}` }));
         return res;
       }
       if (req.method === 'DELETE') {
         if (COLS[col].del === 'leader' && !isLeader) return err('Only leaders can delete this.', 403);
+        if (col === 'rsvps' && !isLeader) { const d = await getDoc(store, col, id); if (d && ![session.member.id, ...(session.member.scouts || [])].includes(d.memberId)) return err('You can only change your own sign-ups.', 403); }
         await store.delete(`c/${col}/${id}`);
         return json({ ok: true });
       }
@@ -685,7 +765,10 @@ async function route(req, opts) {
     if (head === 'albums' && req.method === 'GET') return json({ albums: await albums(store) });
     if (head === 'photos' && req.method === 'GET' && rest[0]) return photoFile(store, rest[0], { thumb: rest[1] === 'thumb' });
     if (head === 'photos' && req.method === 'GET') { const lim = Number(url.searchParams.get('limit')) || 0; const all = await photoList(store); return json({ photos: lim ? all.slice(0, lim) : all }); }
-    if (head === 'photos' && req.method === 'POST') return addPhoto(store, body, now);
+    if (head === 'photos' && req.method === 'POST') {
+      if ((await photoMetas(store)).filter(p => p.status === 'pending').length >= 300) return err('Lots of photos are waiting for a leader to review. Try again after they catch up.', 429);
+      return addPhoto(store, body, now);
+    }
     if (head === 'roster' && req.method === 'GET') return json({ scouts: (await roster(store)).map(s => ({ id: s.id, name: scoutName(s), patrol: s.patrol })) });
     if (head === 'consent' && req.method === 'POST') return saveConsent(store, body, now);
     if (head === 'consent' && req.method === 'GET' && rest[0]) {

@@ -225,7 +225,8 @@ export async function hikeRoutes(store, rest, req, body, now, ctx) {
       const a = await analyze(body.points, { useMap: ctx.useMap !== false });
       if (!a || a.distance < 20) return err('That track is too short to save. Walk a little farther and try again.');
       const startAt = num(body.startAt, 1e12, 9e12) || now - a.elapsed * 1000;
-      const hideEnds = body.hideEnds !== false;
+      // with the troop setting on, the start and finish are always trimmed on the server (a hike that starts at home)
+      const hideEnds = ctx?.opts?.hikeHideEnds !== false ? true : body.hideEnds !== false;
       const shown = hideEnds ? trimEnds(a.pts) : a.pts;
       const stored = thin(shown, 3000);
       const offset = shown.length ? Math.round(a.cum[a.pts.indexOf(shown[0])] || 0) : 0;   // meters hidden before the first map point
@@ -248,6 +249,18 @@ export async function hikeRoutes(store, rest, req, body, now, ctx) {
   if (!sub && req.method === 'GET') {
     const t = h.manual ? null : await store.get(`hikepts/${h.id}`, { type: 'json' });
     return json({ hike: shape(h), points: t?.pts || [], profile: t?.profile || [], offset: t?.offset || 0, canEdit: canEdit(h) });
+  }
+  // GPX download of the track as saved (the hidden start and finish stay hidden)
+  if (sub === 'gpx' && req.method === 'GET') {
+    const t = h.manual ? null : await store.get(`hikepts/${h.id}`, { type: 'json' });
+    if (!t?.pts?.length) return err('This hike has no GPS track.', 404);
+    const x = s => String(s).replace(/[<>&'"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+    const segs = []; let cur = []; let last = t.pts[0]?.[4] || 0;
+    for (const p of t.pts) { if ((p[4] || 0) !== last && cur.length) { segs.push(cur); cur = []; last = p[4] || 0; } cur.push(p); }
+    if (cur.length) segs.push(cur);
+    const pt = p => `<trkpt lat="${(+p[0]).toFixed(6)}" lon="${(+p[1]).toFixed(6)}">${typeof p[2] === 'number' ? `<ele>${p[2].toFixed(1)}</ele>` : ''}${typeof p[3] === 'number' && h.startAt ? `<time>${new Date(h.startAt + p[3] * 1000).toISOString()}</time>` : ''}</trkpt>`;
+    const gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Troop Basecamp" xmlns="http://www.topografix.com/GPX/1/1"><metadata><name>${x(h.title)}</name></metadata><trk><name>${x(h.title)}</name>${segs.map(sg => `<trkseg>${sg.map(pt).join('')}</trkseg>`).join('')}</trk></gpx>`;
+    return new Response(gpx, { headers: { 'content-type': 'application/gpx+xml; charset=utf-8', 'content-disposition': `attachment; filename="${(h.title || 'hike').replace(/[^\w -]/g, '').slice(0, 60) || 'hike'}.gpx"`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } });
   }
   if (sub === 'kudos' && req.method === 'POST') {
     if (!me) return err('Sign in first.', 401);

@@ -1,3 +1,4 @@
+import { SignInFirst, useCanChange } from '../components/SignInFirst.jsx';
 import { useEffect, useState } from 'react';
 import Icon from '../components/Icon.jsx';
 import { PageHead, Section } from '../components/ui.jsx';
@@ -11,6 +12,12 @@ import { api, usePatrols } from '../lib/api.js';
 const blankScout = () => ({ first: '', lastInitial: '', patrol: '', level: '' });
 
 export default function Permission() {
+  const canChange = useCanChange();
+  if (!canChange) return <SignInFirst title="Photo permission" what="Signing in lets a parent or guardian set their scout's photo permission." />;
+  return <PermissionForm />;
+}
+
+function PermissionForm() {
   const [me, setMe] = useMe();
   const [family, setFamily] = useLocal('family', null);   // { id, scouts, parent, updated }
   const [editing, setEditing] = useState(!family);

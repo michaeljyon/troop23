@@ -13,7 +13,8 @@ D = lambda n: (TODAY + dt.timedelta(days=n)).isoformat()
 
 def call(path, body=None, method=None, s=None, leader=False):
     h = {'content-type': 'application/json', 'x-troop-code': 'demo'}
-    if leader: h['x-leader-passcode'] = PASS
+    # the shared troop code is read-only, so writes without a personal session go in as a leader
+    if leader or (body is not None and not s and not path.startswith('auth/')): h['x-leader-passcode'] = PASS
     if s: h['x-session'] = s
     r = urllib.request.Request(BASE + path, data=json.dumps(body).encode() if body is not None else None, headers=h, method=method or ('POST' if body is not None else 'GET'))
     try: return json.loads(urllib.request.urlopen(r, timeout=60).read() or b'{}')
@@ -284,3 +285,74 @@ for who, times in [('Demo Scout', {'square': 6400, 'bowline': 14800, 'taut-line'
 r = call(f"duty/{O['camp']}", s=sess['Demo Leader'])['roster']; r.pop('draft', None)
 call(f"duty/{O['camp']}", r, method='PUT', s=sess['Demo Leader'])
 print('Demo ready. Leader code XXXX-XXXX, scout code XXXX-XXXS, guest troop code "demo".')
+
+# ---------------------------------------------------------------- outing safety, rides and slips for the campout
+L = sess['Demo Leader']
+call(f"outsafe/{O['camp']}", {'hospital': 'Calhoun Liberty Hospital', 'hospitalAddress': '20370 NE Burns Ave, Blountstown, FL', 'hospitalPhone': '(850) 674-5411', 'ranger': 'Torreya State Park office', 'rangerPhone': '(850) 643-2674',
+      'rally': 'Main pavilion by the parking lot', 'plan': 'Call 911 first, then the Scoutmaster. Two adults stay with the patrols; one drives to meet EMS at the park entrance.', 'cell': 'Weak at the campsite; good signal at the overlook parking lot.'}, method='PUT', s=L)
+cp = call(f"carpool/{O['camp']}", s=sess['Pat Morgan'])
+if not any(d['by'] == P['Pat Morgan']['id'] for d in cp['drivers']):
+    call(f"carpool/{O['camp']}", {'op': 'drive', 'seats': 4, 'leg': 'both', 'leave': 'Fri 5:30 PM from the church', 'note': 'Room for 2 packs in the back'}, s=sess['Pat Morgan'])
+    did = [d for d in call(f"carpool/{O['camp']}", s=L)['drivers'] if d['by'] == P['Pat Morgan']['id']][0]['id']
+    for kid in ['Mason Reyes', 'Ethan Brooks']: call(f"carpool/{O['camp']}", {'op': 'ride', 'driverId': did, 'riderId': P[kid]['id']}, s=L)
+slip = call(f"slip/{O['camp']}", s=L)
+call(f"slip/{O['camp']}/cfg", {'on': True, 'text': slip['defaultText'], 'due': D(4)}, method='PUT', s=L)
+call(f"slip/{O['camp']}/sign", {'scoutId': P['Mason Reyes']['id'], 'paper': True}, s=L)
+
+# ---------------------------------------------------------------- requirement sign-offs, service hours and an Eagle project
+for who, rank, reqs in [('Liam Carter', 'First Class', ['1a', '1b', '2a', '2b', '2c', '3a']), ('Caleb Nguyen', 'Tenderfoot', ['1a', '1b', '1c', '2a', '2b', '2c', '3a', '3b']), ('Demo Scout', 'First Class', ['1a', '1b', '2a', '2b', '2c', '2d', '2e', '3a'])]:
+    for rq in reqs: call(f"signoff/{P[who]['id']}", {'rank': rank, 'req': rq, 'on': True}, s=L)
+have = {(e['name'], e['project']) for e in call('service', s=L)['entries']}
+for names, date, hrs, proj, cons in [(['Demo Scout', 'Liam Carter', 'Mason Reyes', 'Noah Patel'], D(-20), 3, 'Tom Brown Park trail cleanup', True), (['Ethan Brooks', 'Owen Harris', 'Jack Lopez'], D(-34), 2, 'Food bank sorting', False), (['Demo Scout'], D(-9), 1.5, 'Church landscaping', False)]:
+    ids = [P[n]['id'] for n in names if (n, proj) not in have]
+    if ids: call('service', {'memberIds': ids, 'date': date, 'hours': hrs, 'project': proj, 'conservation': cons}, s=L)
+call(f"eagle/{P['Ethan Brooks']['id']}", {'title': 'Bat houses for the nature center', 'beneficiary': 'County nature center', 'coach': 'Sam Brooks', 'hours': 0,
+      'stages': {'idea': D(-70), 'proposal': D(-50), 'benef': D(-45), 'unit': D(-40), 'committee': D(-35), 'council': D(-21)}}, method='PUT', s=L)
+
+# ---------------------------------------------------------------- summer camp, meetings and a poll
+if not call('camp', s=L)['camps']:
+    blocks = ['Morning 1', 'Morning 2', 'Afternoon']
+    badges = [('Swimming', 'Morning 1', 10), ('First Aid', 'Morning 1', 12), ('Environmental Science', 'Morning 2', 12), ('Wood Carving', 'Morning 2', 8), ('Archery', 'Afternoon', 10), ('Canoeing', 'Afternoon', 8), ('Camping', 'Afternoon', 12)]
+    c = call('camp', {'name': 'Summer camp', 'place': 'Council summer camp', 'start': f'{TODAY.year + 1}-06-14', 'end': f'{TODAY.year + 1}-06-20', 'note': 'Picks are due by May 1.', 'blocks': blocks, 'badges': [{'name': n, 'block': b, 'seats': s_} for n, b, s_ in badges], 'open': True}, s=L)['camp']
+    call(f"camp/{c['id']}/pick", {'memberId': P['Demo Scout']['id'], 'picks': {'Morning 1': 'Swimming', 'Morning 2': 'Environmental Science', 'Afternoon': 'Archery'}}, s=sess['Demo Scout'])
+    call(f"camp/{c['id']}/pick", {'memberId': P['Liam Carter']['id'], 'picks': {'Morning 1': 'First Aid', 'Afternoon': 'Canoeing'}}, s=L)
+if not call('meet', s=L)['meetings']:
+    nxt = TODAY + dt.timedelta(days=(0 - TODAY.weekday()) % 7 or 7)
+    call('meet', {'date': nxt.isoformat(), 'title': 'Troop meeting', 'theme': 'Getting ready for the campout', 'parts': {
+        'pre': {'text': 'Knot relay practice by the door', 'who': 'Mason Reyes', 'mins': 15}, 'open': {'text': 'Flag ceremony, Oath and Law', 'who': 'Eagles', 'mins': 5},
+        'skills': {'text': 'Tent pitching and the taut-line hitch', 'who': 'Owen Harris', 'mins': 20}, 'patrol': {'text': 'Finish menus and duty rosters', 'who': 'Patrol leaders', 'mins': 15},
+        'game': {'text': 'Steal the bacon', 'who': 'Ethan Brooks', 'mins': 15}, 'close': {'text': "Scoutmaster's Minute, announcements", 'who': 'Demo Leader', 'mins': 5}}}, s=L)
+if not any(p['q'].startswith('Where should') for p in call('poll', s=L)['polls']):
+    pl = call('poll', {'q': 'Where should we go for the spring campout?', 'options': ['Ochlockonee River State Park', 'St. George Island', 'Florida Caverns'], 'aud': 'all', 'closes': D(10)}, s=L)['poll']
+    for who, o in [('Mason Reyes', 'o1'), ('Ethan Brooks', 'o1'), ('Owen Harris', 'o0'), ('Pat Morgan', 'o2')]: call(f"poll/{pl['id']}/vote", {'opts': [o]}, s=sess[who])
+
+# ---------------------------------------------------------------- Christmas Tree Sale
+y = TODAY.year
+call('fund/cfg', {'name': 'Christmas Tree Sale', 'goal': 12000, 'lot': 'Church parking lot on the corner', 'hours': 'Weekdays 4–8 PM, Saturdays 9 AM–8 PM, Sundays 12–6 PM, from the Friday after Thanksgiving until the trees run out',
+      'note': 'Every scout works at least two shifts. Wear your Class B shirt and bring work gloves.',
+      'items': [{'id': 'f56', 'label': 'Fraser fir, 5–6 ft', 'price': 65, 'received': 120}, {'id': 'f67', 'label': 'Fraser fir, 6–7 ft', 'price': 80, 'received': 180}, {'id': 'f78', 'label': 'Fraser fir, 7–8 ft', 'price': 100, 'received': 120},
+                {'id': 'f89', 'label': 'Fraser fir, 8–9 ft', 'price': 130, 'received': 50}, {'id': 'tt', 'label': 'Tabletop tree', 'price': 30, 'received': 40}, {'id': 'wr', 'label': 'Wreath', 'price': 35, 'received': 80}, {'id': 'st', 'label': 'Tree stand', 'price': 25, 'received': 30}]}, method='PUT', s=L)
+if not call('fund', s=L)['shifts']:
+    first_thu = dt.date(y, 11, 1) + dt.timedelta(days=(3 - dt.date(y, 11, 1).weekday()) % 7)
+    fri = first_thu + dt.timedelta(days=22)  # the Friday after Thanksgiving (fourth Thursday)
+    days = [(fri + dt.timedelta(days=i)).isoformat() for i in range(3)]
+    sh = call('fund/shifts', {'dates': days, 'times': [['09:00', '13:00'], ['13:00', '17:00'], ['17:00', '20:00']], 'adults': 2, 'scouts': 3}, s=L)['shifts']
+    for i, who in enumerate(['Demo Scout', 'Mason Reyes', 'Owen Harris', 'Pat Morgan', 'Demo Leader', 'Liam Carter']):
+        call(f"fund/shift/{sh[i % 3]['id']}", {'memberId': P[who]['id'], 'on': True}, s=L)
+
+# ---------------------------------------------------------------- Eagle wall, lost and found, geocaching
+if not call('eagles', s=L)['eagles']:
+    for n, yr, proj in [('Daniel Ruiz', str(y - 1), 'Benches for the church garden'), ('Marcus Webb', str(y - 3), 'Trail markers at the city park'), ('Isaac Grant', str(y - 6), 'Little free library')]:
+        call('eagles', {'name': n, 'year': yr, 'project': proj}, s=L)
+if not call('lost', s=L).get('items'):
+    im = Image.new('RGB', (600, 450), (40, 90, 160)); dr = ImageDraw.Draw(im); dr.rounded_rectangle((220, 60, 380, 400), 30, fill=(30, 120, 200)); dr.rectangle((250, 30, 350, 70), fill=(20, 20, 20))
+    buf = io.BytesIO(); im.save(buf, 'JPEG', quality=80)
+    call('lost', {'title': 'Blue water bottle', 'where': 'Left at the meeting hall', 'note': 'Has a sticker on the side.', 'data': 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()}, s=L)
+if not call('geo', s=L)['courses']:
+    lat, lng = 30.4489, -84.2335  # a city park in Tallahassee (made-up cache spots)
+    caches = [{'name': n, 'lat': round(lat + dy, 6), 'lng': round(lng + dx, 6), 'hint': h, 'pts': p} for n, dy, dx, h, p in [
+        ('Pavilion Post', 0.0004, 0.0003, 'Under the bench by the third post', 5), ('Old Oak', 0.0011, -0.0006, 'In the roots on the trail side', 5),
+        ('Bridge Troll', -0.0007, 0.0012, 'Look under the north end of the footbridge', 10), ('Lookout', 0.0016, 0.0015, 'Behind the trail sign', 10)]]
+    g = call('geo', {'title': 'Park geocache challenge', 'note': 'Find all four caches. Stay with your buddy and on the trails.', 'date': D(13), 'caches': caches}, s=L)['course']
+    call(f"geo/{g['id']}", {'status': 'open'}, method='PUT', s=L)
+print('new-feature demo data done')
