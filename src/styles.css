@@ -1209,3 +1209,66 @@ input[role=switch]:focus-visible { outline: 3px solid var(--accent); outline-off
 .loc-copy { margin-top: 8px; }
 .loc-diag { white-space: pre-wrap; word-break: break-word; font-size: 12px; background: var(--page); border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin: 8px 0 4px; }
 .loc-foot { display: grid; gap: 8px; }
+
+/* ---------- location walkthrough */
+.wiz { animation: up .18s ease; }
+.wiz-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.wiz-count { font: 800 12.5px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); white-space: nowrap; }
+.wiz-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--sand); overflow: hidden; }
+.wiz-bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .3s; }
+.wiz-title { margin: 6px 0 10px; font: 800 24px/1.1 var(--head); text-transform: uppercase; color: var(--primary-dark); }
+.wiz-text { margin: 12px 0 0; font-size: 16px; line-height: 1.6; color: var(--ink-2); }
+.wiz-nav { display: flex; gap: 8px; } .wiz-nav .btn { flex: 1; }
+.wiz-links { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+/* the little phone */
+.phone { position: relative; width: 236px; margin: 4px auto 0; padding: 14px 10px 10px; border-radius: 34px; background: #1A1F1C; box-shadow: 0 14px 34px rgba(12,28,19,.28), inset 0 0 0 2px #39423D; }
+.ph-notch { width: 70px; height: 18px; border-radius: 10px; background: #000; margin: -4px auto 6px; }
+.ph-top { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 18px 18px 0 0; background: #F2F2F7; color: #111; }
+.ph-top b { font: 700 14px -apple-system, system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ph-back { color: #0A84FF; font-size: 20px; line-height: 1; width: 10px; }
+.ph-body { min-height: 196px; padding: 8px; background: #F2F2F7; animation: slide .25s ease; }
+@keyframes slide { from { transform: translateX(14px); opacity: .3; } to { transform: none; opacity: 1; } }
+.ph-group { background: #fff; border-radius: 12px; overflow: hidden; margin-bottom: 8px; }
+.ph-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 31px; padding: 6px 10px; font: 600 12.5px -apple-system, system-ui, sans-serif; color: #111; }
+.ph-row + .ph-row { border-top: 1px solid #E5E5EA; }
+.ph-row.ghost i { display: block; height: 7px; border-radius: 4px; background: #E3E3E8; }
+.ph-row.tap { background: #FFF3E3; box-shadow: inset 0 0 0 2px var(--accent); border-radius: 8px; z-index: 1; }
+.ph-row.tap svg { color: #8E8E93; }
+.ph-row.opt { color: #111; } .ph-row.pick { color: #0A84FF; font-weight: 800; background: #EAF3FF; }
+.ph-switch { width: 34px; height: 20px; border-radius: 10px; background: #D1D1D6; position: relative; flex: none; }
+.ph-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); transition: left .3s; }
+.ph-switch.on { background: #34C759; } .ph-switch.on::after { left: 16px; }
+.ph-finger { position: absolute; right: 26px; top: 50%; width: 22px; height: 22px; margin-top: -11px; border-radius: 50%; background: rgba(232,131,58,.35); border: 2px solid var(--accent); animation: tapping 1.5s ease-in-out infinite; pointer-events: none; }
+@keyframes tapping { 0%, 100% { transform: scale(1); opacity: .9; } 45% { transform: scale(.7); opacity: 1; } 60% { transform: scale(1.25); opacity: .4; } }
+.ph-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 6px; background: #2B2F2D; border-radius: 14px; }
+.ph-tiles span { height: 48px; border-radius: 14px; background: #4A504D; display: grid; place-items: center; color: #fff; font: 700 11px system-ui; }
+.ph-tiles span.tap { position: relative; box-shadow: 0 0 0 2px var(--accent); } .ph-tiles span.tap.on { background: #0A84FF; }
+.ph-dots { display: flex; justify-content: center; gap: 5px; margin-top: 8px; }
+.ph-dots i { width: 6px; height: 6px; border-radius: 50%; background: #4A504D; } .ph-dots i.on { background: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .ph-finger, .ph-body, .wiz { animation: none; } }
+/* primer */
+.primer { display: grid; gap: 12px; }
+.fake-dialog { justify-self: center; width: min(290px, 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,.2); background: #F2F2F7; text-align: center; font-family: -apple-system, system-ui, sans-serif; }
+.fake-dialog .fd-title { margin: 0; padding: 16px 14px 12px; font-size: 14.5px; line-height: 1.35; color: #111; }
+.fake-dialog .fd-row { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #D1D1D6; }
+.fake-dialog .fd-row .fd-btn + .fd-btn { border-left: 1px solid #D1D1D6; }
+.fd-btn { position: relative; display: block; padding: 11px; color: #0A84FF; font-size: 16px; }
+.fd-btn.hl { font-weight: 800; background: #FFF3E3; box-shadow: inset 0 0 0 2px var(--accent); }
+.fake-dialog.android { background: #fff; text-align: left; border-radius: 22px; padding-bottom: 8px; }
+.fake-dialog.android .fd-title { padding: 18px 18px 10px; }
+.fake-dialog.android .fd-btn { margin: 4px 14px; border-radius: 99px; text-align: center; color: #0B57D0; background: #E8F0FE; font-weight: 600; font-size: 14.5px; }
+.fake-dialog.android .fd-btn.hl { background: #FFF3E3; }
+.fd-btn .ph-finger { right: 14px; }
+.primer-tip { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--good-bg); color: var(--good); font-size: 15px; }
+.primer-tip svg { flex: none; margin-top: 3px; }
+.phone.android { border-radius: 26px; }
+.phone.android .ph-notch { width: 12px; height: 12px; border-radius: 50%; }
+.phone.android .ph-top { background: #fff; border-radius: 14px 14px 0 0; padding: 12px 12px 8px; }
+.phone.android .ph-top b { font: 500 16px Roboto, system-ui, sans-serif; }
+.phone.android .ph-back { color: #1F1F1F; font-size: 18px; width: 16px; }
+.phone.android .ph-body { background: #fff; }
+.phone.android .ph-group { border-radius: 0; }
+.phone.android .ph-row { font-family: Roboto, system-ui, sans-serif; min-height: 34px; }
+.phone.android .ph-row + .ph-row { border-top: 0; }
+.phone.android .ph-row.pick { color: #0B57D0; background: #E8F0FE; border-radius: 99px; }
+.phone.android .ph-switch.on { background: #0B57D0; }
