@@ -2,6 +2,7 @@ import { useState } from 'react';
 import OutingsCalendar from './OutingsCalendar.jsx';
 import { useApi } from '../lib/api.js';
 import Icon from '../components/Icon.jsx';
+import { useFeatures } from '../lib/features.js';
 import { PageHead, Empty, Sheet, Seg } from '../components/ui.jsx';
 import { useCol, useLeaderMode, saveDoc, deleteDoc } from '../lib/api.js';
 import { troop, rid } from '../lib/config.js';
@@ -12,6 +13,7 @@ import { OutingRow } from './Home.jsx';
 import { useCalendarLink, webcal, googleAdd } from '../lib/calendar.js';
 
 export default function Outings({ route }) {
+  const F = useFeatures();
   const outings = useCol('outings');
   const albums = useApi('albums');
   const leader = useLeaderMode();
@@ -42,6 +44,7 @@ export default function Outings({ route }) {
       </PageHead>
       <Seg label="Show" value={view} onChange={setView} options={[['upcoming', 'Upcoming'], ['calendar', 'Calendar'], ['past', 'Past']]} />
       <button className="cal-sub-btn" onClick={() => setSubscribing(true)}><Icon name="calendar" size={18} /><span className="grow"><b>Put troop outings in your phone's calendar</b><span>Stays up to date by itself</span></span><Icon name="chevronR" size={16} /></button>
+      {F.explore && <a className="alert-card ex-shortcut" href="#/explore"><span aria-hidden="true" style={{ fontSize: 26 }}>⛺</span><span className="grow"><b>Where should we camp next?</b><span className="small">Explore places to camp within about 2½ hours, with photos and a map.</span></span><Icon name="chevronR" size={18} /></a>}
       {view === 'past' && pastAll.length > 0 && (
         <div className="gal-filters">
           <div className="search-row"><Icon name="search" size={18} /><input value={pq} onChange={e => setPq(e.target.value)} placeholder="Search past outings and places" aria-label="Search past outings" /></div>

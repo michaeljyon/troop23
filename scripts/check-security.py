@@ -566,6 +566,15 @@ check('other people are not locked out', h('leader/check', {'x-leader-passcode':
 codes = [h('auth/redeem', {}) for _ in range(1)]
 for f in os.listdir(STORE):
     if f.startswith('rl%2F'): os.remove(f'{STORE}/{f}')
+# --- campsite explorer favorites
+st, r = call('explore', troop=True); check('guests see favorite counts but not names', st == 200 and r.get('who') == {}, st)
+st, _ = call('explore/pick', {'id': 'torreya-sp', 'on': True}, troop=True); check('guests cannot pick favorites', st == 401, st)
+st, _ = call('explore/pick', {'id': 'torreya-sp', 'on': True}, leader=True); check('the leader passcode alone cannot pick favorites', st == 403, st)
+st, _ = call('explore/pick', {'id': '../evil', 'on': True}, s=S['plain']); check('only real campsites can be picked', st == 400, st)
+for i in ['torreya-sp', 'ochlockonee-river-sp', 'st-andrews-sp', 'oleno-sp', 'manatee-springs-sp']: call('explore/pick', {'id': i, 'on': True}, s=S['plain'])
+st, _ = call('explore/pick', {'id': 'kolomoki-mounds-sp', 'on': True}, s=S['plain']); check('five favorites is the limit', st == 409, st)
+st, r = call('explore', s=S['plain']); check('members see who picked a place', st == 200 and any(r['who'].values()), st)
+for i in ['torreya-sp', 'ochlockonee-river-sp', 'st-andrews-sp', 'oleno-sp', 'manatee-springs-sp']: call('explore/pick', {'id': i, 'on': False}, s=S['plain'])
 st, _ = call('%E0%A4%A'); check('a broken URL is a clean error, not a crash', st in (400, 401, 404), st)
 bad = [r for r in results if not r[0]]
 print(f'\nWITH HARDENING {len(results) - len(bad)}/{len(results)} passed'); [print('FAIL', n, d) for _, n, d in bad]

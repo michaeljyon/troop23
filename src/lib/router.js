@@ -26,7 +26,7 @@ const NAMES = {
   home: 'Home', outings: 'Outings', outing: 'Outing', gallery: 'Photos', kitchen: 'Kitchen', gear: 'Gear locker', packing: 'Packing list',
   messages: 'Chat', thread: 'Chat', more: 'More', leaders: 'Leader tools', advancement: 'Advancement', counselors: 'Counselors',
   hikes: 'Hikes', track: 'Recording', permission: 'Photo permission', snap: 'Snap', slideshow: 'Slideshow',
-  games: 'Games', play: 'Game', live: 'Campfire Clash', inspect: 'Inspections', vote: 'Elections', notes: 'Meeting notes', campfire: 'Campfire', ceremonies: 'Ceremonies', knots: 'Knots', points: 'Patrol points', hunts: 'Scavenger hunts', sky: 'Night sky', coh: 'Court of Honor', emergency: 'Emergency card', buddy: 'Buddy board', field: 'Field guide', reqs: 'Requirements', service: 'Service hours', eagle: 'Eagle projects', camp: 'Summer camp', meetings: 'Meeting plans', polls: 'Polls', checkin: 'Check-in', year: 'Year in review', eagles: 'Eagle Scouts', lost: 'Lost and found', fundraiser: 'Tree sale', geocache: 'Geocaching',
+  games: 'Games', play: 'Game', live: 'Campfire Clash', inspect: 'Inspections', vote: 'Elections', notes: 'Meeting notes', campfire: 'Campfire', ceremonies: 'Ceremonies', knots: 'Knots', points: 'Patrol points', hunts: 'Scavenger hunts', sky: 'Night sky', coh: 'Court of Honor', emergency: 'Emergency card', buddy: 'Buddy board', field: 'Field guide', reqs: 'Requirements', service: 'Service hours', eagle: 'Eagle projects', camp: 'Summer camp', meetings: 'Meeting plans', polls: 'Polls', checkin: 'Check-in', year: 'Year in review', eagles: 'Eagle Scouts', lost: 'Lost and found', fundraiser: 'Tree sale', geocache: 'Geocaching', explore: 'Campsite explorer',
 };
 export function pageName(r) {
   if (r.name === 'advancement' && r.args[0]) return 'Scout';
@@ -61,9 +61,9 @@ export function parentOf(r) {
   if (['knots', 'hunts', 'coh', 'meetings', 'camp'].includes(r.name) && r.args[1]) return `${r.name}/${r.args[0]}`;
   if (r.name === 'emergency' && r.args[0]) return `outing/${r.args[0]}`;
   if (r.name === 'buddy' && r.query.outing) return `outing/${r.query.outing}`;
-  if (r.args[0] && ['advancement', 'hikes', 'inspect', 'vote', 'campfire', 'ceremonies', 'knots', 'points', 'hunts', 'sky', 'coh', 'field', 'reqs', 'eagle', 'camp', 'meetings', 'checkin', 'year', 'geocache'].includes(r.name)) return r.name;
+  if (r.args[0] && ['advancement', 'hikes', 'inspect', 'vote', 'campfire', 'ceremonies', 'knots', 'points', 'hunts', 'sky', 'coh', 'field', 'reqs', 'eagle', 'camp', 'meetings', 'checkin', 'year', 'geocache', 'explore'].includes(r.name)) return r.name;
   return { outing: 'outings', thread: 'messages', track: 'hikes', counselors: 'advancement', slideshow: 'gallery', snap: 'home', kitchen: 'more', gear: 'more', gallery: 'more',
-    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home', games: 'more', play: 'games', live: 'games', inspect: 'more', vote: 'more', notes: 'more', campfire: 'more', ceremonies: 'more', knots: 'more', points: 'more', hunts: 'more', sky: 'more', coh: 'more', field: 'more', reqs: 'advancement', service: 'advancement', eagle: 'advancement', camp: 'more', meetings: 'more', polls: 'more', checkin: 'more', year: 'more', eagles: 'more', lost: 'more', fundraiser: 'more', geocache: 'more', buddy: 'outings', emergency: 'outings' }[r.name] || 'home';
+    packing: 'more', permission: 'more', leaders: 'more', hikes: 'more', advancement: 'more', outings: 'home', messages: 'home', more: 'home', games: 'more', play: 'games', live: 'games', inspect: 'more', vote: 'more', notes: 'more', campfire: 'more', ceremonies: 'more', knots: 'more', points: 'more', hunts: 'more', sky: 'more', coh: 'more', field: 'more', reqs: 'advancement', service: 'advancement', eagle: 'advancement', camp: 'more', meetings: 'more', polls: 'more', checkin: 'more', year: 'more', eagles: 'more', lost: 'more', fundraiser: 'more', geocache: 'more', explore: 'more', buddy: 'outings', emergency: 'outings' }[r.name] || 'home';
 }
 
 // pages visited this session, one entry per page (kept in step with history)

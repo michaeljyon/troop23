@@ -55,6 +55,7 @@ export default function More() {
       F.lost && ['lost', 'box', 'Lost and found', 'Left something at camp?'],
     ]],
     ['Camp & gear', [
+      F.explore && ['explore', 'map', 'Campsite explorer', 'Places to camp near Tallahassee, with photos and a map'],
       F.gear && ['gear', 'box', 'Gear locker', 'Tents, stoves and the merit badge library'],
       F.kitchen && ['kitchen', 'pot', 'Troop kitchen', 'Recipes and the pantry'],
       ['packing', 'checklist', 'Packing list', 'Standard overnight list'],

@@ -24,6 +24,7 @@ import { knotRoutes, pointsRoutes, huntRoutes, dutyRoutes, cohRoutes, pointsBoar
 import { safetyRoutes } from './safety.mjs';
 import { advance2Routes } from './advance2.mjs';
 import { troopOpsRoutes } from './troopops.mjs';
+import { exploreRoutes } from './explore.mjs';
 import { syncRoutes } from './sync.mjs';
 import { quizRoutes, levelOf } from './quiz.mjs';
 
@@ -278,7 +279,7 @@ async function planAction(store, id, parts, req, body, now) {
 
 // ---------------------------------------------------------------- settings
 // Parts of the app leaders can switch off for the whole troop, and options for each.
-export const FEATURES = ['games', 'hikes', 'inspect', 'vote', 'notes', 'campfire', 'ceremonies', 'knots', 'points', 'hunts', 'duty', 'sky', 'coh', 'safety', 'carpool', 'slips', 'reqs', 'service', 'eagle', 'camp', 'meetings', 'polls', 'checkin', 'fund', 'year', 'eagles', 'lost', 'geo', 'kitchen', 'gear', 'counselors'];
+export const FEATURES = ['games', 'hikes', 'inspect', 'vote', 'notes', 'campfire', 'ceremonies', 'knots', 'points', 'hunts', 'duty', 'sky', 'coh', 'safety', 'carpool', 'slips', 'reqs', 'service', 'eagle', 'camp', 'meetings', 'polls', 'checkin', 'fund', 'year', 'eagles', 'lost', 'geo', 'kitchen', 'gear', 'counselors', 'explore'];
 const OPTS = { hikeHideEnds: true, voteLiveDefault: true, notesParentsPLC: false, gamesLive: true, fireSuggest: true, pointsInspect: true, pointsHunts: true, signYouth: true, pointsGeo: true };
 async function settings(store) {
   const s = (await store.get('settings', { type: 'json' })) || {};
@@ -677,13 +678,14 @@ async function route(req, opts) {
     const ctx2 = {};
     if (head === 'sync') return syncRoutes(store, rest, req, body, now, { me: session?.member, isLeader, passcode: !!opts.leaderPasscode && same(leaderGiven, opts.leaderPasscode), settings: await settings(store) });
     if (head === 'fire') return fireRoutes(store, rest, req, body, now, { me: session?.member, isLeader, settings: await settings(store) });
-    const FEATURE_OF = { weather: 'safety', outsafe: 'safety', carpool: 'carpool', slip: 'slips', signoff: 'reqs', service: 'service', eagle: 'eagle', camp: 'camp', meet: 'meetings', poll: 'polls', attend: 'checkin', fund: 'fund', year: 'year', eagles: 'eagles', lost: 'lost', quiz: 'games', hikes: 'hikes', inspect: 'inspect', elect: 'vote', notes: 'notes', knots: 'knots', points: 'points', hunt: 'hunts', duty: 'duty', coh: 'coh' };
+    const FEATURE_OF = { weather: 'safety', outsafe: 'safety', carpool: 'carpool', slip: 'slips', signoff: 'reqs', service: 'service', eagle: 'eagle', camp: 'camp', meet: 'meetings', poll: 'polls', attend: 'checkin', fund: 'fund', year: 'year', eagles: 'eagles', lost: 'lost', quiz: 'games', hikes: 'hikes', inspect: 'inspect', elect: 'vote', notes: 'notes', knots: 'knots', points: 'points', hunt: 'hunts', duty: 'duty', coh: 'coh', explore: 'explore' };
     if (FEATURE_OF[head]) {
       const st = await settings(store);
       if (!st.features[FEATURE_OF[head]] && !(isLeader && req.method === 'GET')) return err('Leaders have turned this part of Basecamp off.', 403);
       ctx2.opts = st.opts;
       if (head === 'quiz' && rest[0] === 'live' && !st.opts.gamesLive && !isLeader) return err('Leaders have turned live games off.', 403);
     }
+    if (head === 'explore') return exploreRoutes(store, rest, req, body, now, { me: session?.member, isLeader, people: session?.people || await loadPeople(store) });
     const OPS = { safety: ['weather', 'outsafe', 'carpool', 'slip'], adv: ['signoff', 'service', 'eagle', 'camp'], ops: ['meet', 'poll', 'attend', 'fund', 'year', 'eagles', 'lost', 'geo'] };
     if ([...OPS.safety, ...OPS.adv, ...OPS.ops].includes(head)) {
       const st = await settings(store), me = session?.member, people = session?.people || await loadPeople(store);

@@ -386,6 +386,7 @@ const FEATURE_LIST = [
   ['kitchen', 'pot', 'Troop kitchen', 'Recipes, recipe scanning, budgets and the pantry. Outing meal plans stay on either way.'],
   ['gear', 'box', 'Gear locker', 'Troop gear check-out and check-in, and the Gear tab on outings.'],
   ['counselors', 'people', 'Merit badge counselors', 'The counselor list under Advancement.'],
+  ['explore', 'map', 'Campsite explorer', 'Places to camp within about 2½ hours of Tallahassee, with a map and troop favorites.'],
 ];
 
 function Features({ s, save, pass }) {
